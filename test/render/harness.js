@@ -1,10 +1,20 @@
 /**
  * Renders one spec from test/specs-valid with the requested renderer and
  * signals completion through window.__renderDone / window.__renderError.
- * Also reports which renderer actually ran (window.__rendererName) so the
+ * Also reports which renderer actually ran (window.__rendererKind) so the
  * test can assert the intended renderer was used and did not silently fall
  * back. Driven by test/render/render.spec.ts.
  */
+// Errors vega catches and logs carry no stack by the time they reach the
+// console, so record them here for the test to report.
+window.__traces = [];
+const recordTrace = (label, err) => {
+  const stack = (err && err.stack) || String(err);
+  window.__traces.push(`${label}: ${stack}`);
+};
+window.addEventListener('error', e => recordTrace('window.onerror', e.error ?? e.message));
+window.addEventListener('unhandledrejection', e => recordTrace('unhandledrejection', e.reason));
+
 (async () => {
   try {
     const params = new URLSearchParams(window.location.search);

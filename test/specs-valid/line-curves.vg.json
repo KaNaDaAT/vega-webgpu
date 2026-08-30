@@ -1,0 +1,99 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "description": "Line interpolation methods and defined gaps, isolated so the curve handling is not diluted by other marks.",
+  "width": 400,
+  "height": 260,
+  "padding": 10,
+
+  "data": [
+    {
+      "name": "points",
+      "values": [
+        { "x": 0, "y": 40, "ok": true },
+        { "x": 1, "y": 70, "ok": true },
+        { "x": 2, "y": 20, "ok": true },
+        { "x": 3, "y": 90, "ok": true },
+        { "x": 4, "y": 55, "ok": true },
+        { "x": 5, "y": 80, "ok": true },
+        { "x": 6, "y": 30, "ok": true }
+      ]
+    },
+    {
+      "name": "gapped",
+      "values": [
+        { "x": 0, "y": 60, "ok": true },
+        { "x": 1, "y": 30, "ok": true },
+        { "x": 2, "y": 75, "ok": false },
+        { "x": 3, "y": 45, "ok": true },
+        { "x": 4, "y": 85, "ok": true },
+        { "x": 5, "y": 25, "ok": true },
+        { "x": 6, "y": 65, "ok": true }
+      ]
+    }
+  ],
+
+  "scales": [
+    { "name": "x", "type": "linear", "range": "width", "domain": [0, 6] },
+    { "name": "y", "type": "linear", "range": [80, 0], "domain": [0, 100] }
+  ],
+
+  "marks": [
+    {
+      "type": "group",
+      "encode": { "enter": { "y": { "value": 0 } } },
+      "marks": [
+        {
+          "type": "line",
+          "from": { "data": "points" },
+          "encode": {
+            "enter": {
+              "x": { "scale": "x", "field": "x" },
+              "y": { "scale": "y", "field": "y" },
+              "stroke": { "value": "#4c78a8" },
+              "strokeWidth": { "value": 2 },
+              "interpolate": { "value": "basis" }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "encode": { "enter": { "y": { "value": 90 } } },
+      "marks": [
+        {
+          "type": "line",
+          "from": { "data": "points" },
+          "encode": {
+            "enter": {
+              "x": { "scale": "x", "field": "x" },
+              "y": { "scale": "y", "field": "y" },
+              "stroke": { "value": "#f58518" },
+              "strokeWidth": { "value": 2 },
+              "interpolate": { "value": "monotone" }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "encode": { "enter": { "y": { "value": 180 } } },
+      "marks": [
+        {
+          "type": "line",
+          "from": { "data": "gapped" },
+          "encode": {
+            "enter": {
+              "x": { "scale": "x", "field": "x" },
+              "y": { "scale": "y", "field": "y" },
+              "defined": { "field": "ok" },
+              "stroke": { "value": "#54a24b" },
+              "strokeWidth": { "value": 2 }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

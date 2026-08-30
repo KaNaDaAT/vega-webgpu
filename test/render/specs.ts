@@ -44,23 +44,13 @@ export const CROSS_CHECK_DEFAULT = 0.03;
 // They may need widening on CI, where a different OS/font stack shifts text
 // antialiasing. Only specs that exceed the default get an entry.
 export const crossCheckOverrides: Record<string, number | null> = {
-  // (symbol shapes + rotation now match canvas, `symbol-shapes` and
-  // `symbol-angle` hold at the default budget.)
+  // Symbol shapes and rotation, gradient fills, and curved lines all match
+  // canvas now, so those specs hold at the default budget.
 
-  // (gradient fills, including on symbols, now match canvas at the default
-  // budget, the radial concentric approximation is close enough here.)
-
-  // --- Curved links in tree-radial-bundle are constructed differently from
-  // canvas (other curved-link specs match). (roadmap: investigate, see TODO.md)
-  'tree-radial-bundle': 0.13, // ~12.1%
-
-  // --- GPU text: each label is rasterized to a texture whose glyph-edge
+  // GPU text: each label is rasterized to a texture whose glyph-edge
   // antialiasing differs subtly from canvas's direct drawing. Across many
-  // small labels this fringe accumulates. Position, shape and rotation are all
-  // correct. Rotation is now baked into the glyph texture, so rotated labels
-  // (arc-diagram, ~0.8%) are pixel-snapped and crisp too, and pass at the
-  // default budget. (roadmap: SDF/atlas text to close the residual fringe.)
-  'nested-plot': 0.06, // ~5.0%
-  barley: 0.04, // ~3.2%
-  'layout-facet': 0.04, // ~3.0% (near the default; explicit to avoid flakiness)
+  // small labels this fringe accumulates. Position, shape and rotation are
+  // correct. (roadmap: SDF/atlas text to close the residual fringe.)
+  'nested-plot': 0.04, // ~0.8% after the rect inset fix, headroom for CI fonts
+  barley: 0.03, // ~1.0%
 };

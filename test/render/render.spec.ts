@@ -60,11 +60,12 @@ async function renderSpec(page: Page, specName: string, renderer: 'webgpu' | 'ca
     );
 
     const state = await page.evaluate(() => {
-      const w = window as unknown as { __renderError?: string; __rendererKind?: string };
-      return { error: w.__renderError, rendererKind: w.__rendererKind ?? 'unknown' };
+      const w = window as unknown as { __renderError?: string; __rendererKind?: string; __traces?: string[] };
+      return { error: w.__renderError, rendererKind: w.__rendererKind ?? 'unknown', traces: w.__traces ?? [] };
     });
-    expect(state.error, `[${renderer}] harness error:\n${state.error}`).toBeUndefined();
-    expect(errors, `[${renderer}] console errors:\n${errors.join('\n')}`).toEqual([]);
+    const traces = state.traces.length ? `\ntraces:\n${state.traces.join('\n')}` : '';
+    expect(state.error, `[${renderer}] harness error:\n${state.error}${traces}`).toBeUndefined();
+    expect(errors, `[${renderer}] console errors:\n${errors.join('\n')}${traces}`).toEqual([]);
 
     return { png: await page.locator('#vis').screenshot(), rendererKind: state.rendererKind };
   } finally {
