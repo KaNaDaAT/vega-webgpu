@@ -1,0 +1,6 @@
+{
+  "1.0.0": "First WebGPU Implementation",
+  "1.1.0": "Over all improvements in terms of performance and structure.",
+  "1.1.1": "Performance improvements on Paths.<br>Introducing WebGPU Render Option <code>renderLock</code>.",
+  "1.2.0": "Performance improvements on Lines. Render Bundling Option <code>renderBatch</code>. Support Clipping. Path offset fixed."
+}
