@@ -1,74 +1,77 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
+  <head>
+    <title>Vega WebGPU Renderer Test</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./index.css" />
+    <script src="../releases/versions.js"></script>
+    <script>
+      function loadScript(src, callback) {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = src;
+        script.onload = callback;
+        document.head.appendChild(script);
+      }
 
-<head>
-  <title>Vega Renderer Test</title>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="./index.css" />
-  <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vega@5.25.0/build/vega.js"></script>
-  <script src="https://kanadaat.github.io/vega-webgpu/releases/versions.js"></script>
-  <script>
-    console.log(vegaWevGPURendererVersions);
-    function loadScript(src, callback) {
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = src;
-      script.onload = callback;
+      function getQueryParam(param) {
+        return new URLSearchParams(window.location.search).get(param);
+      }
 
-      document.head.appendChild(script);
-    }
+      const releasedVersions = typeof vegaWebGPURendererVersions !== 'undefined' ? vegaWebGPURendererVersions : [];
+      const version = getQueryParam('version') || 'dev';
+      const isDev = version === 'dev';
+      const major = isDev ? Infinity : parseInt(version.split(/[._]/)[0], 10);
+      console.log(`Vega WebGPU Renderer ${version}`);
 
-    function getQueryParam(param) {
-      const urlSearchParams = new URLSearchParams(window.location.search);
-      return urlSearchParams.get(param);
-    }
+      const rendererUrl = isDev
+        ? '../build/vega-webgpu-renderer.js'
+        : `../releases/${version.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
 
-    const latestVersion = vegaWevGPURendererVersions[0];
-    const version = (getQueryParam('version') || latestVersion).replaceAll('.', '_');
-    console.log(`Vega WebGPU Renderer ${version}`)
-    let vegaWebGPURendererUrl = `https://kanadaat.github.io/vega-webgpu/releases/${version}/vega-webgpu-renderer.js`;
-    if (version == 'dev') {
-      vegaWebGPURendererUrl = 'http://localhost:5500/build/vega-webgpu-renderer.js';
-    }
+      // Renderer versions before 2.0 were built for Vega 5 and require d3 globals.
+      const vegaUrl =
+        major >= 2
+          ? 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'
+          : 'https://cdn.jsdelivr.net/npm/vega@5.33.1/build/vega.min.js';
 
-    // Load Vega and the selected version of Vega WebGPU Renderer
-    loadScript('https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js', function () {
-      loadScript(vegaWebGPURendererUrl, function () {
-        loadScript('https://unpkg.com/vega-webgl-renderer/build/vega-webgl-renderer.js', function () {
-          loadScript('./index.js');
+      function boot() {
+        loadScript(vegaUrl, function () {
+          loadScript(rendererUrl, function () {
+            loadScript('./index.js');
+          });
         });
-      });
-    });
-  </script>
-</head>
+      }
 
-<body>
-  <div id="header">
-    &nbsp; <span style="font-family: Arial; font-size: 14px;">Vega Specification:</span>
-    <select id="specs">
-      <option value="">-----</option>
-    </select>
-    &nbsp; <span style="font-family: Arial; font-size: 14px;">Renderer:</span>
-    <select id="render">
-      <option value="svg">svg</option>
-      <option value="canvas">canvas</option>
-      <option value="webgpu" selected>webgpu</option>
-      <option value="webgl">webgl</option>
-    </select>
-    &nbsp; <span style="font-family: Arial; font-size: 14px;">Version:</span>
-    <select id="versions">
-    </select>
-    &nbsp;
-    <span id="fpsDisplay" style="font-family: Arial; font-size: 14px;">
-  </div>
-  <script src="./fps.js"></script>
-  </div>
-  <div>
-    <div id="vis"></div>
-  </div>
-  <div id="external"></div>
-</body>
+      if (major >= 2) {
+        boot();
+      } else {
+        loadScript('https://d3js.org/d3.v4.min.js', boot);
+      }
+    </script>
+  </head>
 
+  <body>
+    <div id="header">
+      &nbsp; <span class="label">Vega Specification:</span>
+      <select id="specs">
+        <option value="">-----</option>
+      </select>
+      &nbsp; <span class="label">Renderer:</span>
+      <select id="render">
+        <option value="svg">svg</option>
+        <option value="canvas">canvas</option>
+        <option value="webgpu" selected>webgpu</option>
+      </select>
+      &nbsp; <span class="label">Version:</span>
+      <select id="versions"></select>
+      &nbsp;
+      <span id="fpsDisplay" class="label"></span>
+    </div>
+    <script src="./fps.js"></script>
+    <div>
+      <div id="vis"></div>
+    </div>
+    <div id="external"></div>
+  </body>
 </html>

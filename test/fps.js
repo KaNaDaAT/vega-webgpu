@@ -1,7 +1,7 @@
 let frameCount = 0;
 let lastTime = performance.now();
 let timeForUpdate = 0;
-let fpsDisplay = document.getElementById("fpsDisplay");
+const fpsDisplay = document.getElementById('fpsDisplay');
 
 let sum = 0;
 
@@ -16,7 +16,7 @@ function updateFPS() {
     frameCount = 0;
     timeForUpdate = 0;
     sum = 0;
-    fpsDisplay.innerText = "FPS: " + Math.round(fps);
+    fpsDisplay.innerText = 'FPS: ' + Math.round(fps);
   }
 }
 

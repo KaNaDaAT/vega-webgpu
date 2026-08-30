@@ -9,7 +9,7 @@
     {"name": "grid_store"},
     {
       "name": "source_0",
-      "url": "data/cars_40k.json",
+      "url": "data/cars.json",
       "format": {"type": "json"},
       "transform": [
         {

@@ -11,6 +11,11 @@ body {
   background: white;
 }
 
+.label {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
 canvas,
 svg {
   border: 1px dashed #ccc;
