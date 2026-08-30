@@ -252,7 +252,13 @@ export default class WebGPURenderer extends Renderer {
       await this._renderPromise;
     }
     if (this._device) {
-      await this._device.queue.onSubmittedWorkDone();
+      // A lost device rejects this. Loss is handled by _handleDeviceLoss and the
+      // pixel output is the real check, so do not fail the render over it.
+      await this._device.queue.onSubmittedWorkDone().catch((err: unknown) => {
+        if (this.wgOptions.debugLog === true) {
+          console.warn('[vega-webgpu] onSubmittedWorkDone rejected:', err);
+        }
+      });
     }
     return this;
   }

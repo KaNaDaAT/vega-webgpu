@@ -42,6 +42,14 @@ window.addEventListener('unhandledrejection', e => recordTrace('unhandledrejecti
     });
     window.view = view;
 
+    // vega catches renderer errors and routes them through its logger, so they
+    // never reach window.onerror. Record them with a stack.
+    const viewError = view.error.bind(view);
+    view.error = (...args) => {
+      window.__traces.push(`view.error: ${args.map(a => (a && a.stack) || String(a)).join(' | ')}`);
+      return viewError(...args);
+    };
+
     await view.runAsync();
 
     const r = view._renderer;

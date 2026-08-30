@@ -43,21 +43,13 @@ function findBrowser(): string | undefined {
 
 const executablePath = findBrowser();
 
-// A local, real browser must run SINGLE-WORKER. WebGPU itself is on
-// SwiftShader in both branches, but --enable-features=Vulkan still brings up
-// the machine's physical Vulkan driver per browser, and one browser per CPU
-// core has crashed an AMD display driver (BSOD in amdkmdag.sys on RDNA4).
-// Serializing to one browser at a time avoids that pile-up. (Disabling GPU
-// compositing was tried as extra insurance but it blanks the WebGPU canvas in
-// screenshots, so compositing stays on.) CI runs headless on SwiftShader with no
-// hardware GPU, so it safely keeps full parallelism.
-const localBrowser = !process.env.CI && !!executablePath;
-
 export default defineConfig({
   testDir: './test/render',
   timeout: 60_000,
-  fullyParallel: !localBrowser,
-  workers: localBrowser ? 1 : undefined,
+  // Single worker everywhere. Two browsers sharing one SwiftShader stack on a
+  // CI runner fail every spec with an invalid-instance error.
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // Always produce the HTML report (a browsable webgpu-vs-canvas gallery via
