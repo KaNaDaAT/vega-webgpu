@@ -1,155 +1,119 @@
-import { color, ColorSpaceObject, ColorCommonInstance } from 'd3-color';
+import { color as parseColor } from 'd3-color';
+import type { SceneColor, SceneGradient } from '../types/scene.js';
+
+export type RGBA = [r: number, g: number, b: number, a: number];
+
+const TRANSPARENT: RGBA = [0, 0, 0, 0];
+/** Placeholder used for gradients until they are supported. */
+const GRADIENT_FALLBACK: RGBA = [0.5, 1.0, 1.0, 1.0];
+
+let warnedGradient = false;
+let warnedInvalid = false;
+
+export function isGradient(value: SceneColor | null | undefined): value is SceneGradient {
+  return typeof value === 'object' && value !== null && ('gradient' in value || 'id' in value);
+}
+
+/** Parses a CSS color string to premultiplication-ready normalized RGBA. */
+function parse(value: string): RGBA {
+  const c = parseColor(value);
+  if (c === null) {
+    if (!warnedInvalid) {
+      warnedInvalid = true;
+      console.warn(`[vega-webgpu] Could not parse color '${value}'.`);
+    }
+    return TRANSPARENT;
+  }
+  const rgb = c.rgb();
+  return [rgb.r / 255, rgb.g / 255, rgb.b / 255, rgb.opacity];
+}
 
 export class Color {
-  private static cache = {};
-  private values: number[] = [0, 0, 0, 1];
+  private static cache: Record<string, RGBA> = {};
 
-  constructor(r: number, g: number, b: number, a: number = 1) {
-    this.values[0] = r;
-    this.values[1] = g;
-    this.values[2] = b;
-    this.values[3] = a;
+  private values: RGBA;
+
+  constructor(r: number, g: number, b: number, a = 1) {
+    this.values = [r, g, b, a];
   }
 
-  static from(value: string | ColorSpaceObject | ColorCommonInstance | Color, opacity = 1.0, fsOpacity = 1.0): Color | null {
-    if (!value) {
-      return new Color(0, 0, 0, 0);
-    }
-    if (value instanceof Color) {
-      return value;
-    }
-    if (value === 'transparent') {
-      return new Color(0, 0, 0, 0);
-    }
-    if ((value as any).id || (value as any).gradient) {
-      // TODO: support gradients
-      console.warn("Gradient not supported yet!")
-      return new Color(0.5, 1.0, 1.0, 1.0 * opacity * fsOpacity);
-    }
-    let rgba = { r: 255, g: 255, b: 255, a: 255 };
-    if (typeof value === 'string') {
-      let c = color(value).rgb();
-      rgba = { r: c.r, g: c.g, b: c.b, a: c.opacity, };
-    } else {
-      let c = color(value).rgb();
-      rgba = { r: c.r, g: c.g, b: c.b, a: c.opacity, };
-    }
-    let colorValue = new Color(rgba.r / 255, rgba.g / 255, rgba.b / 255, rgba.a * opacity * fsOpacity);
-    return colorValue;
+  /**
+   * Converts a scenegraph color value into a Color, applying the item's
+   * opacity and fill/stroke opacity. Unset values become transparent.
+   */
+  static from(value: SceneColor | Color | null | undefined, opacity = 1.0, fsOpacity = 1.0): Color {
+    const [r, g, b, a] = Color.from2(value, opacity, fsOpacity);
+    return new Color(r, g, b, a);
   }
 
-  static _cache = {}
-  static from2(value: string | ColorSpaceObject | ColorCommonInstance | Color, opacity = 1.0, fsOpacity = 1.0): [r: number, g: number, b: number, a: number] {
-    if (!value) {
-      return [0, 0, 0, 0];
-    }
-    const entry = Color._cache[value as any];
-    if(entry) {
-      return [entry[0], entry[1], entry[2], entry[3] * opacity * fsOpacity];
+  /**
+   * Same as `from`, returning a plain RGBA tuple. Parses through a cache
+   * keyed by the color string. Opacity is applied after cache lookup.
+   */
+  static from2(value: SceneColor | Color | null | undefined, opacity = 1.0, fsOpacity = 1.0): RGBA {
+    if (value == null) {
+      return TRANSPARENT;
     }
     if (value instanceof Color) {
       return [value.r, value.g, value.b, value.a];
     }
     if (value === 'transparent') {
-      return [0, 0, 0, 0];
+      return TRANSPARENT;
     }
-    if ((value as any).id || (value as any).gradient) {
-      // TODO: support gradients
-      console.warn("Gradient not supported yet!")
-      return [0.5, 1.0, 1.0, 1.0 * opacity * fsOpacity];
+    if (isGradient(value)) {
+      if (!warnedGradient) {
+        warnedGradient = true;
+        console.warn('[vega-webgpu] Gradients are not supported yet; rendering a placeholder color.');
+      }
+      const [r, g, b, a] = GRADIENT_FALLBACK;
+      return [r, g, b, a * opacity * fsOpacity];
     }
-    if (typeof value === 'string') {
-      const c = color(value).rgb();
-      const ret = [c.r / 255, c.g / 255, c.b / 255, c.opacity * opacity * fsOpacity];
-      Color._cache[value as any] = [ret[0], ret[1], ret[2], c.opacity];
-      return ret as any;
-    } else {
-      const c = color(value).rgb();
-      const ret = [c.r / 255, c.g / 255, c.b / 255, c.opacity * opacity * fsOpacity];
-      Color._cache[value as any] = [ret[0], ret[1], ret[2], c.opacity];
-      return ret as any;
+
+    let rgba = Color.cache[value];
+    if (rgba === undefined) {
+      rgba = parse(value);
+      Color.cache[value] = rgba;
     }
+    return [rgba[0], rgba[1], rgba[2], rgba[3] * opacity * fsOpacity];
   }
 
   *[Symbol.iterator](): Generator<number> {
-    for (const value of this.values) {
-      yield value;
-    }
+    yield* this.values;
   }
 
-  get rgba(): number[] {
+  get rgba(): RGBA {
     return [this.values[0], this.values[1], this.values[2], this.values[3]];
-  }
-
-  set rgba(values: number[]) {
-    this.values[0] = values[0];
-    this.values[1] = values[1];
-    this.values[2] = values[2];
-    this.values[3] = values[3];
-  }
-
-  get 0(): number {
-    return this.values[0];
-  }
-
-  set 0(value: number) {
-    this.values[0] = value;
   }
 
   get r(): number {
     return this.values[0];
   }
 
-  set r(value: number) {
-    this.values[0] = value;
-  }
-
-  get 1(): number {
-    return this.values[1];
-  }
-
-  set 1(value: number) {
-    this.values[1] = value;
-  }
-
   get g(): number {
     return this.values[1];
-  }
-
-  set g(value: number) {
-    this.values[1] = value;
-  }
-
-  get 2(): number {
-    return this.values[2];
-  }
-
-  set 2(value: number) {
-    this.values[2] = value;
   }
 
   get b(): number {
     return this.values[2];
   }
 
-  set b(value: number) {
-    this.values[2] = value;
+  get a(): number {
+    return this.values[3];
+  }
+
+  get 0(): number {
+    return this.values[0];
+  }
+
+  get 1(): number {
+    return this.values[1];
+  }
+
+  get 2(): number {
+    return this.values[2];
   }
 
   get 3(): number {
     return this.values[3];
   }
-
-  set 3(value: number) {
-    this.values[3] = value;
-  }
-
-  get a(): number {
-    return this.values[3];
-  }
-
-  set a(value: number) {
-    this.values[3] = value;
-  }
 }
-

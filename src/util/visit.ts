@@ -1,66 +1,56 @@
-function compare(a, b) {
-  return a.zindex - b.zindex || a.index - b.index;
+interface ZOrdered {
+  zindex?: number;
+  index?: number;
 }
 
-export function zorder(scene) {
-  if (!scene.zdirty) return scene.zitems;
+interface ZOrderedScene<T extends ZOrdered> {
+  items?: T[];
+  zdirty?: boolean;
+  zitems?: T[];
+}
 
-  var items = scene.items,
-    output = [],
-    item,
-    i,
-    n;
+function compare(a: ZOrdered, b: ZOrdered): number {
+  return (a.zindex ?? 0) - (b.zindex ?? 0) || (a.index ?? 0) - (b.index ?? 0);
+}
 
-  for (i = 0, n = items.length; i < n; ++i) {
-    item = items[i];
+function zorder<T extends ZOrdered>(scene: ZOrderedScene<T>): T[] | undefined {
+  if (!scene.zdirty) {
+    return scene.zitems;
+  }
+
+  const items = scene.items ?? [];
+  const output: T[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     item.index = i;
-    if (item.zindex) output.push(item);
+    if (item.zindex) {
+      output.push(item);
+    }
   }
 
   scene.zdirty = false;
   return (scene.zitems = output.sort(compare));
 }
 
-export function visit(scene, visitor) {
-  var items = scene.items,
-    i,
-    n;
-  if (!items || !items.length) return;
+/** Visits scene items in paint order, honoring per-item zindex. */
+export function visit<T extends ZOrdered>(scene: ZOrderedScene<T>, visitor: (item: T) => void): void {
+  let items = scene.items;
+  if (!items || !items.length) {
+    return;
+  }
 
   const zitems = zorder(scene);
 
   if (zitems && zitems.length) {
-    for (i = 0, n = items.length; i < n; ++i) {
-      if (!items[i].zindex) visitor(items[i]);
+    for (let i = 0; i < items.length; i++) {
+      if (!items[i].zindex) {
+        visitor(items[i]);
+      }
     }
     items = zitems;
   }
 
-  for (i = 0, n = items.length; i < n; ++i) {
+  for (let i = 0; i < items.length; i++) {
     visitor(items[i]);
   }
-}
-
-export function pickVisit(scene, visitor) {
-  var items = scene.items,
-    hit,
-    i;
-  if (!items || !items.length) return null;
-
-  const zitems = zorder(scene);
-  if (zitems && zitems.length) items = zitems;
-
-  for (i = items.length; --i >= 0; ) {
-    if ((hit = visitor(items[i]))) return hit;
-  }
-
-  if (items === zitems) {
-    for (items = scene.items, i = items.length; --i >= 0; ) {
-      if (!items[i].zindex) {
-        if ((hit = visitor(items[i]))) return hit;
-      }
-    }
-  }
-
-  return null;
 }

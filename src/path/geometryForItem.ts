@@ -1,145 +1,115 @@
-import { color } from 'd3-color';
-import { Color } from '../util/color';
 import extrude from 'extrude-polyline';
-import { GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
+import type { GPUVegaCanvasContext } from '../types/context.js';
+import type { ItemGeometry, PathGeometry } from '../types/geometry.js';
+import type { FillStyle, StrokeStyle } from '../types/scene.js';
 
+export type GeometryItem = FillStyle &
+  StrokeStyle & {
+    opacity?: number;
+  };
 
-interface ItemGeometry {
-  fillTriangles: Float32Array,
-  strokeTriangles: Float32Array,
-  fill: Float32Array,
-  stroke: Float32Array,
-  fillCount: number,
-  strokeCount: number,
-}
-
-export default function (context: GPUVegaCanvasContext, item, shapeGeom, cache: boolean = false): ItemGeometry {
-  if (cache && shapeGeom.key) {
-    var entry = context._geometryCache[shapeGeom.key];
-    if (entry)
+/**
+ * Converts triangulated path geometry into per-item fill and stroke
+ * triangle buffers. `dx`/`dy` apply an item-local translation (e.g. the
+ * x/y of a path mark item). Group translation is handled by the render
+ * offset uniform and must NOT be baked in here.
+ */
+export default function geometryForItem(
+  context: GPUVegaCanvasContext,
+  item: GeometryItem,
+  shapeGeom: PathGeometry,
+  cache = false,
+  dx = 0,
+  dy = 0,
+): ItemGeometry {
+  const key = shapeGeom.key;
+  if (cache && key !== undefined) {
+    const entry = context._geometryCache[key];
+    if (entry) {
       return entry;
+    }
   }
 
-  var lw = (lw = item.strokeWidth) != null ? lw : 1,
-    lc = (lc = item.strokeCap) != null ? lc : 'butt';
-  var strokeMeshes = [];
-  var i, len, c, li, ci, mesh, cell, p1, p2, p3, mp, mc, mcl,
-    n = 0, ns = 0, fill = false, stroke = false;
-  var opacity = item.opacity == null ? 1 : item.opacity;
-  var fillOpacity = opacity * (item.fillOpacity == null ? 1 : item.fillOpacity);
-  var strokeOpacity = opacity * (item.strokeOpacity == null ? 1 : item.strokeOpacity),
-    strokeExtrude,
-    z = shapeGeom.z || 0,
-    st = shapeGeom.triangles,
-    val;
+  const lineWidth = item.strokeWidth ?? 1;
+  const lineCap = item.strokeCap ?? 'butt';
+  const opacity = item.opacity ?? 1;
+  let fillOpacity = opacity * (item.fillOpacity ?? 1);
+  let strokeOpacity = opacity * (item.strokeOpacity ?? 1);
+
+  const fillTriangleCoords = shapeGeom.triangles;
+  let z = shapeGeom.z;
 
   if (item.fill === 'transparent') {
     fillOpacity = 0;
   }
-  if (item.fill && fillOpacity > 0) {
-    fill = true;
-    n = st ? st.length / 9 : 0;
-  }
+  const fill = Boolean(item.fill) && fillOpacity > 0;
+  const fillVertexCount = fill ? fillTriangleCoords.length / 3 : 0;
 
   if (item.stroke === 'transparent') {
     strokeOpacity = 0;
   }
 
-  if (lw > 0 && item.stroke && strokeOpacity > 0) {
-    stroke = true;
-    strokeExtrude = extrude({
-      thickness: lw,
-      cap: lc,
+  const strokeMeshes: ReturnType<ReturnType<typeof extrude>['build']>[] = [];
+  let strokeCellCount = 0;
+  if (lineWidth > 0 && item.stroke && strokeOpacity > 0) {
+    const strokeExtrude = extrude({
+      thickness: lineWidth,
+      cap: lineCap,
       join: 'miter',
       miterLimit: 1,
-      closed: !!shapeGeom.closed
+      closed: shapeGeom.closed,
     });
-    for (li = 0; li < shapeGeom.lines.length; li++) {
-      mesh = strokeExtrude.build(shapeGeom.lines[li]);
+    for (const line of shapeGeom.lines) {
+      const mesh = strokeExtrude.build(line);
       strokeMeshes.push(mesh);
-      ns += mesh.cells.length;
+      strokeCellCount += mesh.cells.length;
     }
   }
 
-  var triangles = new Float32Array(n * 3 * 3);
-  var sTriangles = new Float32Array(ns * 3 * 3);
-  var colors = new Float32Array(n * 3 * 4);
-  var sColors = new Float32Array(ns * 3 * 4);
+  const triangles = new Float32Array(fillVertexCount * 3);
+  const strokeTriangles = new Float32Array(strokeCellCount * 3 * 3);
 
   if (fill) {
-    c = Color.from(item.fill);
-    for (i = 0, len = st.length; i < len; i += 3) {
-      triangles[i] = st[i] + context._tx;
-      triangles[i + 1] = st[i + 1] + context._ty;
-      triangles[i + 2] = st[i + 2];
-    }
-    for (i = 0, len = st.length / 3; i < len; i++) {
-      colors[i * 4] = c[0];
-      colors[i * 4 + 1] = c[1];
-      colors[i * 4 + 2] = c[2];
-      colors[i * 4 + 3] = fillOpacity;
+    for (let i = 0; i < fillTriangleCoords.length; i += 3) {
+      triangles[i] = fillTriangleCoords[i] + dx;
+      triangles[i + 1] = fillTriangleCoords[i + 1] + dy;
+      triangles[i + 2] = fillTriangleCoords[i + 2];
     }
   }
 
-  if (stroke) {
+  if (strokeMeshes.length > 0) {
+    // strokes render slightly in front of fills
     z = -0.1;
-    c = Color.from(item.stroke);
-    i = 0;
-    for (li = 0; li < strokeMeshes.length; li++) {
-      mesh = strokeMeshes[li],
-        mp = mesh.positions,
-        mc = mesh.cells,
-        mcl = mesh.cells.length;
-      for (ci = 0; ci < mcl; ci++) {
-        cell = mc[ci];
-        p1 = mp[cell[0]];
-        p2 = mp[cell[1]];
-        p3 = mp[cell[2]];
-        sTriangles[i * 3] = p1[0] + context._tx;
-        sTriangles[i * 3 + 1] = p1[1] + context._ty;
-        sTriangles[i * 3 + 2] = z;
-        sColors[i * 4] = c[0];
-        sColors[i * 4 + 1] = c[1];
-        sColors[i * 4 + 2] = c[2];
-        sColors[i * 4 + 3] = strokeOpacity;
-        i++;
-
-        sTriangles[i * 3] = p2[0] + context._tx;
-        sTriangles[i * 3 + 1] = p2[1] + context._ty;
-        sTriangles[i * 3 + 2] = z;
-        sColors[i * 4] = c[0];
-        sColors[i * 4 + 1] = c[1];
-        sColors[i * 4 + 2] = c[2];
-        sColors[i * 4 + 3] = strokeOpacity;
-        i++;
-
-        sTriangles[i * 3] = p3[0] + context._tx;
-        sTriangles[i * 3 + 1] = p3[1] + context._ty;
-        sTriangles[i * 3 + 2] = z;
-        sColors[i * 4] = c[0];
-        sColors[i * 4 + 1] = c[1];
-        sColors[i * 4 + 2] = c[2];
-        sColors[i * 4 + 3] = strokeOpacity;
-        i++;
+    let i = 0;
+    for (const mesh of strokeMeshes) {
+      const { positions, cells } = mesh;
+      for (const cell of cells) {
+        for (const pointIndex of cell) {
+          const p = positions[pointIndex];
+          strokeTriangles[i * 3] = p[0] + dx;
+          strokeTriangles[i * 3 + 1] = p[1] + dy;
+          strokeTriangles[i * 3 + 2] = z;
+          i++;
+        }
       }
     }
   }
 
-  val = {
+  const result: ItemGeometry = {
     fillTriangles: triangles,
-    strokeTriangles: sTriangles,
-    fill: colors,
-    stroke: sColors,
-    fillCount: n * 3,
-    strokeCount: ns * 3,
-  } as ItemGeometry;
+    strokeTriangles,
+    fillCount: fillVertexCount,
+    strokeCount: strokeCellCount * 3,
+  };
 
-  context._geometryCache[shapeGeom.key] = val;
-  context._geometryCacheSize++;
-  if (context._geometryCacheSize > 10000) {
-    context._geometryCache = {};
-    context._geometryCacheSize = 0;
+  if (cache && key !== undefined) {
+    context._geometryCache[key] = result;
+    context._geometryCacheSize++;
+    if (context._geometryCacheSize > 10000) {
+      context._geometryCache = {};
+      context._geometryCacheSize = 0;
+    }
   }
 
-  return val;
+  return result;
 }

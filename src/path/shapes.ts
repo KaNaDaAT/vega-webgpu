@@ -1,93 +1,61 @@
-import {pathCurves, pathSymbols, pathRectangle, pathTrail} from 'vega-scenegraph';
+import { arc as d3_arc, area as d3_area, symbol as d3_symbol, type SymbolType } from 'd3-shape';
+import { pathCurves, pathSymbols, pathTrail } from 'vega-scenegraph';
+import type { GPUVegaCanvasContext } from '../types/context.js';
+import type { PathGeometry } from '../types/geometry.js';
+import type { SceneArcItem, SceneAreaItem, SceneShapeItem } from '../types/scene.js';
+import geometryForPath from './geometryForPath.js';
 
-import geometryForPath from './geometryForPath';
+type AreaPoint = SceneAreaItem;
 
-import {
-  arc as d3_arc,
-  symbol as d3_symbol,
-  area as d3_area,
-  line as d3_line
-} from 'd3-shape';
-
-function x(item)     { return item.x || 0; }
-function y(item)     { return item.y || 0; }
-function w(item)     { return item.width || 0; }
-function wh(item)    { return item.width || item.height || 1; }
-function h(item)     { return item.height || 0; }
-function xw(item)    { return (item.x || 0) + (item.width || 0); }
-function yh(item)    { return (item.y || 0) + (item.height || 0); }
-function cr(item)    { return item.cornerRadius || 0; }
-function pa(item)    { return item.padAngle || 0; }
-function def(item)   { return !(item.defined === false); }
-function size(item)  { return item.size == null ? 64 : item.size; }
-function type(item) { return pathSymbols(item.shape || 'circle'); }
-
-interface Geometry {
-  lines: Float32Array | [],
-  triangles: Float32Array | [],
-  closed: boolean,
-  z: number,
-  key?: any,
+/** vega shape instances are d3-style generators with a context setter. */
+interface ShapeGenerator {
+  (item: SceneShapeItem): string | null | undefined;
+  context(ctx: CanvasRenderingContext2D | null): ShapeGenerator;
 }
 
-var arcShape    = d3_arc().cornerRadius(cr).padAngle(pa),
-    areavShape  = d3_area().x(x).y1(y).y0(yh).defined(def),
-    areahShape  = d3_area().y(y).x1(x).x0(xw).defined(def),
-    lineShape   = d3_line().x(x).y(y).defined(def),
-    trailShape  = pathTrail().x(x).y(y).defined(def).size(wh),
-    rectShape   = pathRectangle().x(x).y(y).width(w).height(h).cornerRadius(cr),
-    rectShapeGL = pathRectangle().x(0).y(0).width(w).height(h).cornerRadius(cr),
-    symbolShape = d3_symbol().type(type).size(size);
+const x = (item: AreaPoint) => item.x || 0;
+const y = (item: AreaPoint) => item.y || 0;
+const xw = (item: AreaPoint) => (item.x || 0) + (item.width || 0);
+const yh = (item: AreaPoint) => (item.y || 0) + (item.height || 0);
+const wh = (item: AreaPoint) => item.width || item.height || 1;
+const cr = (item: SceneArcItem) => item.cornerRadius || 0;
+const pa = (item: SceneArcItem) => item.padAngle || 0;
+const def = (item: AreaPoint) => item.defined !== false;
 
-export function arc(context, item): Geometry {
-  if (!context || context.arc) {
-    return arcShape.context(context)(item) as unknown as Geometry;
-  }
-  return geometryForPath(context, arcShape.context(null)(item), 0.1);
+const arcShape = d3_arc<SceneArcItem>().cornerRadius(cr).padAngle(pa);
+const areavShape = d3_area<AreaPoint>().x(x).y1(y).y0(yh).defined(def);
+const areahShape = d3_area<AreaPoint>().y(y).x1(x).x0(xw).defined(def);
+const trailShape = pathTrail<AreaPoint>().x(x).y(y).defined(def).size(wh);
+
+export function arc(context: GPUVegaCanvasContext, item: SceneArcItem): PathGeometry {
+  return geometryForPath(context, arcShape.context(null)(item) ?? '', 0.1);
 }
 
-export function area(context, items): Geometry {
-  var item = items[0],
-      interp = item.interpolate || 'linear',
-      s = (interp === 'trail' ? trailShape
-        : (item.orient === 'horizontal' ? areahShape : areavShape)
-            .curve(pathCurves(interp, item.orient, item.tension))
-      )
-  if (!context || context.arc) {
-    return s.context(context)(items);
-  }
-  return geometryForPath(context, s.context(null)(items), 0.1);
+export function area(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeometry {
+  const item = items[0];
+  const interp = item.interpolate || 'linear';
+  const path =
+    interp === 'trail'
+      ? trailShape.context(null)(items)
+      : (item.orient === 'horizontal' ? areahShape : areavShape)
+          .curve(pathCurves(interp, item.orient, item.tension))
+          .context(null)(items);
+  return geometryForPath(context, path ?? '', 0.1);
 }
 
-export function shape(context, item): Geometry {
-  var s = item.mark.shape || item.shape;
-  if (!context || context.arc) {
-    return s.context(context)(item);
-  }
-  return geometryForPath(context, s.context(null)(item), 0.1);
+export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem): PathGeometry {
+  const generator = ((item.mark as { shape?: unknown }).shape ?? item.shape) as ShapeGenerator;
+  return geometryForPath(context, generator.context(null)(item) ?? '', 0.1);
 }
 
-export function line(context, items): Geometry {
-  var item = items[0],
-      interp = item.interpolate || 'linear',
-      s = lineShape.curve(pathCurves(interp, item.orient, item.tension));
-  if (!context || context.arc) {
-    return s.context(context)(items) as unknown as Geometry;
-  }
-  return geometryForPath(context, s.context(null)(items), null);
-}
-
-export function rectangle(context, item, x, y) {
-  return rectShape.context(context)(item, x, y);
-}
-
-export function rectangleGL(context, item, x, y): Geometry {
-  return geometryForPath(context, rectShapeGL.context(null)(item, x, y), 0.1);
-}
-
-export function symbol(context, item): Geometry {
-  if (!context || context.arc) {
-    return symbolShape.context(context)(item) as unknown as Geometry;
-  }
-  return geometryForPath(context, symbolShape.context(null)(item), 0.1);
+/**
+ * Triangulated geometry for a vega symbol shape (square, cross, diamond,
+ * triangle-*, arrow, wedge, stroke, or a custom SVG path) at the given size,
+ * centered on the origin. `size` is the symbol area, matching the canvas
+ * renderer's `pathSymbols` sizing.
+ */
+export function symbol(context: GPUVegaCanvasContext, shapeName: string, size: number): PathGeometry {
+  const type = pathSymbols(shapeName || 'circle') as unknown as SymbolType;
+  const path = d3_symbol(type, size).context(null)() ?? '';
+  return geometryForPath(context, path, 0.1);
 }

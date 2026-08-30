@@ -1,124 +1,106 @@
-import { formatElementCount, formatSize } from "./formatSize.js";
+import { formatElementCount, formatSize } from './formatSize.js';
 
+/**
+ * Derives GPUVertexBufferLayouts (one per-vertex, one per-instance) from
+ * lists of vertex formats, assigning consecutive shader locations.
+ */
 export class VertexBufferManager {
-  private vertexFormats: GPUVertexFormat[] = [];
-  private instanceFormats: GPUVertexFormat[] = [];
-  private vertexLayout?: GPUVertexBufferLayout | null = null;
-  private instanceLayout?: GPUVertexBufferLayout | null = null;
-  private vertexLength?: number | null = null;
-  private instanceLength?: number | null = null;
-  private dirtyFlag: boolean = true;
-  vertexLocationOffset: number;
-  instanceLocationOffset: number;
+  private vertexFormats: GPUVertexFormat[];
+  private instanceFormats: GPUVertexFormat[];
+  private readonly vertexLocationOffset: number;
+  private readonly instanceLocationOffset: number;
+
+  private vertexLayout: GPUVertexBufferLayout | null = null;
+  private instanceLayout: GPUVertexBufferLayout | null = null;
+  private vertexLength = 0;
+  private instanceLength = 0;
+  private dirty = true;
 
   constructor(
     vertexFormats: GPUVertexFormat[] = [],
     instanceFormats: GPUVertexFormat[] = [],
-    vertexLocationOffset: number | null = null,
-    instanceLocationOffset: number | null = null,
+    vertexLocationOffset = 0,
+    instanceLocationOffset?: number,
   ) {
-    this.vertexLocationOffset = vertexLocationOffset | 0;
-    this.instanceLocationOffset = instanceLocationOffset | vertexLocationOffset + vertexFormats.length;
     this.vertexFormats = vertexFormats;
     this.instanceFormats = instanceFormats;
+    this.vertexLocationOffset = vertexLocationOffset;
+    this.instanceLocationOffset = instanceLocationOffset ?? vertexLocationOffset + vertexFormats.length;
   }
 
-  private calculateLayouts(stepMode: GPUVertexStepMode): GPUVertexBufferLayout {
+  private calculateLayout(stepMode: GPUVertexStepMode): GPUVertexBufferLayout {
+    const formats = stepMode === 'vertex' ? this.vertexFormats : this.instanceFormats;
+    const locationOffset = stepMode === 'vertex' ? this.vertexLocationOffset : this.instanceLocationOffset;
     const attributes: GPUVertexAttribute[] = [];
     let totalOffset = 0;
-    let formats = stepMode === "vertex" ? this.vertexFormats : this.instanceFormats;
-    let locationOffset = stepMode === "vertex" ? this.vertexLocationOffset : this.instanceLocationOffset;
     formats.forEach((format, index) => {
       const size = formatSize(format);
-
       if (size > 0) {
         attributes.push({
           shaderLocation: index + locationOffset,
           offset: totalOffset,
           format,
         });
-
         totalOffset += size;
       } else {
-        console.error(`Unsupported format: ${format}`);
+        console.error(`[vega-webgpu] Unsupported vertex format: ${format}`);
       }
     });
 
     return {
       arrayStride: totalOffset,
       stepMode,
-      attributes: attributes,
+      attributes,
     };
   }
+
   private calculateLength(stepMode: GPUVertexStepMode): number {
-    let formats = stepMode === "vertex" ? this.vertexFormats : this.instanceFormats;
-    let totalLength = 0;
-    formats.forEach((format, index) => {
-      totalLength += formatElementCount(format);
-    });
-    return totalLength;
+    const formats = stepMode === 'vertex' ? this.vertexFormats : this.instanceFormats;
+    return formats.reduce((total, format) => total + formatElementCount(format), 0);
   }
 
-  private setDirty(): void {
-    this.dirtyFlag = true;
-  }
-
-  pushFormat(stepMode: GPUVertexStepMode, format: GPUVertexFormat): void {
-    let existingFormats = stepMode === "vertex" ? this.vertexFormats : this.instanceFormats;
-    existingFormats.push(format);
-    this.setDirty();
+  private process(): void {
+    if (this.dirty) {
+      this.vertexLayout = this.calculateLayout('vertex');
+      this.instanceLayout = this.calculateLayout('instance');
+      this.vertexLength = this.calculateLength('vertex');
+      this.instanceLength = this.calculateLength('instance');
+      this.dirty = false;
+    }
   }
 
   pushFormats(stepMode: GPUVertexStepMode, formats: GPUVertexFormat[]): void {
-    let existingFormats = stepMode === "vertex" ? this.vertexFormats : this.instanceFormats;
-    existingFormats.push(...formats);
-    this.setDirty();
+    const target = stepMode === 'vertex' ? this.vertexFormats : this.instanceFormats;
+    target.push(...formats);
+    this.dirty = true;
   }
 
   clear(): void {
     this.vertexFormats = [];
     this.instanceFormats = [];
-    this.vertexLayout = null;
-    this.instanceLayout = null;
-    this.setDirty();
+    this.dirty = true;
   }
 
-  process(): void {
-    if (this.dirtyFlag) {
-      this.vertexLayout = this.calculateLayouts("vertex");
-      this.instanceLayout = this.calculateLayouts("instance");
-      this.vertexLength = this.calculateLength("vertex");
-      this.instanceLength = this.calculateLength("instance");
-      this.dirtyFlag = false;
-    }
-  }
-
-
-  getBuffers(): Iterable<GPUVertexBufferLayout | null> {
+  /** Layouts for pipeline creation; empty layouts are omitted. */
+  getBuffers(): GPUVertexBufferLayout[] {
     this.process();
-    var buffers = [];
-    if (this.vertexLength && this.vertexLayout)
+    const buffers: GPUVertexBufferLayout[] = [];
+    if (this.vertexLength > 0 && this.vertexLayout) {
       buffers.push(this.vertexLayout);
-    if (this.instanceLength && this.instanceLayout)
+    }
+    if (this.instanceLength > 0 && this.instanceLayout) {
       buffers.push(this.instanceLayout);
+    }
     return buffers;
   }
 
-  getVertexBuffer(): GPUVertexBufferLayout {
-    this.process();
-    return this.vertexLayout;
-  }
-
-  getInstanceBuffer(): GPUVertexBufferLayout {
-    this.process();
-    return this.instanceLayout;
-  }
-
+  /** Number of float elements per vertex. */
   getVertexLength(): number {
     this.process();
     return this.vertexLength;
   }
 
+  /** Number of float elements per instance. */
   getInstanceLength(): number {
     this.process();
     return this.instanceLength;

@@ -2,73 +2,61 @@ import parse from 'parse-svg-path';
 import simplify from 'simplify-path';
 import contours from 'svg-path-contours';
 import triangulate from 'triangulate-contours';
-import { GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
+import type { GPUVegaCanvasContext } from '../types/context.js';
+import type { PathGeometry } from '../types/geometry.js';
 
-interface Geometry {
-  lines: Float32Array | [],
-  triangles: Float32Array | [],
-  closed: boolean,
-  z: number,
-  key?: any,
-}
+const EMPTY: PathGeometry = { lines: [], triangles: [], closed: false, z: 0 };
 
-
-export default function (ctx: GPUVegaCanvasContext, path: string, threshold?: number): Geometry {
-  var key = path;
-  var context = ctx as any;
-
-  threshold = threshold || 1.0;
+/**
+ * Triangulates an SVG path string into fill triangles and outline contours.
+ * Results are cached on the context, keyed by the path string.
+ */
+export default function geometryForPath(
+  context: GPUVegaCanvasContext,
+  path: string | null | undefined,
+  threshold = 1.0,
+): PathGeometry {
   if (!path) {
-    return { lines: new Float32Array(), triangles: new Float32Array(), closed: false, z: 0 };
+    return EMPTY;
   }
-  
-  var cache_entry = context._pathCache[key];
-  if (cache_entry !== undefined) {
-    return cache_entry;
+
+  const cached = context._pathCache[path];
+  if (cached !== undefined) {
+    return cached;
   }
 
   // get a list of polylines/contours from svg contents
-  var lines = contours(parse(path)), tri;
+  const lines = contours(parse(path)).map(contour => simplify(contour, threshold));
 
-  // simplify the contours before triangulation
-  lines = lines.map(function (path) {
-    return simplify(path, threshold);
-  });
-
-  // triangluate can fail in some corner cases
+  // triangulation can fail in some corner cases
+  let tri: ReturnType<typeof triangulate>;
   try {
     tri = triangulate(lines);
-  }
-  catch (e) {
-    // console.log('Could not triangulate the following path:');
-    // console.log(path);
-    // console.log(e);
+  } catch {
     tri = { positions: [], cells: [] };
   }
 
-  var z = context._randomZ ? 0.25 * (Math.random() - 0.5) : 0;
+  const z = context._randomZ ? 0.25 * (Math.random() - 0.5) : 0;
 
-  var triangles = [];
-  var tcl = tri.cells.length,
-    tc = tri.cells,
-    tp = tri.positions;
-  for (var ci = 0; ci < tcl; ci++) {
-    var cell = tc[ci];
-    var p1 = tp[cell[0]];
-    var p2 = tp[cell[1]];
-    var p3 = tp[cell[2]];
+  const triangles: number[] = [];
+  const { cells, positions } = tri;
+  for (let ci = 0; ci < cells.length; ci++) {
+    const cell = cells[ci];
+    const p1 = positions[cell[0]];
+    const p2 = positions[cell[1]];
+    const p3 = positions[cell[2]];
     triangles.push(p1[0], p1[1], z, p2[0], p2[1], z, p3[0], p3[1], z);
   }
 
-  var geom = {
-    lines: lines as [],
-    triangles: triangles as [],
+  const geom: PathGeometry = {
+    lines,
+    triangles,
     closed: path.endsWith('Z'),
-    z: z,
-    key: key
-  } as Geometry;
+    z,
+    key: path,
+  };
 
-  context._pathCache[key] = geom;
+  context._pathCache[path] = geom;
   context._pathCacheSize++;
   if (context._pathCacheSize > 10000) {
     context._pathCache = {};
