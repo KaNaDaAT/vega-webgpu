@@ -69,8 +69,14 @@ jobs:
             build/vega-webgpu-renderer.min.js
             build/vega-webgpu-renderer.module.js
 
+      # The secrets context is not allowed in an if condition, so the token is
+      # checked inside the step. The GitHub Release above always publishes.
       - name: Publish to npm
-        if: ${{ secrets.NPM_TOKEN != '' }}
-        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN is not configured, skipping the npm publish."
+            exit 0
+          fi
+          npm publish --provenance --access public
