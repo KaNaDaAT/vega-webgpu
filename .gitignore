@@ -1,6 +1,17 @@
-build/*
-dist/*
-.DS_Store
 node_modules
+build/
+dist/
+*.tsbuildinfo
+
+# Test artifacts
+test-results/
+playwright-report/
+test/render/output/
+
+# OS / editor
+.DS_Store
 pnpm-debug.log
+npm-debug.log*
+
+# Local scratch
 test/penguins_read.py

@@ -1,2 +1,10 @@
+# Normalize text to CRLF in the working tree (matches the editor default),
+# stored as LF in the repository. Stops the LF/CRLF churn warnings.
+* text=auto eol=crlf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.arrow binary
+
 releases/* linguist-vendored
 releases/** linguist-vendored

@@ -9,7 +9,12 @@
 			"request": "launch",
 			"name": "Launch Chrome against localhost",
 			"url": "http://localhost:5500",
-			"webRoot": "${workspaceFolder}"
+			"webRoot": "${workspaceFolder}",
+			// Launches the system Chrome. To debug in Brave, Edge or another
+			// build, set the CHROME_PATH environment variable (the render tests
+			// read it too) or add a local "runtimeExecutable" here.
+			"runtimeExecutable": "${env:CHROME_PATH}",
+			"runtimeArgs": ["--enable-unsafe-webgpu"]
 		}
 	]
 }

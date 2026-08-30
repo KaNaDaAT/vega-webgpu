@@ -1,15 +1,10 @@
 {
-    "overrides": [
-      {
-        "files": "*",
-        "options": {
-          "printWidth": 120,
-          "singleQuote": true,
-          "bracketSpacing": false,
-          "arrowParens": "avoid",
-          "trailingComma":"all",
-          "proseWrap": "never"
-        }
-      }
-    ]
-  }
+  "printWidth": 120,
+  "tabWidth": 2,
+  "endOfLine": "crlf",
+  "singleQuote": true,
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "trailingComma": "all",
+  "proseWrap": "never"
+}
