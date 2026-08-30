@@ -1,0 +1,66 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "A grid of every symbol shape at large size. Feature-focused: the symbols dominate the image so an unimplemented shape produces a large webgpu-vs-canvas diff instead of being diluted by a full chart.",
+  "width": 560,
+  "height": 120,
+  "padding": 5,
+  "data": [
+    {
+      "name": "shapes",
+      "values": [
+        { "s": "circle" },
+        { "s": "square" },
+        { "s": "cross" },
+        { "s": "diamond" },
+        { "s": "triangle-up" },
+        { "s": "triangle-down" },
+        { "s": "triangle-right" },
+        { "s": "triangle-left" },
+        { "s": "arrow" },
+        { "s": "wedge" },
+        { "s": "triangle" }
+      ],
+      "transform": [{ "type": "identifier", "as": "id" }]
+    }
+  ],
+  "scales": [
+    {
+      "name": "x",
+      "type": "band",
+      "domain": { "data": "shapes", "field": "s" },
+      "range": "width"
+    }
+  ],
+  "marks": [
+    {
+      "type": "symbol",
+      "from": { "data": "shapes" },
+      "encode": {
+        "enter": {
+          "x": { "scale": "x", "field": "s", "band": 0.5 },
+          "y": { "value": 40 },
+          "size": { "value": 900 },
+          "shape": { "field": "s" },
+          "fill": { "value": "#4c78a8" },
+          "stroke": { "value": "#0b1b2b" },
+          "strokeWidth": { "value": 1.5 }
+        }
+      }
+    },
+    {
+      "type": "symbol",
+      "from": { "data": "shapes" },
+      "encode": {
+        "enter": {
+          "x": { "scale": "x", "field": "s", "band": 0.5 },
+          "y": { "value": 95 },
+          "size": { "value": 700 },
+          "shape": { "field": "s" },
+          "fill": { "value": "transparent" },
+          "stroke": { "value": "#c0392b" },
+          "strokeWidth": { "value": 3 }
+        }
+      }
+    }
+  ]
+}
