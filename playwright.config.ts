@@ -43,10 +43,10 @@ function findBrowser(): string | undefined {
 
 const executablePath = findBrowser();
 
-// A local, real GPU-backed browser (Brave/Chrome/Edge, found or overridden)
-// must run SINGLE-WORKER. The forced Vulkan flag drives the machine's physical
-// GPU, and running one browser per CPU core in parallel can overload and crash
-// the display driver (observed as a BSOD in amdkmdag.sys on an AMD RDNA4 box).
+// A local, real browser must run SINGLE-WORKER. WebGPU itself is on
+// SwiftShader in both branches, but --enable-features=Vulkan still brings up
+// the machine's physical Vulkan driver per browser, and one browser per CPU
+// core has crashed an AMD display driver (BSOD in amdkmdag.sys on RDNA4).
 // Serializing to one browser at a time avoids that pile-up. (Disabling GPU
 // compositing was tried as extra insurance but it blanks the WebGPU canvas in
 // screenshots, so compositing stays on.) CI runs headless on SwiftShader with no

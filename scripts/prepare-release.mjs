@@ -58,15 +58,33 @@ releases[version] = notes || releases[version] || '';
 writeFileSync(releasesJsonPath, `${JSON.stringify(releases, null, 2)}\n`);
 
 // 3. regenerate versions.js (newest first)
+const escapeHtml = s =>
+  String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+// Number() on a prerelease segment like 'rc1' is NaN, which compares equal and
+// leaves 2.0.0-rc1 and 2.0.0-rc2 in arbitrary order. Compare those as strings.
 const byVersionDesc = (a, b) => {
-  const pa = a.split(/[-.]/).map(Number);
-  const pb = b.split(/[-.]/).map(Number);
+  const pa = a.split(/[-.]/);
+  const pb = b.split(/[-.]/);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pb[i] || 0) - (pa[i] || 0);
+    // A missing segment means no prerelease suffix, which outranks one that
+    // has it: 2.0.0 is newer than 2.0.0-rc1.
+    if (pa[i] === undefined) return -1;
+    if (pb[i] === undefined) return 1;
+    const na = Number(pa[i]);
+    const nb = Number(pb[i]);
+    if (Number.isNaN(na) || Number.isNaN(nb)) {
+      // numeric: true keeps rc10 above rc2
+      const d = pb[i].localeCompare(pa[i], undefined, { numeric: true });
+      if (d) return d;
+      continue;
+    }
+    const d = nb - na;
     if (d) return d;
   }
   return 0;
 };
+
 const versions = Object.keys(releases).sort(byVersionDesc);
 writeFileSync(
   join(releasesDir, 'versions.js'),
@@ -77,7 +95,7 @@ writeFileSync(
 const rows = versions
   .map(v => {
     const href = `./${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
-    return `        <tr>\n          <td><a href="${href}">${v}</a></td>\n          <td>${releases[v]}</td>\n        </tr>`;
+    return `        <tr>\n          <td><a href="${href}">${v}</a></td>\n          <td>${escapeHtml(releases[v])}</td>\n        </tr>`;
   })
   .join('\n');
 
