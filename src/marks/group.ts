@@ -1,158 +1,115 @@
-import { visit } from '../util/visit';
-import { Color } from '../util/color';
-import { Bounds } from 'vega-scenegraph';
-import { SceneItem, SceneRect } from 'vega-typings';
-import { GPUVegaScene, GPUSceneGroup, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js'
-import { quadVertex } from '../util/arrays';
-import { VertexBufferManager } from '../util/vertexManager.js';
+import type { Bounds } from 'vega-scenegraph';
+import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { SceneGroupExt } from '../types/scene.js';
+import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { Renderer } from '../util/renderer.js';
-
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { visit } from '../util/visit.js';
+import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
+import { rectAttributes } from './rect.js';
+import { getMarkResources, type MarkModule } from './util.js';
+import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Group';
-export default {
-  type: 'group',
-  draw: draw,
-};
 
-let _device: GPUDevice = null;
-let _bufferManager: BufferManager = null;
-let _shader: GPUShaderModule = null;
-let _vertexBufferManager: VertexBufferManager = null;
-let _pipeline: GPURenderPipeline = null;
-let _renderPassDescriptor: GPURenderPassDescriptor = null;
-let _geometryBuffer: GPUBuffer = null;
-let isInitialized: boolean = false;
+interface GroupResources {
+  device: GPUDevice;
+  bufferManager: BufferManager;
+  vertexManager: VertexBufferManager;
+  pipeline: GPURenderPipeline;
+  geometryBuffer: GPUBuffer;
+}
 
-function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
-  if (_device != device) {
-    _device = device;
-    isInitialized = false;
-  }
-
-  if (!isInitialized) {
-    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-    _shader = ctx._shaderCache[drawName] as GPUShaderModule;
-    _vertexBufferManager = new VertexBufferManager(
+function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): GroupResources {
+  return getMarkResources(ctx, 'group', device, () => {
+    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, dimensions, fill color, stroke color, stroke width, corner radii
-      ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']
+      ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertexBufferManager.getBuffers());
-    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
-    _geometryBuffer = _bufferManager.createGeometryBuffer(quadVertex);
-    isInitialized = true;
-  }
-  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+    const pipeline = createRenderPipeline(
+      drawName,
+      device,
+      ctx._shaderCache[drawName],
+      preferredColorFormat(),
+      ctx._sampleCount,
+      vertexManager.getBuffers(),
+    );
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+    return { device, bufferManager, vertexManager, pipeline, geometryBuffer };
+  });
 }
 
-
-interface GroupGPUVegaCanvasContext extends GPUVegaCanvasContext {
-  _origin: [number, number],
-  _clip: [x: number, y: number, width: number, height: number],
-}
-
-function draw(device: GPUDevice, ctx: GroupGPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
+function draw(
+  this: WebGPURenderer,
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  scene: GPUVegaScene,
+  vb: Bounds,
+  markTypes?: string[],
+): void {
   const items = scene.items;
   if (!items?.length) {
     return;
   }
 
-  initialize(device, ctx, vb);
-  _bufferManager.setResolution(ctx._uniforms.resolution);
-  _bufferManager.setOffset([vb.x1, vb.y1]);
+  const res = getResources(device, ctx, vb);
+  res.bufferManager.setResolution(ctx._uniforms.resolution);
+  res.bufferManager.setOffset([vb.x1, vb.y1]);
 
-  const uniformBuffer = _bufferManager.createUniformBuffer();
-  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
+  const uniformBuffer = res.bufferManager.createUniformBuffer();
+  const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
 
-  const attributes = createAttributes(items);
-  const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
+  // Group backgrounds share the rect instance layout and shader.
+  const attributes = rectAttributes(items);
+  const instanceBuffer = res.bufferManager.createInstanceBuffer(attributes);
 
-  Renderer.queue2(device, _pipeline, _renderPassDescriptor, [6, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup]);
+  ctx._renderQueue.enqueue({
+    pipeline: res.pipeline,
+    drawCounts: [6, items.length],
+    vertexBuffers: [res.geometryBuffer, instanceBuffer],
+    bindGroups: [uniformBindGroup],
+    clip: ctx._clip,
+  });
 
-  visit(scene, (group: GPUSceneGroup) => {
-    var gx = group.x || 0,
-      gy = group.y || 0,
-      w = group.width || 0,
-      h = group.height || 0,
-      offset, oldClip;
+  visit(scene, (group: SceneGroupExt) => {
+    const gx = group.x || 0;
+    const gy = group.y || 0;
+    const gw = group.width || 0;
+    const gh = group.height || 0;
 
-    // setup graphics context
+    // accumulate the group translation for nested marks
     ctx._tx += gx;
     ctx._ty += gy;
-    ctx._textContext.save();
-    ctx._textContext.translate(gx, gy);
 
-    //@ts-ignore
+    const oldClip = ctx._clip;
     if (group.clip) {
-      oldClip = ctx._clip;
-      ctx._clip = [
-        (ctx._origin[0] + ctx._tx) * ctx._uniforms.dpi,
-        (ctx._origin[1] + ctx._ty) * ctx._uniforms.dpi,
-        (ctx._origin[0] + ctx._tx + w) * ctx._uniforms.dpi,
-        (ctx._origin[1] + ctx._ty + h) * ctx._uniforms.dpi
-      ];
+      const dpi = ctx._uniforms.dpi;
+      ctx._clip = [(ctx._origin[0] + ctx._tx) * dpi, (ctx._origin[1] + ctx._ty) * dpi, gw * dpi, gh * dpi];
     }
-    if (vb) vb.translate(-gx, -gy);
+    if (vb) {
+      vb.translate(-gx, -gy);
+    }
 
-    visit(group, (item: SceneItem) => {
-      this.draw(device, ctx, item, vb);
+    visit(group, (item: GPUVegaScene) => {
+      if (item.marktype === 'group' || markTypes == null || markTypes.includes(item.marktype)) {
+        this.draw(device, ctx, item, vb, markTypes);
+      }
     });
 
-    if (vb) vb.translate(gx, gy);
-    //@ts-ignore
+    if (vb) {
+      vb.translate(gx, gy);
+    }
     if (group.clip) {
       ctx._clip = oldClip;
     }
     ctx._tx -= gx;
     ctx._ty -= gy;
-    ctx._textContext.restore();
   });
 }
 
-function createAttributes(items: SceneItem[]): Float32Array {
-  return Float32Array.from(
-    (items).flatMap((item: SceneRect) => {
-      const {
-        x = 0,
-        y = 0,
-        width = 0,
-        height = 0,
-        opacity = 1,
-        fill,
-        fillOpacity = 1,
-        stroke = null,
-        strokeOpacity = 1,
-        strokeWidth = null,
-        cornerRadius = 0,
-        // @ts-ignore
-        cornerRadiusBottomLeft = null,
-        // @ts-ignore
-        cornerRadiusBottomRight = null,
-        // @ts-ignore
-        cornerRadiusTopRight = null,
-        // @ts-ignore
-        cornerRadiusTopLeft = null,
-      } = item;
-      const col = Color.from(fill, opacity, fillOpacity);
-      const scol = Color.from(stroke, opacity, strokeOpacity);
-      const swidth = stroke ? strokeWidth ?? 1 : strokeWidth ?? 0;
-      const cornerRadii = [
-        cornerRadiusTopRight ?? cornerRadius,
-        cornerRadiusBottomRight ?? cornerRadius,
-        cornerRadiusBottomLeft ?? cornerRadius,
-        cornerRadiusTopLeft ?? cornerRadius,
-      ]
-      return [
-        x,
-        y,
-        width,
-        height,
-        ...col.rgba,
-        ...scol.rgba,
-        swidth,
-        ...cornerRadii,
-      ];
-    }),
-  );
-}
+export default {
+  type: 'group',
+  draw,
+} satisfies MarkModule;

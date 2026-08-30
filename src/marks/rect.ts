@@ -1,73 +1,117 @@
-import { Color } from '../util/color';
-import { Bounds } from 'vega-scenegraph';
-import { SceneItem, SceneRect } from 'vega-typings';
-import { GPUVegaScene, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js'
-import { quadVertex } from '../util/arrays';
-import { VertexBufferManager } from '../util/vertexManager.js';
+import type { Bounds } from 'vega-scenegraph';
+import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { SceneItem, SceneRectExt } from '../types/scene.js';
+import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { Renderer } from '../util/renderer.js';
-
-import shaderSource from '../shaders/rect.wgsl';
+import { Color, isGradient } from '../util/color.js';
+import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
+import { getMarkResources, markClip, whiteCarrier, type MarkModule } from './util.js';
 
 const drawName = 'Rect';
-export default {
-  type: 'rect',
-  draw: draw,
-};
 
-let _device: GPUDevice = null;
-let _bufferManager: BufferManager = null;
-let _shader: GPUShaderModule = null;
-let _vertexBufferManager: VertexBufferManager = null;
-let _pipeline: GPURenderPipeline = null;
-let _renderPassDescriptor: GPURenderPassDescriptor = null;
-let _geometryBuffer: GPUBuffer = null;
-let isInitialized: boolean = false;
-
-function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
-  if (_device != device) {
-    _device = device;
-    isInitialized = false;
-  }
-
-  if (!isInitialized) {
-    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-    _shader = ctx._shaderCache[drawName] as GPUShaderModule;
-    _vertexBufferManager = new VertexBufferManager(
-      ['float32x2'], // position
-      // center, dimensions, fill color, stroke color, stroke width, corner radii
-      ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']
-    );
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertexBufferManager.getBuffers());
-    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
-    _geometryBuffer = _bufferManager.createGeometryBuffer(quadVertex);
-    isInitialized = true;
-  }
-  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+interface RectResources {
+  device: GPUDevice;
+  bufferManager: BufferManager;
+  vertexManager: VertexBufferManager;
+  pipeline: GPURenderPipeline;
+  gradientPipeline: GPURenderPipeline;
+  geometryBuffer: GPUBuffer;
 }
 
-function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): [] {
+function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RectResources {
+  return getMarkResources(ctx, 'rect', device, () => {
+    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const vertexManager = new VertexBufferManager(
+      ['float32x2'], // position
+      // center, dimensions, fill color, stroke color, stroke width, corner radii
+      ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
+    );
+    const pipeline = createRenderPipeline(
+      drawName,
+      device,
+      ctx._shaderCache[drawName],
+      preferredColorFormat(),
+      ctx._sampleCount,
+      vertexManager.getBuffers(),
+    );
+    const gradientPipeline = createRenderPipeline(
+      `${drawName}Gradient`,
+      device,
+      ctx._shaderCache[drawName],
+      preferredColorFormat(),
+      ctx._sampleCount,
+      vertexManager.getBuffers(),
+      undefined,
+      'main_fragment_gradient',
+    );
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, geometryBuffer };
+  });
+}
+
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = scene.items;
   if (!items?.length) {
     return;
   }
 
-  initialize(device, ctx, vb);
-  _bufferManager.setResolution(ctx._uniforms.resolution);
-  _bufferManager.setOffset([vb.x1, vb.y1]);
+  const res = getResources(device, ctx, vb);
+  res.bufferManager.setResolution(ctx._uniforms.resolution);
+  res.bufferManager.setOffset([vb.x1, vb.y1]);
 
-  const uniformBuffer = _bufferManager.createUniformBuffer();
-  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
+  const uniformBuffer = res.bufferManager.createUniformBuffer();
+  const clip = markClip(ctx, scene);
 
-  const attributes = createAttributes(items);
-  const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
+  const solidItems: SceneItem[] = [];
+  const gradientItems: SceneRectExt[] = [];
+  for (const item of items) {
+    if (isGradient((item as SceneRectExt).fill)) {
+      gradientItems.push(item as SceneRectExt);
+    } else {
+      solidItems.push(item);
+    }
+  }
 
-  Renderer.queue2(device, _pipeline, _renderPassDescriptor, [6, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup], ctx._clip);
+  if (solidItems.length > 0) {
+    const attributes = rectAttributes(solidItems);
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(attributes);
+
+    ctx._renderQueue.enqueue({
+      pipeline: res.pipeline,
+      drawCounts: [6, solidItems.length],
+      vertexBuffers: [res.geometryBuffer, instanceBuffer],
+      bindGroups: [createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer)],
+      clip,
+    });
+  }
+
+  if (gradientItems.length > 0) {
+    const gres = getGradientResources(device, ctx);
+    for (const item of gradientItems) {
+      if (!isGradient(item.fill)) {
+        continue;
+      }
+      const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item], true));
+      ctx._renderQueue.enqueue({
+        pipeline: res.gradientPipeline,
+        drawCounts: [6, 1],
+        vertexBuffers: [res.geometryBuffer, instanceBuffer],
+        bindGroups: [
+          createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
+          // rect gradients evaluate in uv space, bounds are the unit square
+          createGradientBindGroup(gres, res.gradientPipeline, item.fill, [0, 0, 1, 1]),
+        ],
+        clip,
+      });
+    }
+  }
 }
 
-function createAttributes(items: SceneItem[]): Float32Array {
+export function rectAttributes(items: SceneItem[], whiteGradientFill = false): Float32Array {
   return Float32Array.from(
-    (items).flatMap((item: SceneRect) => {
+    items.flatMap(rect => {
       const {
         x = 0,
         y = 0,
@@ -76,38 +120,43 @@ function createAttributes(items: SceneItem[]): Float32Array {
         opacity = 1,
         fill,
         fillOpacity = 1,
-        stroke = null,
+        stroke,
         strokeOpacity = 1,
-        strokeWidth = null,
+        strokeWidth,
         cornerRadius = 0,
-        // @ts-ignore
-        cornerRadiusBottomLeft = null,
-        // @ts-ignore
-        cornerRadiusBottomRight = null,
-        // @ts-ignore
-        cornerRadiusTopRight = null,
-        // @ts-ignore
-        cornerRadiusTopLeft = null,
-      } = item;
-      const col = Color.from(fill, opacity, fillOpacity);
-      const scol = Color.from(stroke, opacity, strokeOpacity);
-      const swidth = stroke ? strokeWidth ?? 1 : strokeWidth ?? 0;
-      const cornerRadii = [
-        cornerRadiusTopRight ?? cornerRadius,
-        cornerRadiusBottomRight ?? cornerRadius,
-        cornerRadiusBottomLeft ?? cornerRadius,
-        cornerRadiusTopLeft ?? cornerRadius,
-      ]
+        cornerRadiusBottomLeft,
+        cornerRadiusBottomRight,
+        cornerRadiusTopRight,
+        cornerRadiusTopLeft,
+      } = rect as SceneRectExt;
+      const col =
+        whiteGradientFill && isGradient(fill)
+          ? whiteCarrier(opacity, fillOpacity)
+          : Color.from2(fill, opacity, fillOpacity);
+      const scol = Color.from2(stroke, opacity, strokeOpacity);
+      // Only reserve stroke width when a stroke is actually painted. Vega marks
+      // may carry a strokeWidth with no stroke (e.g. stroke set on hover only);
+      // canvas ignores it, so we must too. Otherwise the transparent stroke
+      // band insets the fill and the rect renders ~strokeWidth/2 px too small.
+      const swidth = stroke ? (strokeWidth ?? 1) : 0;
       return [
         x,
         y,
         width,
         height,
-        ...col.rgba,
-        ...scol.rgba,
+        ...col,
+        ...scol,
         swidth,
-        ...cornerRadii,
+        cornerRadiusTopRight ?? cornerRadius,
+        cornerRadiusBottomRight ?? cornerRadius,
+        cornerRadiusBottomLeft ?? cornerRadius,
+        cornerRadiusTopLeft ?? cornerRadius,
       ];
     }),
   );
 }
+
+export default {
+  type: 'rect',
+  draw,
+} satisfies MarkModule;
