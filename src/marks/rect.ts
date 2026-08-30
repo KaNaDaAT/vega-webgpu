@@ -64,49 +64,44 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
 
-  const solidItems: SceneItem[] = [];
-  const gradientItems: SceneRectExt[] = [];
-  for (const item of items) {
-    if (isGradient((item as SceneRectExt).fill)) {
-      gradientItems.push(item as SceneRectExt);
-    } else {
-      solidItems.push(item);
+  const gres = getGradientResources(device, ctx);
+  let run: SceneItem[] = [];
+  const flushRun = () => {
+    if (run.length === 0) {
+      return;
     }
-  }
-
-  if (solidItems.length > 0) {
-    const attributes = rectAttributes(solidItems);
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(attributes);
-
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(run));
     ctx._renderQueue.enqueue({
       pipeline: res.pipeline,
-      drawCounts: [6, solidItems.length],
+      drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer)],
       clip,
     });
-  }
+    run = [];
+  };
 
-  if (gradientItems.length > 0) {
-    const gres = getGradientResources(device, ctx);
-    for (const item of gradientItems) {
-      if (!isGradient(item.fill)) {
-        continue;
-      }
-      const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item], true));
-      ctx._renderQueue.enqueue({
-        pipeline: res.gradientPipeline,
-        drawCounts: [6, 1],
-        vertexBuffers: [res.geometryBuffer, instanceBuffer],
-        bindGroups: [
-          createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-          // rect gradients evaluate in uv space, bounds are the unit square
-          createGradientBindGroup(gres, res.gradientPipeline, item.fill, [0, 0, 1, 1]),
-        ],
-        clip,
-      });
+  for (const item of items) {
+    const fill = (item as SceneRectExt).fill;
+    if (!isGradient(fill)) {
+      run.push(item);
+      continue;
     }
+    flushRun();
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item as SceneRectExt], true));
+    ctx._renderQueue.enqueue({
+      pipeline: res.gradientPipeline,
+      drawCounts: [6, 1],
+      vertexBuffers: [res.geometryBuffer, instanceBuffer],
+      bindGroups: [
+        createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
+        // rect gradients evaluate in uv space, bounds are the unit square
+        createGradientBindGroup(gres, res.gradientPipeline, fill, [0, 0, 1, 1]),
+      ],
+      clip,
+    });
   }
+  flushRun();
 }
 
 export function rectAttributes(items: SceneItem[], whiteGradientFill = false): Float32Array {

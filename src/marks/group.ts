@@ -4,6 +4,8 @@ import type { SceneGroupExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
+import { isGradient } from '../util/color.js';
+import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { visit } from '../util/visit.js';
 import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
 import { rectAttributes } from './rect.js';
@@ -17,6 +19,7 @@ interface GroupResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
+  gradientPipeline: GPURenderPipeline;
   geometryBuffer: GPUBuffer;
 }
 
@@ -36,8 +39,18 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ctx._sampleCount,
       vertexManager.getBuffers(),
     );
+    const gradientPipeline = createRenderPipeline(
+      `${drawName}Gradient`,
+      device,
+      ctx._shaderCache[drawName],
+      preferredColorFormat(),
+      ctx._sampleCount,
+      vertexManager.getBuffers(),
+      undefined,
+      'main_fragment_gradient',
+    );
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-    return { device, bufferManager, vertexManager, pipeline, geometryBuffer };
+    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, geometryBuffer };
   });
 }
 
@@ -62,16 +75,42 @@ function draw(
   const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
 
   // Group backgrounds share the rect instance layout and shader.
-  const attributes = rectAttributes(items);
-  const instanceBuffer = res.bufferManager.createInstanceBuffer(attributes);
+  const gres = getGradientResources(device, ctx);
+  let run: SceneGroupExt[] = [];
+  const flushRun = () => {
+    if (run.length === 0) {
+      return;
+    }
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(run));
+    ctx._renderQueue.enqueue({
+      pipeline: res.pipeline,
+      drawCounts: [6, run.length],
+      vertexBuffers: [res.geometryBuffer, instanceBuffer],
+      bindGroups: [uniformBindGroup],
+      clip: ctx._clip,
+    });
+    run = [];
+  };
 
-  ctx._renderQueue.enqueue({
-    pipeline: res.pipeline,
-    drawCounts: [6, items.length],
-    vertexBuffers: [res.geometryBuffer, instanceBuffer],
-    bindGroups: [uniformBindGroup],
-    clip: ctx._clip,
-  });
+  for (const item of items as SceneGroupExt[]) {
+    if (!isGradient(item.fill)) {
+      run.push(item);
+      continue;
+    }
+    flushRun();
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item], true));
+    ctx._renderQueue.enqueue({
+      pipeline: res.gradientPipeline,
+      drawCounts: [6, 1],
+      vertexBuffers: [res.geometryBuffer, instanceBuffer],
+      bindGroups: [
+        createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
+        createGradientBindGroup(gres, res.gradientPipeline, item.fill, [0, 0, 1, 1]),
+      ],
+      clip: ctx._clip,
+    });
+  }
+  flushRun();
 
   visit(scene, (group: SceneGroupExt) => {
     const gx = group.x || 0;

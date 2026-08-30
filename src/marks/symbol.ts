@@ -19,6 +19,9 @@ import {
 
 const segments = 32;
 const drawName = 'Symbol';
+// Bounds the triangulated-shape cache. `size` is continuous, so a size-encoded
+// chart would otherwise mint a GPU buffer per distinct size, forever.
+const MAX_SHAPE_CACHE = 256;
 
 /** Cached triangulated fill/stroke geometry for one (shape, size, strokeWidth). */
 interface ShapeGeometry {
@@ -118,53 +121,50 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
 
-  // Gradient-filled symbols are drawn per item (per-vertex geometry + the
-  // gradient pipeline). Circles use the analytic shader. Other solid-filled
-  // shapes are triangulated and instanced.
-  const circles: SceneSymbolExt[] = [];
-  const shaped = new Map<string, SceneSymbolExt[]>();
-  const gradientItems: SceneSymbolExt[] = [];
+  let runKind: string | null = null;
+  let run: SceneSymbolExt[] = [];
+  let circleBindGroup: GPUBindGroup | null = null;
+  let shapeBindGroup: GPUBindGroup | null = null;
+
+  const flushRun = () => {
+    if (run.length === 0 || runKind === null) {
+      return;
+    }
+    if (runKind === 'circle') {
+      circleBindGroup ??= createUniformBindGroup(drawName, device, res.circlePipeline, uniformBuffer);
+      const instanceBuffer = res.bufferManager.createInstanceBuffer(createCircleAttributes(run));
+      ctx._renderQueue.enqueue({
+        pipeline: res.circlePipeline,
+        drawCounts: [segments * 3, run.length],
+        vertexBuffers: [res.circleGeometry, instanceBuffer],
+        bindGroups: [circleBindGroup],
+        clip,
+      });
+    } else {
+      shapeBindGroup ??= createUniformBindGroup(`${drawName}Shape`, device, res.shapePipeline, uniformBuffer);
+      drawShapeGroup(device, ctx, res, shapeBindGroup, runKind, run, clip);
+    }
+    run = [];
+    runKind = null;
+  };
+
   for (const item of items) {
+    // Gradient fills need the gradient pipeline and are drawn one at a time.
     if (isGradient(item.fill)) {
-      gradientItems.push(item);
+      flushRun();
+      drawGradientSymbol(device, ctx, res, item, clip);
       continue;
     }
     const shape = item.shape || 'circle';
-    if (shape === 'circle') {
-      circles.push(item);
-    } else {
-      const key = `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`;
-      const group = shaped.get(key);
-      if (group) {
-        group.push(item);
-      } else {
-        shaped.set(key, [item]);
-      }
+    const kind =
+      shape === 'circle' ? 'circle' : `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`;
+    if (kind !== runKind) {
+      flushRun();
+      runKind = kind;
     }
+    run.push(item);
   }
-
-  for (const item of gradientItems) {
-    drawGradientSymbol(device, ctx, res, item, clip);
-  }
-
-  if (circles.length > 0) {
-    const uniformBindGroup = createUniformBindGroup(drawName, device, res.circlePipeline, uniformBuffer);
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(createCircleAttributes(circles));
-    ctx._renderQueue.enqueue({
-      pipeline: res.circlePipeline,
-      drawCounts: [segments * 3, circles.length],
-      vertexBuffers: [res.circleGeometry, instanceBuffer],
-      bindGroups: [uniformBindGroup],
-      clip,
-    });
-  }
-
-  if (shaped.size > 0) {
-    const shapeBindGroup = createUniformBindGroup(`${drawName}Shape`, device, res.shapePipeline, uniformBuffer);
-    for (const [key, group] of shaped) {
-      drawShapeGroup(device, ctx, res, shapeBindGroup, key, group, clip);
-    }
-  }
+  flushRun();
 }
 
 function drawShapeGroup(
@@ -290,6 +290,8 @@ function getShapeGeometry(
 ): ShapeGeometry {
   const cached = res.shapeCache.get(key);
   if (cached) {
+    res.shapeCache.delete(key);
+    res.shapeCache.set(key, cached);
     return cached;
   }
   const pathGeom = symbolShapeGeometry(ctx, shape, size);
@@ -307,6 +309,21 @@ function getShapeGeometry(
         : null,
     strokeCount: geometry.strokeCount,
   };
+  if (res.shapeCache.size >= MAX_SHAPE_CACHE) {
+    const oldest = res.shapeCache.keys().next().value;
+    if (oldest !== undefined) {
+      const evicted = res.shapeCache.get(oldest);
+      res.shapeCache.delete(oldest);
+      if (evicted) {
+        if (evicted.fill) {
+          ctx._renderer?.deferDestroy(evicted.fill);
+        }
+        if (evicted.stroke) {
+          ctx._renderer?.deferDestroy(evicted.stroke);
+        }
+      }
+    }
+  }
   res.shapeCache.set(key, entry);
   return entry;
 }
