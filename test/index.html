@@ -5,6 +5,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="./index.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>%E2%9A%A1</text></svg>"
+    />
     <script src="../releases/versions.js"></script>
     <script>
       function loadScript(src, callback) {
@@ -20,7 +24,11 @@
       }
 
       const releasedVersions = typeof vegaWebGPURendererVersions !== 'undefined' ? vegaWebGPURendererVersions : [];
-      const version = getQueryParam('version') || 'dev';
+      // build/ is gitignored, so the dev bundle only exists when serving the
+      // repo locally. Hosted pages default to the newest release instead.
+      const isLocalHost = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+      const defaultVersion = isLocalHost || releasedVersions.length === 0 ? 'dev' : releasedVersions[0];
+      const version = getQueryParam('version') || defaultVersion;
       const isDev = version === 'dev';
       const major = isDev ? Infinity : parseInt(version.split(/[._]/)[0], 10);
       console.log(`Vega WebGPU Renderer ${version}`);
