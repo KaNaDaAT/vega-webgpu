@@ -64,6 +64,7 @@ export function textCacheKey(item: SceneTextItem): string {
     item.fill,
     item.fillOpacity,
     item.stroke,
+    item.strokeOpacity,
     item.strokeWidth,
     item.lineBreak,
     item.lineHeight,
@@ -110,9 +111,15 @@ export function rasterizeText(
     return null;
   }
 
-  canvas.width = physWidth;
-  canvas.height = physHeight;
-  // Map scene coords to texture device pixels: s becomes anchorTex + (s - anchor) * dpi.
+  // Grow-only. Resizing a canvas recreates its backing store, which invalidates
+  // the external image reference the GPU copy takes (an OperationError on Linux
+  // Dawn). The glyph is drawn at the top-left and only that region is copied.
+  if (canvas.width < physWidth || canvas.height < physHeight) {
+    canvas.width = Math.max(canvas.width, physWidth);
+    canvas.height = Math.max(canvas.height, physHeight);
+  }
+  c2d.setTransform(1, 0, 0, 1, 0, 0);
+  c2d.clearRect(0, 0, canvas.width, canvas.height);
   c2d.setTransform(dpi, 0, 0, dpi, anchorTexX - dpi * ax, anchorTexY - dpi * ay);
   textMark.draw(c2d, { items: [clone] }, null);
 

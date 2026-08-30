@@ -4,7 +4,7 @@ import type { SceneColor, SceneGradient } from '../types/scene.js';
 export type RGBA = [r: number, g: number, b: number, a: number];
 
 const TRANSPARENT: RGBA = [0, 0, 0, 0];
-/** Placeholder used for gradients until they are supported. */
+/** Placeholder for gradients on paths that cannot sample a ramp (strokes). */
 const GRADIENT_FALLBACK: RGBA = [0.5, 1.0, 1.0, 1.0];
 
 let warnedGradient = false;
@@ -63,7 +63,7 @@ export class Color {
     if (isGradient(value)) {
       if (!warnedGradient) {
         warnedGradient = true;
-        console.warn('[vega-webgpu] Gradients are not supported yet; rendering a placeholder color.');
+        console.warn('[vega-webgpu] Gradient strokes are not supported, drawing a placeholder color.');
       }
       const [r, g, b, a] = GRADIENT_FALLBACK;
       return [r, g, b, a * opacity * fsOpacity];
