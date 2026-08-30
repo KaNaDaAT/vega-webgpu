@@ -27,16 +27,12 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
 
     // Calculate the direction vector of the line
     let direction = normalize(end - start);
-    let angle = atan2(direction.y, direction.x);
-
     // Calculate the normal vector
     let normal = normalize(vec2<f32>(-direction.y, direction.x));
 
     // Calculate the offset for width
     let adjusted_width = stroke_width + smooth_step;
     let offset = normal * ((adjusted_width) * 0.5);
-    let width = stroke_width + smooth_step * 2.0;
-    let length = length(end - start);
 
     // Calculate the four points of the line
     var p1 = start - offset;

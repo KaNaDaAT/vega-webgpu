@@ -28,7 +28,6 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
 
     // Calculate the direction vector of the line
     let direction = normalize(end - start);
-    let angle = atan2(direction.y, direction.x);
 
     // Calculate the normal vector
     let normal = normalize(vec2<f32>(-direction.y, direction.x));
@@ -50,9 +49,8 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
 
     var out: VertexOutput;
     out.pos = vec4<f32>(pos, 0.0, 1.0);
-    let rotatedUV = vertices[vertexIndex] + uniforms.offset;
-    var len = length(pos.xy);
-    out.uv = vec2<f32>(- pos.x / len, pos.y / len);
+    let len = length(pos.xy);
+    out.uv = vec2<f32>(-pos.x / len, pos.y / len);
     out.fill = color;
     return out;
 }
