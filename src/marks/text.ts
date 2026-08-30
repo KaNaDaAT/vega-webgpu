@@ -46,6 +46,10 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   });
 }
 
+/**
+ * Glyph texture for one label, baked at its quantized sub-pixel phase so it
+ * lands where canvas draws it. Keyed by style, dpi and phase.
+ */
 function getTexture(
   device: GPUDevice,
   ctx: GPUVegaCanvasContext,
@@ -55,15 +59,14 @@ function getTexture(
 ): TextTexture | null {
   const dpi = ctx._uniforms.dpi || 1;
   const [ax, ay] = textAnchor(item);
-  // Bake the glyph at its real sub-pixel phase (its fractional position on the
-  // device grid the shader maps into), so the texture matches the canvas
-  // renderer exactly instead of being snapped up to half a pixel away. Texture
-  // pixels depend on dpi and this phase, so both are part of the cache key.
   const phaseX = quantizePhase((ax - vb.x1) * dpi);
   const phaseY = quantizePhase((ay - vb.y1) * dpi);
   const key = `${textCacheKey(item)}|${dpi}|${phaseX}|${phaseY}`;
   const cached = res.cache.get(key);
   if (cached) {
+    // re-insert to keep the map in least-recently-used order
+    res.cache.delete(key);
+    res.cache.set(key, cached);
     return cached;
   }
   const raster = rasterizeText(device, ctx, res.scratch, res.scratchCtx, item, phaseX, phaseY);
@@ -73,14 +76,23 @@ function getTexture(
   if (res.cache.size >= MAX_CACHE) {
     const oldest = res.cache.keys().next().value;
     if (oldest !== undefined) {
-      res.cache.get(oldest)?.texture.destroy();
+      const evicted = res.cache.get(oldest);
       res.cache.delete(oldest);
+      // a queued draw may still reference it, so destroy after submit
+      if (evicted) {
+        ctx._renderer?.deferDestroy(evicted.texture);
+      }
     }
   }
   res.cache.set(key, raster);
   return raster;
 }
 
+/**
+ * Rotation and sub-pixel phase are baked into the texture, so every label is a
+ * plain axis-aligned quad on a whole device pixel and maps 1:1 without
+ * resampling. The shader maps (position - vb) * dpi to device pixels.
+ */
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = scene.items as SceneTextItem[];
   if (!items?.length) {
@@ -105,13 +117,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       continue;
     }
 
-    // Rotation and the sub-pixel phase are both baked into the glyph texture
-    // (see rasterizeText), so every label, at any angle, is drawn as a plain
-    // axis-aligned quad. Its origin is the anchor's device position minus where
-    // the anchor sits inside the texture. The phase cancels, leaving a whole
-    // device-pixel origin, so the glyph maps 1:1 to device pixels (crisp, no
-    // resampling) while still landing exactly where canvas draws it. The shader
-    // maps (position - vb) * dpi to device pixels, so we work in that space.
     const [ax, ay] = textAnchor(item);
     const dpi = ctx._uniforms.dpi || 1;
     const originPhysX = Math.round((ax - vb.x1) * dpi - tex.anchorTexX);

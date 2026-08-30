@@ -58,6 +58,8 @@ export default class WebGPURenderer extends Renderer {
   private _renderCount = 0;
   private _warnedTextureSize = false;
 
+  private _pendingDestroy: { destroy(): void }[] = [];
+
   private _isRendering = false;
   private _pendingRender: PendingRender | null = null;
   private _lastRender: PendingRender | null = null;
@@ -124,13 +126,14 @@ export default class WebGPURenderer extends Renderer {
 
     const o: [number, number] = [this._origin[0], this._origin[1]];
     if (this._canvas && this._ctx && this._pickCanvas && this._pickContext) {
-      resize(this._canvas, this._ctx, this._width, this._height, o, this._pickCanvas, this._pickContext);
+      resize(this._canvas, this._ctx, this._width, this._height, o, this._pickCanvas, this._pickContext, scaleFactor);
 
-      const ratio = window.devicePixelRatio || 1;
+      // devicePixelRatio disagrees with this for a detached canvas or an
+      // explicit scaleFactor.
       this._uniforms = {
         resolution: [width, height],
         origin: o,
-        dpi: ratio,
+        dpi: this._ctx._ratio,
       };
       this._ctx._uniforms = this._uniforms;
     }
@@ -316,7 +319,12 @@ export default class WebGPURenderer extends Renderer {
     }
     this._queue.submit(device, renderPassDescriptor, [this._canvas?.width ?? 0, this._canvas?.height ?? 0]);
 
-    requestAnimationFrame(() => this._endFrame(t1, t2));
+    // rAF never fires in a hidden tab, which would wedge _isRendering.
+    if (typeof document !== 'undefined' && !document.hidden) {
+      requestAnimationFrame(() => this._endFrame(t1, t2));
+    } else {
+      setTimeout(() => this._endFrame(t1, t2), 0);
+    }
   }
 
   private _endFrame(t1: number, t2: number): void {
@@ -336,8 +344,24 @@ export default class WebGPURenderer extends Renderer {
    * Every exit from a frame (completion, early return, or failure) must come
    * through here, or `_isRendering` stays stuck and awaiting callers never wake.
    */
+  /**
+   * Queues a GPU resource for destruction once the current frame is submitted.
+   * Safe to call from inside a mark's draw, where the resource may still be
+   * referenced by a queued but not yet encoded draw.
+   */
+  deferDestroy(resource: { destroy(): void }): void {
+    this._pendingDestroy.push(resource);
+  }
+
   private _finishFrame(): void {
     this._isRendering = false;
+
+    if (this._pendingDestroy.length > 0) {
+      for (const resource of this._pendingDestroy) {
+        resource.destroy();
+      }
+      this._pendingDestroy = [];
+    }
 
     const pending = this._pendingRender;
     this._pendingRender = null;
@@ -409,7 +433,12 @@ export default class WebGPURenderer extends Renderer {
 
   clearColor(): GPUColor {
     const bg = this._bgcolor ? Color.from(this._bgcolor) : null;
-    return bg ? { r: bg.r, g: bg.g, b: bg.b, a: bg.a } : { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+    if (!bg) {
+      return { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+    }
+    // The surface is configured alphaMode premultiplied, so a translucent
+    // background has to be premultiplied here too or it composites too bright.
+    return { r: bg.r * bg.a, g: bg.g * bg.a, b: bg.b * bg.a, a: bg.a };
   }
 
   private _cacheShaders(device: GPUDevice, ctx: GPUVegaCanvasContext): void {
