@@ -15,8 +15,7 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) pos: vec4<f32>,
-    @location(0)  uv: vec2<f32>,
-    @location(1) fill: vec4<f32>,
+    @location(0) fill: vec4<f32>,
 };
 
 @vertex
@@ -26,11 +25,13 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
     let color = in.color;
     let stroke_width = in.stroke_width;
 
-    // Calculate the direction vector of the line
-    let direction = normalize(end - start);
+    // normalize() on a zero-length segment returns NaN
+    let delta = end - start;
+    let seg_len = length(delta);
+    let direction = select(vec2<f32>(1.0, 0.0), delta / seg_len, seg_len > 1e-6);
 
     // Calculate the normal vector
-    let normal = normalize(vec2<f32>(-direction.y, direction.x));
+    let normal = vec2<f32>(-direction.y, direction.x);
 
     // Calculate the offset for width
     let offset = normal * ((stroke_width) * 0.5);
@@ -49,8 +50,6 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
 
     var out: VertexOutput;
     out.pos = vec4<f32>(pos, 0.0, 1.0);
-    let len = length(pos.xy);
-    out.uv = vec2<f32>(-pos.x / len, pos.y / len);
     out.fill = color;
     return out;
 }
