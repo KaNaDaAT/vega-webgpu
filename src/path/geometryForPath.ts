@@ -20,7 +20,8 @@ export default function geometryForPath(
     return EMPTY;
   }
 
-  const cached = context._pathCache[path];
+  const cacheKey = `${threshold}|${path}`;
+  const cached = context._pathCache[cacheKey];
   if (cached !== undefined) {
     return cached;
   }
@@ -51,12 +52,12 @@ export default function geometryForPath(
   const geom: PathGeometry = {
     lines,
     triangles,
-    closed: path.endsWith('Z'),
+    closed: /z\s*$/i.test(path),
     z,
     key: path,
   };
 
-  context._pathCache[path] = geom;
+  context._pathCache[cacheKey] = geom;
   context._pathCacheSize++;
   if (context._pathCacheSize > 10000) {
     context._pathCache = {};

@@ -56,7 +56,8 @@ export default function geometryForItem(
       thickness: lineWidth,
       cap: lineCap,
       join: 'miter',
-      miterLimit: 1,
+      // canvas defaults to 10; at 1 almost every corner is bevel-cut
+      miterLimit: 10,
       closed: shapeGeom.closed,
     });
     for (const line of shapeGeom.lines) {

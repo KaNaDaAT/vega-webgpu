@@ -25,7 +25,7 @@ interface ShapeCacheEntry {
   stroke: RGBA;
   x?: number;
   y?: number;
-  bounds?: Bounds;
+  bounds?: BoundsSnapshot;
   strokeWidth?: number;
   data: [Float32Array, Float32Array];
 }
@@ -171,7 +171,7 @@ function createGeometryData(
       item.strokeWidth === entry.strokeWidth &&
       item.x === entry.x &&
       item.y === entry.y &&
-      item.bounds === entry.bounds
+      sameBounds(item.bounds, entry.bounds)
     ) {
       if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
         return entry.data;
@@ -197,12 +197,29 @@ function createGeometryData(
       stroke,
       x: item.x,
       y: item.y,
-      bounds: item.bounds,
+      bounds: copyBounds(item.bounds),
       strokeWidth: item.strokeWidth,
       data,
     });
   }
   return data;
+}
+
+/**
+ * Vega mutates a Bounds in place as the view pans or zooms, so comparing by
+ * identity never sees a change. Snapshot the numbers and compare those.
+ */
+type BoundsSnapshot = { x1: number; y1: number; x2: number; y2: number };
+
+function copyBounds(b?: Bounds): BoundsSnapshot | undefined {
+  return b ? { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 } : undefined;
+}
+
+function sameBounds(b: Bounds | undefined, snap: BoundsSnapshot | undefined): boolean {
+  if (b === undefined || snap === undefined) {
+    return b === undefined && snap === undefined;
+  }
+  return b.x1 === snap.x1 && b.y1 === snap.y1 && b.x2 === snap.x2 && b.y2 === snap.y2;
 }
 
 export default {
