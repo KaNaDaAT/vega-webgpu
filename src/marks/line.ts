@@ -5,7 +5,9 @@ import { BufferManager } from '../util/bufferManager.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
-import { getMarkResources, markClip, type MarkModule } from './util.js';
+import geometryForItem from '../path/geometryForItem.js';
+import { line as lineGeometry } from '../path/shapes.js';
+import { geometryVertexData, getMarkResources, markClip, type MarkModule } from './util.js';
 
 const drawName = 'Line';
 // Round joins are drawn as filled circles at interior vertices.
@@ -24,6 +26,8 @@ interface LineResources {
   joinPipeline: GPURenderPipeline;
   joinVertexManager: VertexBufferManager;
   joinGeometryBuffer: GPUBuffer;
+  curveVertexManager: VertexBufferManager;
+  curvePipeline: GPURenderPipeline;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
@@ -67,7 +71,18 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       joinVertexManager.getBuffers(),
     );
     const joinGeometryBuffer = bufferManager.createGeometryBuffer(createJoinGeometry());
+    const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
+    const curvePipeline = createRenderPipeline(
+      `${drawName}Curve`,
+      device,
+      ctx._shaderCache['Path'],
+      preferredColorFormat(),
+      ctx._sampleCount,
+      curveVertexManager.getBuffers(),
+    );
     return {
+      curveVertexManager,
+      curvePipeline,
       device,
       bufferManager,
       batchVertexManager,
@@ -81,6 +96,45 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   });
 }
 
+/**
+ * True when the mark cannot be drawn as a plain polyline, either because it
+ * uses a curve interpolation or because `defined: false` puts gaps in it.
+ */
+function needsPath(points: SceneLinePoint[]): boolean {
+  const interp = points[0]?.interpolate;
+  if (interp && interp !== 'linear') {
+    return true;
+  }
+  return points.some(p => p.defined === false);
+}
+
+/** Curved or gapped lines go through the shared path tessellation. */
+function drawPath(
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  res: LineResources,
+  points: SceneLinePoint[],
+  clip: ReturnType<typeof markClip>,
+): void {
+  const first = points[0];
+  const shapeGeom = lineGeometry(ctx, points);
+  const geometry = geometryForItem(ctx, { ...first, fill: undefined }, shapeGeom);
+  const stroke = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const [, strokeData] = geometryVertexData(geometry, [0, 0, 0, 0], stroke);
+  if (strokeData.length === 0) {
+    return;
+  }
+  ctx._renderQueue.enqueue({
+    pipeline: res.curvePipeline,
+    drawCounts: [strokeData.length / res.curveVertexManager.getVertexLength()],
+    vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
+    bindGroups: [
+      createUniformBindGroup(`${drawName}Curve`, device, res.curvePipeline, res.bufferManager.createUniformBuffer()),
+    ],
+    clip,
+  });
+}
+
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = scene.items;
   if (!items?.length) {
@@ -90,8 +144,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
   res.bufferManager.setResolution(ctx._uniforms.resolution);
   res.bufferManager.setOffset([vb.x1, vb.y1]);
-  const clip = markClip(ctx, scene);
+
   const points = items as SceneLinePoint[];
+  const clip = markClip(ctx, scene);
+
+  if (needsPath(points)) {
+    drawPath(device, ctx, res, points, clip);
+    return;
+  }
 
   if (ctx._renderer.wgOptions.renderBatch === true) {
     // One instanced draw per line mark.
@@ -101,6 +161,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       res.instancedPipeline,
       res.bufferManager.createUniformBuffer(),
     );
+    if (items.length < 2) {
+      return; // a single point has no segment to draw
+    }
     const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(points));
 
     ctx._renderQueue.enqueue({

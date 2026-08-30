@@ -1,4 +1,4 @@
-import { arc as d3_arc, area as d3_area, symbol as d3_symbol, type SymbolType } from 'd3-shape';
+import { arc as d3_arc, area as d3_area, line as d3_line, symbol as d3_symbol, type SymbolType } from 'd3-shape';
 import { pathCurves, pathSymbols, pathTrail } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { PathGeometry } from '../types/geometry.js';
@@ -26,6 +26,7 @@ const arcShape = d3_arc<SceneArcItem>().cornerRadius(cr).padAngle(pa);
 const areavShape = d3_area<AreaPoint>().x(x).y1(y).y0(yh).defined(def);
 const areahShape = d3_area<AreaPoint>().y(y).x1(x).x0(xw).defined(def);
 const trailShape = pathTrail<AreaPoint>().x(x).y(y).defined(def).size(wh);
+const lineShape = d3_line<AreaPoint>().x(x).y(y).defined(def);
 
 export function arc(context: GPUVegaCanvasContext, item: SceneArcItem): PathGeometry {
   return geometryForPath(context, arcShape.context(null)(item) ?? '', 0.1);
@@ -41,6 +42,16 @@ export function area(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeo
           .curve(pathCurves(interp, item.orient, item.tension))
           .context(null)(items);
   return geometryForPath(context, path ?? '', 0.1);
+}
+
+/**
+ * Path geometry for a line mark, honouring `interpolate`, `tension` and the
+ * `defined` gaps. Used when the line is not a plain polyline.
+ */
+export function line(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeometry {
+  const item = items[0];
+  const curve = pathCurves(item.interpolate || 'linear', item.orient, item.tension);
+  return geometryForPath(context, lineShape.curve(curve).context(null)(items) ?? '', 0.1);
 }
 
 export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem): PathGeometry {
