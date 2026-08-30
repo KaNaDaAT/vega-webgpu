@@ -1,0 +1,106 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "description": "Text interleaved between graphic layers. Marks later in the spec must paint over earlier text \u2014 the acceptance case for GPU-native text rendering.",
+  "width": 320,
+  "height": 160,
+  "padding": 5,
+  "marks": [
+    {
+      "type": "rect",
+      "encode": {
+        "enter": {
+          "x": {
+            "value": 10
+          },
+          "y": {
+            "value": 20
+          },
+          "width": {
+            "value": 210
+          },
+          "height": {
+            "value": 70
+          },
+          "fill": {
+            "value": "#4682b4"
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "encode": {
+        "enter": {
+          "x": {
+            "value": 15
+          },
+          "y": {
+            "value": 66
+          },
+          "text": {
+            "value": "TEXT UNDER THE ORANGE LAYER"
+          },
+          "fontSize": {
+            "value": 22
+          },
+          "fill": {
+            "value": "black"
+          },
+          "fontWeight": {
+            "value": "bold"
+          }
+        }
+      }
+    },
+    {
+      "type": "rect",
+      "encode": {
+        "enter": {
+          "x": {
+            "value": 5
+          },
+          "y": {
+            "value": 30
+          },
+          "width": {
+            "value": 310
+          },
+          "height": {
+            "value": 60
+          },
+          "fill": {
+            "value": "orange"
+          },
+          "fillOpacity": {
+            "value": 1
+          },
+          "cornerRadius": {
+            "value": 12
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "encode": {
+        "enter": {
+          "x": {
+            "value": 15
+          },
+          "y": {
+            "value": 145
+          },
+          "text": {
+            "value": "top layer text stays visible"
+          },
+          "fontSize": {
+            "value": 15
+          },
+          "fill": {
+            "value": "#333333"
+          }
+        }
+      }
+    }
+  ]
+}
