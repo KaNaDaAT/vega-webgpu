@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Typecheck, lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: build/
+          retention-days: 7
+
+  test:
+    name: Render tests (WebGPU on SwiftShader)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Full Chromium (not the headless shell) is required for WebGPU. --with-deps
+      # pulls the Linux system libraries it needs.
+      - run: npx playwright install chromium --no-shell --with-deps
+
+      - run: npm run build
+
+      # Fail fast with a clear message if WebGPU can't initialize on SwiftShader,
+      # instead of all ~108 specs failing with a renderer mismatch. Runs as its
+      # own step so the job stops here, before the (slower) full suite.
+      - name: WebGPU smoke test
+        run: npx playwright test webgpu-smoke --reporter=line
+
+      # RENDER_ARTIFACTS=1 also writes the raw per-spec PNGs to
+      # test/render/output/ so they can be downloaded and diffed directly.
+      - run: npm run test:artifacts
+
+      # Always publish the report. It embeds every spec's webgpu, canvas and
+      # diff images, so it doubles as a manual comparison gallery.
+      - name: Upload render report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-report
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # Raw per-spec webgpu / canvas / diff PNGs for direct manual comparison.
+      - name: Upload render images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-images
+          path: test/render/output/
+          retention-days: 14
+          if-no-files-found: ignore
