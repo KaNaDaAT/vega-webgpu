@@ -1,45 +1,43 @@
-@group(0) @binding(0) var s: sampler;
-@group(0) @binding(1) var tex: texture_2d<f32>;
+struct Uniforms {
+  resolution: vec2<f32>,
+  offset: vec2<f32>,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(1) @binding(0) var imageSampler: sampler;
+@group(1) @binding(1) var imageTexture: texture_2d<f32>;
+
+struct VertexInput {
+  @location(0) position: vec2<f32>, // unit quad, 0..1
+}
+
+struct InstanceInput {
+  @location(1) origin: vec2<f32>,
+  @location(2) size: vec2<f32>,
+  @location(3) opacity: f32,
+}
 
 struct VertexOutput {
-  @builtin(position) position: vec4f,
-  @location(0) uv: vec2f,
-};
+  @builtin(position) pos: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+  @location(1) opacity: f32,
+}
 
-@vertex 
-fn main_vertex(
-    @builtin(vertex_index) vertexIndex: u32
-) -> VertexOutput {
-    var pos = array(
-        // 1st triangle
-        vec2f(-1.0, -1.0),  // bottom left
-        vec2f(1.0, -1.0),   // bottom right
-        vec2f(-1.0, 1.0),   // top left
-
-        // 2nd triangle
-        vec2f(-1.0, 1.0),   // top left
-        vec2f(1.0, -1.0),   // bottom right
-        vec2f(1.0, 1.0),    // top right
-    );
-
-    var out: VertexOutput;
-    let xy = pos[vertexIndex];
-    out.position = vec4f(xy, 0.0, 1.0);
-    out.uv = (xy + 1.0) * 0.5;  // Normalize the UV coordinates to [0, 1]
-    return out;
+@vertex
+fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
+    var output: VertexOutput;
+    var pos = model.position * instance.size + instance.origin - uniforms.offset;
+    pos = pos / uniforms.resolution;
+    pos.y = 1.0 - pos.y;
+    pos = pos * 2.0 - 1.0;
+    output.pos = vec4<f32>(pos, 0.0, 1.0);
+    output.uv = model.position;
+    output.opacity = instance.opacity;
+    return output;
 }
 
 @fragment
-fn main_fragment(input: VertexOutput) -> @location(0) vec4f {
-    var color: vec4<f32> = textureSample(tex, s, input.uv);
-
-    // Adjust alpha based on incoming alpha
-    color.a *= input.uv.x; // Assuming you want to use the x-coordinate as alpha
-
-    // Premultiply alpha
-    color.r = color.r * color.a;
-    color.g = color.g * color.a;
-    color.b = color.b * color.a;
-
-    return color;
+fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    let color = textureSample(imageTexture, imageSampler, in.uv);
+    return vec4<f32>(color.rgb, color.a * in.opacity);
 }
