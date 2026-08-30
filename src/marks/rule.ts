@@ -15,6 +15,7 @@ interface RuleResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
+  diagonalPipeline: GPURenderPipeline;
   geometryBuffer: GPUBuffer;
 }
 
@@ -23,7 +24,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
-      ['float32x2', 'float32x2', 'float32x4'], // center, scale, color
+      // center, scale, color, half-thickness offset
+      ['float32x2', 'float32x2', 'float32x4', 'float32x2'],
     );
     const pipeline = createRenderPipeline(
       drawName,
@@ -33,13 +35,35 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ctx._sampleCount,
       vertexManager.getBuffers(),
     );
+    // A rule with both x2 and y2 set is a diagonal segment, which an
+    // axis-aligned quad cannot express. Those go through the single-segment
+    // line shader instead.
+    const diagonalVertexManager = new VertexBufferManager(
+      [],
+      ['float32x2', 'float32x2', 'float32x4', 'float32'], // start, end, color, width
+    );
+    const diagonalPipeline = createRenderPipeline(
+      `${drawName}Diagonal`,
+      device,
+      ctx._shaderCache['SLine'],
+      preferredColorFormat(),
+      ctx._sampleCount,
+      diagonalVertexManager.getBuffers(),
+    );
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-    return { device, bufferManager, vertexManager, pipeline, geometryBuffer };
+    return { device, bufferManager, vertexManager, pipeline, diagonalPipeline, geometryBuffer };
   });
 }
 
+/** True when the rule runs at an angle, so it cannot be drawn as a rect. */
+function isDiagonal(item: SceneRule): boolean {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  return (item.x2 ?? x) !== x && (item.y2 ?? y) !== y;
+}
+
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = scene.items;
+  const items = scene.items as SceneRule[];
   if (!items?.length) {
     return;
   }
@@ -50,17 +74,40 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
+  const clip = markClip(ctx, scene);
 
-  const attributes = createAttributes(items);
-  const instanceBuffer = res.bufferManager.createInstanceBuffer(attributes);
+  let run: SceneRule[] = [];
+  const flushRun = () => {
+    if (run.length === 0) {
+      return;
+    }
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(run));
+    ctx._renderQueue.enqueue({
+      pipeline: res.pipeline,
+      drawCounts: [6, run.length],
+      vertexBuffers: [res.geometryBuffer, instanceBuffer],
+      bindGroups: [uniformBindGroup],
+      clip,
+    });
+    run = [];
+  };
 
-  ctx._renderQueue.enqueue({
-    pipeline: res.pipeline,
-    drawCounts: [6, items.length],
-    vertexBuffers: [res.geometryBuffer, instanceBuffer],
-    bindGroups: [uniformBindGroup],
-    clip: markClip(ctx, scene),
-  });
+  for (const item of items) {
+    if (!isDiagonal(item)) {
+      run.push(item);
+      continue;
+    }
+    flushRun();
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(createDiagonalAttributes(item));
+    ctx._renderQueue.enqueue({
+      pipeline: res.diagonalPipeline,
+      drawCounts: [6, 1],
+      vertexBuffers: [instanceBuffer],
+      bindGroups: [createUniformBindGroup(`${drawName}Diagonal`, device, res.diagonalPipeline, uniformBuffer)],
+      clip,
+    });
+  }
+  flushRun();
 }
 
 function createAttributes(items: SceneItem[]): Float32Array {
@@ -72,9 +119,20 @@ function createAttributes(items: SceneItem[]): Float32Array {
       const ax = Math.abs(ex - x);
       const ay = Math.abs(ey - y);
       const col = Color.from(stroke, opacity, strokeOpacity);
-      return [Math.min(x, ex), Math.min(y, ey), ax ? ax : strokeWidth, ay ? ay : strokeWidth, ...col.rgba];
+      const w = ax ? ax : strokeWidth;
+      const h = ay ? ay : strokeWidth;
+      const offX = ax ? 0 : strokeWidth / 2;
+      const offY = ay ? 0 : strokeWidth / 2;
+      return [Math.min(x, ex), Math.min(y, ey), w, h, ...col.rgba, offX, offY];
     }),
   );
+}
+
+/** Single-segment instance for the SLine shader: start, end, color, width. */
+function createDiagonalAttributes(item: SceneRule): Float32Array {
+  const { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
+  const col = Color.from2(stroke, opacity, strokeOpacity);
+  return Float32Array.from([x, y, x2 ?? x, y2 ?? y, ...col, strokeWidth]);
 }
 
 export default {
