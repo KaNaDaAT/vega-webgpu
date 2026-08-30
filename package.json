@@ -1,60 +1,108 @@
 {
   "name": "vega-webgpu-renderer",
+  "version": "2.0.0",
   "type": "module",
-  "version": "1.0.0",
-  "description": "Vega WebGPU renderer.",
-  "keywords": [],
-  "author": {
-    "name": "Jeffrey Baumes",
-    "url": "http://www.kitware.com/company/team/baumes.html"
-  },
+  "description": "WebGPU renderer for Vega visualizations.",
+  "keywords": [
+    "vega",
+    "webgpu",
+    "renderer",
+    "visualization",
+    "charts",
+    "gpu"
+  ],
   "license": "ISC",
-  "main": "build/vega-webgpu-renderer.js",
-  "module": "index",
-  "jsnext:main": "index",
-  "tsnext:main": "index",
-  "scripts": {
-    "build": "rollup -c",
-    "postbuild": "uglifyjs build/vega-webgpu-renderer.js -c -m -o build/vega-webgpu-renderer.min.js",
-    "dev": "rollup -c --watch",
-    "serve": "live-server --open=test",
-    "release": "node release.cjs"
+  "author": {
+    "name": "Kalian Danzer (KaNaDaAT)",
+    "url": "https://github.com/KaNaDaAT"
   },
-  "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "@rollup/plugin-typescript": "^11.1.5",
-    "@types/d3": "^7.4.3",
-    "@webgpu/types": "^0.1.7",
-    "d3-color": "^3.0.1",
-    "eslint": "^8.55.0",
-    "fs-extra": "^11.2.0",
-    "nodemon": "^3.0.1",
-    "prettier": "^3.2.2",
-    "rollup": "^4.9.0",
-    "rollup-plugin-string": "^3.0.0",
-    "ts-node": "^10.9.2",
-    "tslib": "^2.3.1",
-    "typescript": "^5.3.3",
-    "vega-canvas": "^1.2.6",
-    "vega-loader": "^4.4.1",
-    "vega-typings": "^1.1.0",
-    "vega-util": "^1.17.0",
-    "webdriverio": "^8.26.1"
+  "contributors": [
+    {
+      "name": "lsh"
+    },
+    {
+      "name": "Jeffrey Baumes",
+      "url": "http://www.kitware.com/company/team/baumes.html"
+    }
+  ],
+  "homepage": "https://kanadaat.github.io/vega-webgpu/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KaNaDaAT/vega-webgpu.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KaNaDaAT/vega-webgpu/issues"
+  },
+  "main": "build/vega-webgpu-renderer.js",
+  "module": "build/vega-webgpu-renderer.module.js",
+  "unpkg": "build/vega-webgpu-renderer.min.js",
+  "jsdelivr": "build/vega-webgpu-renderer.min.js",
+  "types": "build/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/types/index.d.ts",
+      "import": "./build/vega-webgpu-renderer.module.js",
+      "require": "./build/vega-webgpu-renderer.js",
+      "default": "./build/vega-webgpu-renderer.module.js"
+    }
+  },
+  "files": [
+    "build",
+    "src",
+    "index.ts"
+  ],
+  "sideEffects": true,
+  "scripts": {
+    "build": "rollup -c && npm run build:types",
+    "build:types": "tsc -p tsconfig.build.json",
+    "dev": "rollup -c --watch",
+    "serve": "http-server -p 5500 -c-1 .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"{src,scripts,test}/**/*.{ts,js,mjs,css,html}\" \"!test/data/**\" \"*.{ts,js,json,md}\"",
+    "test": "playwright test",
+    "test:diffs": "cross-env CROSS_REPORT=1 playwright test",
+    "test:artifacts": "cross-env RENDER_ARTIFACTS=1 playwright test",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
-    "chokidar": "^3.5.3",
-    "d3": "^7.8.5",
     "d3-color": "^3.1.0",
+    "d3-shape": "^3.2.0",
     "extrude-polyline": "^1.0.6",
     "parse-svg-path": "^0.1.2",
-    "readline-sync": "^1.4.10",
     "simplify-path": "^1.1.0",
     "svg-path-contours": "^2.0.0",
     "triangulate-contours": "^1.0.2",
-    "uglify-js": "^3.17.4",
-    "vega-scenegraph": "^4.9.4",
-    "wgsl-debug": "^0.0.1",
-    "wgsl-debug-table": "^0.0.1"
+    "vega-scenegraph": "^5.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.61.1",
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/d3-color": "^3.1.3",
+    "@types/d3-shape": "^3.1.8",
+    "@types/node": "^26.1.1",
+    "@types/pngjs": "^6.0.5",
+    "@webgpu/types": "^0.1.71",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.39.5",
+    "http-server": "^14.1.1",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
+    "prettier": "^3.9.5",
+    "rollup": "^4.62.2",
+    "rollup-plugin-string": "^3.0.0",
+    "tslib": "^2.8.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.64.0",
+    "vega": "^6.2.0",
+    "vega-typings": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
