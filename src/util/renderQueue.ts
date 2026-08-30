@@ -52,7 +52,7 @@ export class RenderQueue {
    * the paint order of the scenegraph intact.
    */
   setupBatch(info: RenderBatchInfo): void {
-    if (this.batchInfo !== null && this.batchInfo.pipeline === info.pipeline) {
+    if (this.batchInfo !== null && sameBatchTarget(this.batchInfo, info)) {
       return;
     }
     this.flushBatch();
@@ -112,7 +112,14 @@ export class RenderQueue {
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     let scissored = false;
     for (const q of this.queue) {
-      const clip = q.clip && clampClip(q.clip, attachmentSize);
+      let clip: ClipRect | undefined;
+      if (q.clip) {
+        const clamped = clampClip(q.clip, attachmentSize);
+        if (clamped === null) {
+          continue; // clipped to nothing
+        }
+        clip = clamped;
+      }
       if (clip) {
         passEncoder.setScissorRect(clip[0], clip[1], clip[2], clip[3]);
         scissored = true;
@@ -136,13 +143,39 @@ export class RenderQueue {
   }
 }
 
-function clampClip(clip: ClipRect, size: [number, number]): ClipRect | undefined {
+/**
+ * Instances may only share a draw when the pipeline, the scissor rect and the
+ * bind groups all match. Matching on the pipeline alone merged marks from
+ * differently clipped groups into one draw carrying the first mark's clip.
+ */
+function sameBatchTarget(a: RenderBatchInfo, b: RenderBatchInfo): boolean {
+  if (a.pipeline !== b.pipeline || a.geometryBuffer !== b.geometryBuffer || a.geometryCount !== b.geometryCount) {
+    return false;
+  }
+  if (!sameClip(a.clip, b.clip)) {
+    return false;
+  }
+  return a.bindGroups.length === b.bindGroups.length && a.bindGroups.every((g, i) => g === b.bindGroups[i]);
+}
+
+function sameClip(a: ClipRect | undefined, b: ClipRect | undefined): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (a === undefined || b === undefined) {
+    return false;
+  }
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+}
+
+/** Returns the clamped rect, or null when it collapses to nothing. */
+function clampClip(clip: ClipRect, size: [number, number]): ClipRect | null {
   const x = Math.min(Math.max(Math.floor(clip[0]), 0), size[0]);
   const y = Math.min(Math.max(Math.floor(clip[1]), 0), size[1]);
   const w = Math.min(Math.max(Math.floor(clip[2]), 0), size[0] - x);
   const h = Math.min(Math.max(Math.floor(clip[3]), 0), size[1] - y);
   if (w <= 0 || h <= 0) {
-    return undefined;
+    return null;
   }
   return [x, y, w, h];
 }

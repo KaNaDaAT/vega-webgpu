@@ -13,9 +13,10 @@ export default function resize(
   origin: readonly [number, number],
   pickCanvas: HTMLCanvasElement,
   pickContext: CanvasRenderingContext2D,
+  scaleFactor?: number,
 ): HTMLCanvasElement {
   const inDOM = typeof HTMLElement !== 'undefined' && canvas instanceof HTMLElement && canvas.parentNode != null;
-  const ratio = inDOM ? window.devicePixelRatio || 1 : 1;
+  const ratio = scaleFactor ?? (inDOM ? window.devicePixelRatio || 1 : 1);
 
   canvas.width = width * ratio;
   canvas.height = height * ratio;
