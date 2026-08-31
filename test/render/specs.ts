@@ -33,24 +33,39 @@ export const renderSpecs: string[] = readdirSync(specsDir)
   .sort();
 
 /**
- * The default budget (fraction of differing pixels) is low and only absorbs
- * antialiasing/edge differences between the two rasterizers. Overrides list
- * specs with a known, documented divergence. `null` skips the comparison.
- * Tighten each toward the default as the underlying gap is closed.
+ * Fraction of differing pixels allowed by default. 99 of the 111 specs measure
+ * under 0.3%, so this is tight enough that a real regression fails rather than
+ * hiding inside the budget. Every spec that needs more is listed below with the
+ * reason, which keeps the exceptions visible instead of blanket-loose.
  */
-export const CROSS_CHECK_DEFAULT = 0.03;
+export const CROSS_CHECK_DEFAULT = 0.005;
 
-// Budgets are calibrated from measured webgpu-vs-canvas diffs with headroom.
-// They may need widening on CI, where a different OS/font stack shifts text
-// antialiasing. Only specs that exceed the default get an entry.
+/**
+ * Measured locally, then given roughly 2x headroom because CI renders on a
+ * different font stack and shifts glyph antialiasing. Tighten each toward the
+ * default as the underlying gap closes. `null` skips the comparison.
+ */
 export const crossCheckOverrides: Record<string, number | null> = {
-  // Symbol shapes and rotation, gradient fills, and curved lines all match
-  // canvas now, so those specs hold at the default budget.
+  // Curve construction still differs from canvas on these.
+  'contour-scatter': 0.025, // ~1.4%
+  'scatter-plot-contours': 0.01, // ~0.3%
 
   // GPU text: each label is rasterized to a texture whose glyph-edge
-  // antialiasing differs subtly from canvas's direct drawing. Across many
-  // small labels this fringe accumulates. Position, shape and rotation are
+  // antialiasing differs subtly from canvas's direct drawing, and across many
+  // small labels the fringe accumulates. Position, shape and rotation are all
   // correct. (roadmap: SDF/atlas text to close the residual fringe.)
-  'nested-plot': 0.04, // ~0.8% after the rect inset fix, headroom for CI fonts
-  barley: 0.03, // ~1.0%
+  'legends-symbol': 0.025, // ~1.2%
+  'arc-diagram': 0.02, // ~0.8%, rotated radial labels
+  'layout-wrap': 0.02, // ~0.8%
+  'nested-plot': 0.02, // ~0.7%
+  barley: 0.02, // ~0.6%
+  regression: 0.01, // ~0.4%
+
+  // Geographic outlines, see the roadmap.
+  'map-point-radius': 0.015, // ~0.6%, plus the stray line still under investigation
+  'map-fit': 0.01, // ~0.3%
+
+  // Radial link curves.
+  'tree-radial': 0.01, // ~0.3%
+  'tree-radial-bundle': 0.01, // ~0.3%
 };
