@@ -25,11 +25,18 @@
 
       const releasedVersions = typeof vegaWebGPURendererVersions !== 'undefined' ? vegaWebGPURendererVersions : [];
       // build/ is gitignored, so the dev bundle only exists when serving the
-      // repo locally. Hosted pages default to the newest release instead.
-      const isLocalHost = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
-      const defaultVersion = isLocalHost || releasedVersions.length === 0 ? 'dev' : releasedVersions[0];
-      const version = getQueryParam('version') || defaultVersion;
+      // repo locally. Hosted pages default to the newest release, and an
+      // explicit ?version=dev falls back rather than 404ing.
+      const devAvailable = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+      const newest = releasedVersions[0];
+      let version = getQueryParam('version') || (devAvailable || !newest ? 'dev' : newest);
+      if (version === 'dev' && !devAvailable && newest) {
+        console.warn(`[vega-webgpu] The dev bundle is only served locally, using ${newest} instead.`);
+        version = newest;
+      }
       const isDev = version === 'dev';
+      window.__devAvailable = devAvailable;
+      window.__rendererVersion = version;
       const major = isDev ? Infinity : parseInt(version.split(/[._]/)[0], 10);
       console.log(`Vega WebGPU Renderer ${version}`);
 

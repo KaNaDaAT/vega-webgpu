@@ -67,12 +67,21 @@ async function renderSpec(page: Page, specName: string, renderer: 'webgpu' | 'ca
     expect(state.error, `[${renderer}] harness error:\n${state.error}${traces}`).toBeUndefined();
     expect(errors, `[${renderer}] console errors:\n${errors.join('\n')}${traces}`).toEqual([]);
 
-    const dataUrl = await page.evaluate(() => {
-      const w = window as unknown as { __snapshot?: () => string | null };
-      return w.__snapshot?.() ?? null;
+    type Shot = { dataUrl?: string; raw?: number[]; width?: number; height?: number };
+    const shot: Shot | null = await page.evaluate(async () => {
+      const w = window as unknown as { __snapshot?: () => Promise<unknown> };
+      return ((await w.__snapshot?.()) ?? null) as Shot | null;
     });
-    expect(dataUrl, `[${renderer}] could not snapshot the canvas`).toBeTruthy();
-    const png = Buffer.from((dataUrl as string).split(',')[1], 'base64');
+    expect(shot, `[${renderer}] could not snapshot the canvas`).toBeTruthy();
+
+    let png: Buffer;
+    if (shot?.raw && shot.width && shot.height) {
+      const img = new PNG({ width: shot.width, height: shot.height });
+      img.data = Buffer.from(shot.raw);
+      png = PNG.sync.write(img);
+    } else {
+      png = Buffer.from((shot?.dataUrl ?? '').split(',')[1], 'base64');
+    }
     return { png, rendererKind: state.rendererKind };
   } finally {
     page.off('pageerror', onPageError);

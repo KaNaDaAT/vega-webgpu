@@ -1,7 +1,7 @@
 const urlParams = new URLSearchParams(window.location.search);
 const urlSpec = urlParams.get('spec');
 const urlRenderer = urlParams.get('renderer') ?? 'webgpu';
-const urlVersion = urlParams.get('version') ?? 'dev';
+const urlVersion = window.__rendererVersion ?? urlParams.get('version') ?? 'dev';
 
 const releaseVersions = typeof vegaWebGPURendererVersions !== 'undefined' ? vegaWebGPURendererVersions : [];
 
@@ -52,10 +52,13 @@ async function init() {
       selectSpec.appendChild(opt);
     });
 
-    const devOption = document.createElement('option');
-    devOption.value = 'dev';
-    devOption.textContent = 'dev';
-    selectVersion.appendChild(devOption);
+    // dev is only served locally, so do not offer it on the hosted page
+    if (window.__devAvailable) {
+      const devOption = document.createElement('option');
+      devOption.value = 'dev';
+      devOption.textContent = 'dev';
+      selectVersion.appendChild(devOption);
+    }
 
     releaseVersions.forEach(function (name) {
       const opt = document.createElement('option');

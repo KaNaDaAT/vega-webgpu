@@ -80,12 +80,17 @@ window.addEventListener('unhandledrejection', e => recordTrace('unhandledrejecti
     }
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-    // Snapshot the canvas backing store rather than letting the test screenshot
-    // the element. Headless Linux has no GPU compositing, so a WebGPU canvas
-    // composites as blank there while toDataURL reads the texture directly.
-    window.__snapshot = () => {
-      const canvas = document.querySelector('#vis canvas');
-      return canvas ? canvas.toDataURL('image/png') : null;
+    // Prefer reading the GPU texture directly: a headless runner never
+    // composites, so both element screenshots and toDataURL come back blank
+    // there. The canvas renderer has no such path, so it uses toDataURL.
+    window.__snapshot = async () => {
+      const el = document.querySelector('#vis canvas');
+      if (!el) return null;
+      if (kind === 'webgpu' && r && typeof r.captureFrame === 'function') {
+        const shot = await r.captureFrame();
+        return { raw: Array.from(shot.data), width: shot.width, height: shot.height };
+      }
+      return { dataUrl: el.toDataURL('image/png') };
     };
 
     window.__renderDone = true;

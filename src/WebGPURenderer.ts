@@ -60,6 +60,11 @@ export default class WebGPURenderer extends Renderer {
 
   private _pendingDestroy: { destroy(): void }[] = [];
 
+  private _capture: {
+    resolve: (v: { width: number; height: number; data: Uint8Array }) => void;
+    reject: (e: unknown) => void;
+  } | null = null;
+
   private _isRendering = false;
   private _pendingRender: PendingRender | null = null;
   private _lastRender: PendingRender | null = null;
@@ -317,13 +322,20 @@ export default class WebGPURenderer extends Renderer {
     // One pass for the whole frame: clears to the background color, draws
     // in scenegraph order, and resolves the MSAA attachment once.
     const renderPassDescriptor = createRenderPassDescriptor('Frame', this.clearColor());
+    const canvasTexture = ctx.getCurrentTexture();
     if (ctx._sampleCount > 1) {
       renderPassDescriptor.colorAttachments[0].view = this.msaaTexture(device).createView();
-      renderPassDescriptor.colorAttachments[0].resolveTarget = ctx.getCurrentTexture().createView();
+      renderPassDescriptor.colorAttachments[0].resolveTarget = canvasTexture.createView();
     } else {
-      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+      renderPassDescriptor.colorAttachments[0].view = canvasTexture.createView();
     }
     this._queue.submit(device, renderPassDescriptor, [this._canvas?.width ?? 0, this._canvas?.height ?? 0]);
+
+    if (this._capture) {
+      const capture = this._capture;
+      this._capture = null;
+      this._readback(device, canvasTexture).then(capture.resolve, capture.reject);
+    }
 
     // rAF never fires in a hidden tab, which would wedge _isRendering.
     if (typeof document !== 'undefined' && !document.hidden) {
@@ -350,6 +362,63 @@ export default class WebGPURenderer extends Renderer {
    * Every exit from a frame (completion, early return, or failure) must come
    * through here, or `_isRendering` stays stuck and awaiting callers never wake.
    */
+  /**
+   * Renders a frame and reads the result straight off the GPU.
+   *
+   * Presentation is what makes canvas content visible to screenshots and to
+   * toDataURL, and a headless Linux runner never composites, so both come back
+   * blank there. Copying the texture bypasses presentation entirely.
+   */
+  captureFrame(): Promise<{ width: number; height: number; data: Uint8Array }> {
+    return new Promise((resolve, reject) => {
+      this._capture = { resolve, reject };
+      if (this._lastRender) {
+        this._render(this._lastRender.scene, this._lastRender.markTypes);
+      } else {
+        this._capture = null;
+        reject(new Error('[vega-webgpu] Nothing has been rendered yet.'));
+      }
+    });
+  }
+
+  /** Copies a texture into a mappable buffer and unpads it to tight RGBA rows. */
+  private async _readback(
+    device: GPUDevice,
+    texture: GPUTexture,
+  ): Promise<{ width: number; height: number; data: Uint8Array }> {
+    const width = texture.width;
+    const height = texture.height;
+    // copyTextureToBuffer requires each row to start on a 256 byte boundary
+    const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
+    const buffer = device.createBuffer({
+      label: 'Capture Readback',
+      size: bytesPerRow * height,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    const encoder = device.createCommandEncoder({ label: 'Capture Encoder' });
+    encoder.copyTextureToBuffer({ texture }, { buffer, bytesPerRow }, [width, height, 1]);
+    device.queue.submit([encoder.finish()]);
+
+    await buffer.mapAsync(GPUMapMode.READ);
+    const padded = new Uint8Array(buffer.getMappedRange());
+    const data = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      data.set(padded.subarray(y * bytesPerRow, y * bytesPerRow + width * 4), y * width * 4);
+    }
+    buffer.unmap();
+    // The texels come back in the canvas format, which is bgra8unorm on most
+    // platforms. Callers want RGBA.
+    if (preferredColorFormat() === 'bgra8unorm') {
+      for (let i = 0; i < data.length; i += 4) {
+        const b = data[i];
+        data[i] = data[i + 2];
+        data[i + 2] = b;
+      }
+    }
+    buffer.destroy();
+    return { width, height, data };
+  }
+
   /**
    * Queues a GPU resource for destruction once the current frame is submitted.
    * Safe to call from inside a mark's draw, where the resource may still be
