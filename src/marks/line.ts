@@ -4,7 +4,7 @@ import type { SceneLinePoint } from '../types/scene.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry } from '../path/shapes.js';
@@ -14,6 +14,7 @@ import {
   geometryVertexData,
   getMarkResources,
   markClip,
+  markPipeline,
   segmentInstances,
   type MarkModule,
 } from './util.js';
@@ -47,45 +48,17 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x2', 'float32x4', 'float32', 'float32x2', 'float32x2'], // start, end, color, width, res, offset
     );
     const instancedVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const batchPipeline = createRenderPipeline(
-      drawName,
-      device,
-      ctx._shaderCache['Line'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      batchVertexManager.getBuffers(),
-    );
-    const instancedPipeline = createRenderPipeline(
-      `S${drawName}`,
-      device,
-      ctx._shaderCache['SLine'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      instancedVertexManager.getBuffers(),
-    );
+    const batchPipeline = markPipeline(ctx, device, drawName, 'Line', batchVertexManager);
+    const instancedPipeline = markPipeline(ctx, device, `S${drawName}`, 'SLine', instancedVertexManager);
     const joinVertexManager = new VertexBufferManager(
       ['float32x2'], // position (unit circle)
       // center, radius, fill color, stroke color, stroke width (symbol layout)
       ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'],
     );
-    const joinPipeline = createRenderPipeline(
-      `${drawName}Join`,
-      device,
-      ctx._shaderCache['Symbol'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      joinVertexManager.getBuffers(),
-    );
+    const joinPipeline = markPipeline(ctx, device, `${drawName}Join`, 'Symbol', joinVertexManager);
     const joinGeometryBuffer = bufferManager.createGeometryBuffer(createJoinGeometry());
     const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
-    const curvePipeline = createRenderPipeline(
-      `${drawName}Curve`,
-      device,
-      ctx._shaderCache['Path'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      curveVertexManager.getBuffers(),
-    );
+    const curvePipeline = markPipeline(ctx, device, `${drawName}Curve`, 'Path', curveVertexManager);
     return {
       curveVertexManager,
       curvePipeline,

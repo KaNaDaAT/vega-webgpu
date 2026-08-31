@@ -5,8 +5,8 @@ import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
-import { SEGMENT_LAYOUT, getMarkResources, markClip, segmentInstance, type MarkModule } from './util.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
+import { SEGMENT_LAYOUT, getMarkResources, markClip, markPipeline, segmentInstance, type MarkModule } from './util.js';
 
 const drawName = 'Rule';
 
@@ -27,26 +27,12 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, scale, color, half-thickness offset
       ['float32x2', 'float32x2', 'float32x4', 'float32x2'],
     );
-    const pipeline = createRenderPipeline(
-      drawName,
-      device,
-      ctx._shaderCache[drawName],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      vertexManager.getBuffers(),
-    );
+    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
     // A rule with both x2 and y2 set is a diagonal segment, which an
     // axis-aligned quad cannot express. Those go through the single-segment
     // line shader instead.
     const diagonalVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const diagonalPipeline = createRenderPipeline(
-      `${drawName}Diagonal`,
-      device,
-      ctx._shaderCache['SLine'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      diagonalVertexManager.getBuffers(),
-    );
+    const diagonalPipeline = markPipeline(ctx, device, `${drawName}Diagonal`, 'SLine', diagonalVertexManager);
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
     return { device, bufferManager, vertexManager, pipeline, diagonalPipeline, geometryBuffer };
   });

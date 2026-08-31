@@ -7,12 +7,13 @@ import { BufferManager } from '../util/bufferManager.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
 import {
   geometryVertexData,
   getMarkResources,
   gradientBounds,
   markClip,
+  markPipeline,
   whiteCarrier,
   type MarkModule,
 } from './util.js';
@@ -56,44 +57,16 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, radius, fill color, stroke color, stroke width
       ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'],
     );
-    const circlePipeline = createRenderPipeline(
-      drawName,
-      device,
-      ctx._shaderCache[drawName],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      circleVertexManager.getBuffers(),
-    );
+    const circlePipeline = markPipeline(ctx, device, drawName, drawName, circleVertexManager);
     const shapeVertexManager = new VertexBufferManager(
       ['float32x2'], // geometry position (centered on origin)
       ['float32x2', 'float32x4', 'float32'], // instance center, color, angle
     );
-    const shapePipeline = createRenderPipeline(
-      `${drawName}Shape`,
-      device,
-      ctx._shaderCache['SymbolShape'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      shapeVertexManager.getBuffers(),
-    );
+    const shapePipeline = markPipeline(ctx, device, `${drawName}Shape`, 'SymbolShape', shapeVertexManager);
     const circleGeometry = bufferManager.createGeometryBuffer(createCircleGeometry());
     const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
-    const solidPipeline = createRenderPipeline(
-      `${drawName}Solid`,
-      device,
-      ctx._shaderCache['Shape'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      colorVertexManager.getBuffers(),
-    );
-    const gradientPipeline = createRenderPipeline(
-      `${drawName}Gradient`,
-      device,
-      ctx._shaderCache['GradientFill'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      colorVertexManager.getBuffers(),
-    );
+    const solidPipeline = markPipeline(ctx, device, `${drawName}Solid`, 'Shape', colorVertexManager);
+    const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', colorVertexManager);
     return {
       device,
       bufferManager,

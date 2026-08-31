@@ -6,8 +6,8 @@ import { BufferManager } from '../util/bufferManager.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
-import { getMarkResources, markClip, whiteCarrier, type MarkModule } from './util.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
+import { getMarkResources, markClip, markPipeline, whiteCarrier, type MarkModule } from './util.js';
 
 const drawName = 'Rect';
 
@@ -28,22 +28,13 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, dimensions, fill color, stroke color, stroke width, corner radii
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
-    const pipeline = createRenderPipeline(
-      drawName,
+    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    const gradientPipeline = markPipeline(
+      ctx,
       device,
-      ctx._shaderCache[drawName],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      vertexManager.getBuffers(),
-    );
-    const gradientPipeline = createRenderPipeline(
       `${drawName}Gradient`,
-      device,
-      ctx._shaderCache[drawName],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      vertexManager.getBuffers(),
-      undefined,
+      drawName,
+      vertexManager,
       'main_fragment_gradient',
     );
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);

@@ -4,8 +4,8 @@ import type { SceneTextItem } from '../types/scene.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { quantizePhase, rasterizeText, textAnchor, textCacheKey, type TextTexture } from '../util/textTexture.js';
-import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
-import { getMarkResources, markClip, type MarkModule } from './util.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
+import { getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
 
 const drawName = 'Text';
 // Bounds the per-context glyph texture cache so long interactive sessions
@@ -27,14 +27,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   return getMarkResources(ctx, 'text', device, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager(['float32x2', 'float32x2']); // position, uv
-    const pipeline = createRenderPipeline(
-      drawName,
-      device,
-      ctx._shaderCache[drawName],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      vertexManager.getBuffers(),
-    );
+    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
     const sampler = device.createSampler({
       label: 'Text Sampler',
       magFilter: 'linear',

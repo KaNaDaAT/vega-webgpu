@@ -1,5 +1,7 @@
 import type { Bounds } from 'vega-scenegraph';
 import { dashPolyline, type Point } from '../util/dash.js';
+import type { VertexBufferManager } from '../util/vertexManager.js';
+import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { ItemGeometry } from '../types/geometry.js';
 import type { SceneRectExt } from '../types/scene.js';
@@ -146,6 +148,31 @@ export class GeometryBatch {
  * as a closed polyline instead and emitted as single-segment line instances.
  * Returns null when the item has no dashed border to draw.
  */
+/**
+ * Builds a mark pipeline. The colour format and sample count must match the
+ * frame's attachments, and getting either wrong silently breaks MSAA, so they
+ * are filled in here rather than repeated at every call site.
+ */
+export function markPipeline(
+  ctx: GPUVegaCanvasContext,
+  device: GPUDevice,
+  label: string,
+  shaderKey: string,
+  vertexManager: VertexBufferManager,
+  fragmentEntryPoint?: string,
+): GPURenderPipeline {
+  return createRenderPipeline(
+    label,
+    device,
+    ctx._shaderCache[shaderKey],
+    preferredColorFormat(),
+    ctx._sampleCount,
+    vertexManager.getBuffers(),
+    undefined,
+    fragmentEntryPoint,
+  );
+}
+
 /**
  * Vertex layout of a single line segment instance, shared by every mark that
  * falls back to the SLine shader: dashes, dashed borders and diagonal rules.

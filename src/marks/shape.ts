@@ -7,13 +7,14 @@ import { BufferManager } from '../util/bufferManager.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
 import {
   GeometryBatch,
   geometryVertexData,
   getMarkResources,
   gradientBounds,
   markClip,
+  markPipeline,
   whiteCarrier,
   type MarkModule,
 } from './util.js';
@@ -46,22 +47,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x3', 'float32x4'], // position, color
       [],
     );
-    const pipeline = createRenderPipeline(
-      drawName,
-      device,
-      ctx._shaderCache[drawName],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      vertexManager.getBuffers(),
-    );
-    const gradientPipeline = createRenderPipeline(
-      `${drawName}Gradient`,
-      device,
-      ctx._shaderCache['GradientFill'],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      vertexManager.getBuffers(),
-    );
+    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
     return { device, bufferManager, vertexManager, pipeline, gradientPipeline, cache: new Map() };
   });
 }

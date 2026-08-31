@@ -4,8 +4,8 @@ import type { SceneImageItem, SceneImageSource } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
-import { getMarkResources, markClip, type MarkModule } from './util.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
+import { getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Image';
@@ -35,14 +35,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2'], // position
       ['float32x2', 'float32x2', 'float32'], // origin, size, opacity
     );
-    const pipeline = createRenderPipeline(
-      drawName,
-      device,
-      ctx._shaderCache[drawName],
-      preferredColorFormat(),
-      ctx._sampleCount,
-      vertexManager.getBuffers(),
-    );
+    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
     const smoothSampler = device.createSampler({
       label: 'Image Sampler (smooth)',
