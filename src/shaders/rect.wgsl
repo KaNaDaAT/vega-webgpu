@@ -1,6 +1,7 @@
 struct Uniforms {
   resolution: vec2<f32>,
   offset: vec2<f32>,
+  dpi: f32,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -26,6 +27,9 @@ struct VertexOutput {
   @location(3) strokewidth: f32,
   @location(4) corner_radii: vec4<f32>,
   @location(5) scale: vec2<f32>,
+  // true rect edges in device pixels, for analytic coverage
+  @location(6) lo_dev: vec2<f32>,
+  @location(7) hi_dev: vec2<f32>,
 }
 
 @vertex
@@ -34,19 +38,33 @@ fn main_vertex(
     instance: InstanceInput
 ) -> VertexOutput {
     var output: VertexOutput;
-    var u = uniforms.resolution;
-    var scale = instance.scale + vec2<f32>(instance.strokewidth, instance.strokewidth);
-    var pos = model.position * scale + instance.center - uniforms.offset - vec2<f32>(instance.strokewidth, instance.strokewidth) / 2.0;
-    pos = pos / u;
-    pos.y = 1.0 - pos.y;
-    pos = pos * 2.0 - 1.0;
-    output.pos = vec4<f32>(pos, 0.0, 1.0);
-    output.uv = vec2<f32>(model.position.x, 1.0 - model.position.y);
+    let d = max(uniforms.dpi, 0.001);
+    let sw = vec2<f32>(instance.strokewidth, instance.strokewidth);
+    let size = instance.scale + sw;
+    let lo = instance.center - uniforms.offset - sw / 2.0;
+    let hi = lo + size;
+
+    // Grow the quad by one device pixel so the analytic falloff below is not
+    // clipped. Every pixel the rect touches is then fully rasterized, so MSAA
+    // adds no edge coverage of its own and the fragment alpha does all of it.
+    let pad = vec2<f32>(1.0, 1.0) / d;
+    let p = mix(lo - pad, hi + pad, model.position);
+
+    var ndc = p / uniforms.resolution;
+    ndc.y = 1.0 - ndc.y;
+    ndc = ndc * 2.0 - 1.0;
+    output.pos = vec4<f32>(ndc, 0.0, 1.0);
+
+    // uv is relative to the true rect, so it runs slightly outside 0..1 in the pad
+    let uv = (p - lo) / max(size, vec2<f32>(1e-6, 1e-6));
+    output.uv = vec2<f32>(uv.x, 1.0 - uv.y);
     output.fill = instance.fill_color;
     output.stroke = instance.stroke_color;
     output.strokewidth = instance.strokewidth;
     output.corner_radii = instance.corner_radii;
     output.scale = instance.scale;
+    output.lo_dev = lo * d;
+    output.hi_dev = hi * d;
     return output;
 }
 
@@ -78,19 +96,37 @@ fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     return vec4<f32>(col.rgb, col.a * coverage);
 }
 
+/**
+ * Fraction of the pixel covered by the rect, computed the way canvas does it
+ * rather than from MSAA samples. Two abutting rects then produce complementary
+ * coverage, so the seam is the faint one canvas leaves and not a whole missing
+ * sample. A deliberate gap between rects is preserved exactly, because the
+ * geometry is untouched.
+ */
+fn boxCoverage(in: VertexOutput) -> f32 {
+    let p = in.pos.xy;
+    let cx = clamp(min(p.x - in.lo_dev.x, in.hi_dev.x - p.x) + 0.5, 0.0, 1.0);
+    let cy = clamp(min(p.y - in.lo_dev.y, in.hi_dev.y - p.y) + 0.5, 0.0, 1.0);
+    return cx * cy;
+}
+
 fn straightRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     var col = fill;
     // uv spans the quad enlarged by strokewidth (see main_vertex), so the
     // stroke band fraction must divide by that enlarged size to keep the
     // stroke exactly strokewidth px wide, centered on the rect edge.
     let sw: vec2<f32> = vec2<f32>(in.strokewidth, in.strokewidth) / (in.scale + vec2<f32>(in.strokewidth, in.strokewidth));
-    if in.uv.x < sw.x || in.uv.x > 1.0 - sw.x {
+    // uv runs outside 0..1 in the padded ring, so clamp before testing the
+    // stroke band. Without this a rect with no stroke picks up the transparent
+    // stroke colour there and loses its edge coverage.
+    let uvc = clamp(in.uv, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
+    if uvc.x < sw.x || uvc.x > 1.0 - sw.x {
         col = in.stroke;
     }
-    if in.uv.y < sw.y || in.uv.y > 1.0 - sw.y {
+    if uvc.y < sw.y || uvc.y > 1.0 - sw.y {
         col = in.stroke;
     }
-    return col;
+    return vec4<f32>(col.rgb, col.a * boxCoverage(in));
 }
 
 fn maxRadius(radii: vec4<f32>) -> f32 {

@@ -61,7 +61,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   res.bufferManager.setResolution(ctx._uniforms.resolution);
   res.bufferManager.setOffset([vb.x1, vb.y1]);
 
-  const uniformBuffer = res.bufferManager.createUniformBuffer();
+  const uniformBuffer = res.bufferManager.createUniformBuffer(
+    Float32Array.from([...ctx._uniforms.resolution, vb.x1, vb.y1, ctx._uniforms.dpi || 1, 0, 0, 0]),
+  );
   const clip = markClip(ctx, scene);
 
   const gres = getGradientResources(device, ctx);
