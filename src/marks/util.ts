@@ -1,7 +1,9 @@
 import type { Bounds } from 'vega-scenegraph';
+import { dashPolyline, type Point } from '../util/dash.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { ItemGeometry } from '../types/geometry.js';
-import type { RGBA } from '../util/color.js';
+import type { SceneRectExt } from '../types/scene.js';
+import { Color, type RGBA } from '../util/color.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 /** A mark renderer module, as registered in marks/index.ts. */
@@ -136,4 +138,48 @@ export class GeometryBatch {
     this.total = 0;
     return out;
   }
+}
+
+/**
+ * Rect and group strokes are drawn analytically in the fragment shader, which
+ * cannot express a dash pattern. When `strokeDash` is set the border is walked
+ * as a closed polyline instead and emitted as single-segment line instances.
+ * Returns null when the item has no dashed border to draw.
+ */
+export function dashedBorderInstances(item: SceneRectExt): Float32Array | null {
+  const pattern = Array.isArray(item.strokeDash) ? item.strokeDash : undefined;
+  if (!pattern?.length || !item.stroke) {
+    return null;
+  }
+  const x = item.x ?? 0;
+  const y = item.y ?? 0;
+  const w = item.width ?? 0;
+  const h = item.height ?? 0;
+  if (w <= 0 || h <= 0) {
+    return null;
+  }
+  const border: Point[] = [
+    [x, y],
+    [x + w, y],
+    [x + w, y + h],
+    [x, y + h],
+    [x, y],
+  ];
+  const runs = dashPolyline(border, pattern, item.strokeDashOffset ?? 0);
+  const segments = runs.reduce((n, r) => n + r.length - 1, 0);
+  if (segments <= 0) {
+    return null;
+  }
+
+  const col = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+  const width = item.strokeWidth ?? 1;
+  const data = new Float32Array(segments * 9);
+  let i = 0;
+  for (const run of runs) {
+    for (let s = 0; s < run.length - 1; s++) {
+      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], col[0], col[1], col[2], col[3], width], i);
+      i += 9;
+    }
+  }
+  return data;
 }

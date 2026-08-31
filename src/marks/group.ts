@@ -9,7 +9,7 @@ import { createGradientBindGroup, getGradientResources } from '../util/gradient.
 import { visit } from '../util/visit.js';
 import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
 import { rectAttributes } from './rect.js';
-import { getMarkResources, type MarkModule } from './util.js';
+import { dashedBorderInstances, getMarkResources, type MarkModule } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Group';
@@ -20,6 +20,7 @@ interface GroupResources {
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
   gradientPipeline: GPURenderPipeline;
+  dashPipeline: GPURenderPipeline;
   geometryBuffer: GPUBuffer;
 }
 
@@ -49,8 +50,20 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       undefined,
       'main_fragment_gradient',
     );
+    const dashVertexManager = new VertexBufferManager(
+      [],
+      ['float32x2', 'float32x2', 'float32x4', 'float32'], // start, end, color, width
+    );
+    const dashPipeline = createRenderPipeline(
+      `${drawName}Dash`,
+      device,
+      ctx._shaderCache['SLine'],
+      preferredColorFormat(),
+      ctx._sampleCount,
+      dashVertexManager.getBuffers(),
+    );
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, geometryBuffer };
+    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, dashPipeline, geometryBuffer };
   });
 }
 
@@ -71,7 +84,9 @@ function draw(
   res.bufferManager.setResolution(ctx._uniforms.resolution);
   res.bufferManager.setOffset([vb.x1, vb.y1]);
 
-  const uniformBuffer = res.bufferManager.createUniformBuffer();
+  const uniformBuffer = res.bufferManager.createUniformBuffer(
+    Float32Array.from([...ctx._uniforms.resolution, vb.x1, vb.y1, ctx._uniforms.dpi || 1, 0, 0, 0]),
+  );
   const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
 
   // Group backgrounds share the rect instance layout and shader.
@@ -92,25 +107,42 @@ function draw(
     run = [];
   };
 
+  const dashed: Float32Array[] = [];
   for (const item of items as SceneGroupExt[]) {
-    if (!isGradient(item.fill)) {
-      run.push(item);
+    const border = dashedBorderInstances(item);
+    if (border) {
+      dashed.push(border);
+    }
+    const drawn = border ? { ...item, stroke: undefined } : item;
+    const fill = drawn.fill;
+    if (!isGradient(fill)) {
+      run.push(drawn);
       continue;
     }
     flushRun();
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item], true));
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([drawn], true));
     ctx._renderQueue.enqueue({
       pipeline: res.gradientPipeline,
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
         createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-        createGradientBindGroup(gres, res.gradientPipeline, item.fill, [0, 0, 1, 1]),
+        createGradientBindGroup(gres, res.gradientPipeline, fill, [0, 0, 1, 1]),
       ],
       clip: ctx._clip,
     });
   }
   flushRun();
+
+  for (const data of dashed) {
+    ctx._renderQueue.enqueue({
+      pipeline: res.dashPipeline,
+      drawCounts: [6, data.length / 9],
+      vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
+      bindGroups: [createUniformBindGroup(`${drawName}Dash`, device, res.dashPipeline, uniformBuffer)],
+      clip: ctx._clip,
+    });
+  }
 
   visit(scene, (group: SceneGroupExt) => {
     const gx = group.x || 0;
