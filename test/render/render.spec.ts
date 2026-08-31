@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
+import { shotToPng, type Shot } from './snapshot.js';
 import { CROSS_CHECK_DEFAULT, crossCheckOverrides, renderSpecs } from './specs.js';
 
 // Per-pixel color tolerance when deciding whether two pixels differ. The
@@ -67,22 +68,12 @@ async function renderSpec(page: Page, specName: string, renderer: 'webgpu' | 'ca
     expect(state.error, `[${renderer}] harness error:\n${state.error}${traces}`).toBeUndefined();
     expect(errors, `[${renderer}] console errors:\n${errors.join('\n')}${traces}`).toEqual([]);
 
-    type Shot = { dataUrl?: string; raw?: number[]; width?: number; height?: number };
     const shot: Shot | null = await page.evaluate(async () => {
       const w = window as unknown as { __snapshot?: () => Promise<unknown> };
       return ((await w.__snapshot?.()) ?? null) as Shot | null;
     });
     expect(shot, `[${renderer}] could not snapshot the canvas`).toBeTruthy();
-
-    let png: Buffer;
-    if (shot?.raw && shot.width && shot.height) {
-      const img = new PNG({ width: shot.width, height: shot.height });
-      img.data = Buffer.from(shot.raw);
-      png = PNG.sync.write(img);
-    } else {
-      png = Buffer.from((shot?.dataUrl ?? '').split(',')[1], 'base64');
-    }
-    return { png, rendererKind: state.rendererKind };
+    return { png: shotToPng(shot as Shot), rendererKind: state.rendererKind };
   } finally {
     page.off('pageerror', onPageError);
     page.off('console', onConsole);

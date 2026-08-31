@@ -48,7 +48,7 @@ Findings from a full review of the working tree. Fixed items are kept for the re
 
 ## Tests (current focus)
 
-- [ ] **Test integrity**: some specs pass the cross-check despite visibly wrong output (e.g. `chart` symbol shapes). Investigate why and make the suite catch it (render size, missing marks, viewport).
+- [ ] **Test integrity.** Two blank images diff at 0%, so the pixel comparison alone cannot tell a correct render from one that drew nothing, which is how CI looked healthy while every spec rendered blank. An ink-ratio guard was tried and removed: the thresholds were arbitrary. A non-arbitrary check is still wanted, for example asserting the output is not a single uniform colour.
 - [x] **All specs are tested.** The corpus is derived from `test/specs-valid` (all 117 specs) minus 9 documented exclusions (remote data, force layouts, wordcloud, stress demos, oversized movies-sort). New specs are picked up automatically. Gap-revealing specs (tree-radial-bundle ~12%, symbol-shapes ~7%) are tested with documented budgets that fail on regression.
 - [x] **Feature canaries.** `line-curves` (basis/monotone plus a `defined` gap) and `line-dashes` (three patterns, straight and curved), both 0.000% against canvas.
 - [ ] **Parameter coverage**: exercise multiple settings per feature (curve types, symbol shapes, line dashes, autosize modes) so regressions in a single parameter are caught.

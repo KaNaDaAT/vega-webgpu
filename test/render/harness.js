@@ -88,7 +88,14 @@ window.addEventListener('unhandledrejection', e => recordTrace('unhandledrejecti
       if (!el) return null;
       if (kind === 'webgpu' && r && typeof r.captureFrame === 'function') {
         const shot = await r.captureFrame();
-        return { raw: Array.from(shot.data), width: shot.width, height: shot.height };
+        // base64 rather than a plain array: serializing a few million numbers
+        // as JSON across the debugging protocol dwarfs the render itself.
+        let binary = '';
+        const CHUNK = 0x8000;
+        for (let i = 0; i < shot.data.length; i += CHUNK) {
+          binary += String.fromCharCode.apply(null, shot.data.subarray(i, i + CHUNK));
+        }
+        return { rawB64: btoa(binary), width: shot.width, height: shot.height };
       }
       return { dataUrl: el.toDataURL('image/png') };
     };
