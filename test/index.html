@@ -38,10 +38,12 @@
         : `../releases/${version.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
 
       // Renderer versions before 2.0 were built for Vega 5 and require d3 globals.
+      // Pinned to 5.19.1: later 5.x turned Renderer into a class, which the old
+      // bundles cannot subclass (they call Renderer.call(this)).
       const vegaUrl =
         major >= 2
           ? 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'
-          : 'https://cdn.jsdelivr.net/npm/vega@5.33.1/build/vega.min.js';
+          : 'https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js';
 
       function boot() {
         loadScript(vegaUrl, function () {
