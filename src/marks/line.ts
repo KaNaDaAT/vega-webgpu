@@ -5,6 +5,7 @@ import { BufferManager } from '../util/bufferManager.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
+import { dashPolyline, type Point } from '../util/dash.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry } from '../path/shapes.js';
 import { geometryVertexData, getMarkResources, markClip, type MarkModule } from './util.js';
@@ -108,6 +109,62 @@ function needsPath(points: SceneLinePoint[]): boolean {
   return points.some(p => p.defined === false);
 }
 
+function dashPattern(item: SceneLinePoint): number[] | undefined {
+  const dash = item.strokeDash;
+  return Array.isArray(dash) && dash.length > 0 ? dash : undefined;
+}
+
+/**
+ * Dashed lines are split into their drawn runs on the cpu and emitted as plain
+ * segments. Curved lines are flattened through the path tessellation first, so
+ * the same code covers both.
+ */
+function drawDashed(
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  res: LineResources,
+  points: SceneLinePoint[],
+  pattern: number[],
+  clip: ReturnType<typeof markClip>,
+): void {
+  const first = points[0];
+  const offset = first.strokeDashOffset ?? 0;
+
+  let polylines: Point[][];
+  if (needsPath(points)) {
+    polylines = lineGeometry(ctx, points).lines.map(line => line.map(p => [p[0], p[1]] as Point));
+  } else {
+    polylines = [points.map(p => [p.x ?? 0, p.y ?? 0] as Point)];
+  }
+
+  const runs = polylines.flatMap(line => dashPolyline(line, pattern, offset));
+  const segments = runs.reduce((n, r) => n + r.length - 1, 0);
+  if (segments <= 0) {
+    return;
+  }
+
+  const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const width = first.strokeWidth ?? 1;
+  const data = new Float32Array(segments * 9);
+  let i = 0;
+  for (const run of runs) {
+    for (let s = 0; s < run.length - 1; s++) {
+      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], col[0], col[1], col[2], col[3], width], i);
+      i += 9;
+    }
+  }
+
+  ctx._renderQueue.enqueue({
+    pipeline: res.instancedPipeline,
+    drawCounts: [6, segments],
+    vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
+    bindGroups: [
+      createUniformBindGroup(`S${drawName}`, device, res.instancedPipeline, res.bufferManager.createUniformBuffer()),
+    ],
+    clip,
+  });
+}
+
 /** Curved or gapped lines go through the shared path tessellation. */
 function drawPath(
   device: GPUDevice,
@@ -147,6 +204,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const points = items as SceneLinePoint[];
   const clip = markClip(ctx, scene);
+
+  const pattern = points.length > 0 ? dashPattern(points[0]) : undefined;
+  if (pattern) {
+    drawDashed(device, ctx, res, points, pattern, clip);
+    return;
+  }
 
   if (needsPath(points)) {
     drawPath(device, ctx, res, points, clip);

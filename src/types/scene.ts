@@ -25,6 +25,8 @@ export interface StrokeStyle {
   strokeWidth?: number;
   strokeOpacity?: number;
   strokeCap?: CanvasLineCap;
+  strokeDash?: number[];
+  strokeDashOffset?: number;
 }
 
 export interface FillStyle {

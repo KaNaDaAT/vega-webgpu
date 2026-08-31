@@ -1,0 +1,93 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "description": "strokeDash patterns on line marks, isolated so dash handling is not diluted by other marks.",
+  "width": 400,
+  "height": 200,
+  "padding": 10,
+
+  "data": [
+    {
+      "name": "flat",
+      "values": [
+        { "x": 0, "y": 0 },
+        { "x": 1, "y": 0 },
+        { "x": 2, "y": 0 },
+        { "x": 3, "y": 0 }
+      ]
+    },
+    {
+      "name": "wavy",
+      "values": [
+        { "x": 0, "y": 0 },
+        { "x": 1, "y": 60 },
+        { "x": 2, "y": 10 },
+        { "x": 3, "y": 50 }
+      ]
+    }
+  ],
+
+  "scales": [
+    { "name": "x", "type": "linear", "range": "width", "domain": [0, 3] },
+    { "name": "y", "type": "linear", "range": [40, 0], "domain": [0, 60] }
+  ],
+
+  "marks": [
+    {
+      "type": "group",
+      "encode": { "enter": { "y": { "value": 0 } } },
+      "marks": [
+        {
+          "type": "line",
+          "from": { "data": "flat" },
+          "encode": {
+            "enter": {
+              "x": { "scale": "x", "field": "x" },
+              "y": { "scale": "y", "field": "y" },
+              "stroke": { "value": "#4c78a8" },
+              "strokeWidth": { "value": 3 },
+              "strokeDash": { "value": [8, 4] }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "encode": { "enter": { "y": { "value": 50 } } },
+      "marks": [
+        {
+          "type": "line",
+          "from": { "data": "flat" },
+          "encode": {
+            "enter": {
+              "x": { "scale": "x", "field": "x" },
+              "y": { "scale": "y", "field": "y" },
+              "stroke": { "value": "#f58518" },
+              "strokeWidth": { "value": 2 },
+              "strokeDash": { "value": [2, 6] }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "encode": { "enter": { "y": { "value": 100 } } },
+      "marks": [
+        {
+          "type": "line",
+          "from": { "data": "wavy" },
+          "encode": {
+            "enter": {
+              "x": { "scale": "x", "field": "x" },
+              "y": { "scale": "y", "field": "y" },
+              "stroke": { "value": "#54a24b" },
+              "strokeWidth": { "value": 2 },
+              "strokeDash": { "value": [10, 5] }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
