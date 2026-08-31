@@ -80,6 +80,14 @@ window.addEventListener('unhandledrejection', e => recordTrace('unhandledrejecti
     }
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
+    // Snapshot the canvas backing store rather than letting the test screenshot
+    // the element. Headless Linux has no GPU compositing, so a WebGPU canvas
+    // composites as blank there while toDataURL reads the texture directly.
+    window.__snapshot = () => {
+      const canvas = document.querySelector('#vis canvas');
+      return canvas ? canvas.toDataURL('image/png') : null;
+    };
+
     window.__renderDone = true;
   } catch (err) {
     console.error(err);

@@ -67,16 +67,35 @@ async function renderSpec(page: Page, specName: string, renderer: 'webgpu' | 'ca
     expect(state.error, `[${renderer}] harness error:\n${state.error}${traces}`).toBeUndefined();
     expect(errors, `[${renderer}] console errors:\n${errors.join('\n')}${traces}`).toEqual([]);
 
-    return { png: await page.locator('#vis').screenshot(), rendererKind: state.rendererKind };
+    const dataUrl = await page.evaluate(() => {
+      const w = window as unknown as { __snapshot?: () => string | null };
+      return w.__snapshot?.() ?? null;
+    });
+    expect(dataUrl, `[${renderer}] could not snapshot the canvas`).toBeTruthy();
+    const png = Buffer.from((dataUrl as string).split(',')[1], 'base64');
+    return { png, rendererKind: state.rendererKind };
   } finally {
     page.off('pageerror', onPageError);
     page.off('console', onConsole);
   }
 }
 
+/** Composites RGBA over white so a transparent backing store compares fairly. */
+function flatten(img: PNG): PNG {
+  const { data } = img;
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3] / 255;
+    data[i] = Math.round(data[i] * a + 255 * (1 - a));
+    data[i + 1] = Math.round(data[i + 1] * a + 255 * (1 - a));
+    data[i + 2] = Math.round(data[i + 2] * a + 255 * (1 - a));
+    data[i + 3] = 255;
+  }
+  return img;
+}
+
 function diffPngs(a: Buffer, b: Buffer, specName: string): { diffRatio: number; diff: Buffer } {
-  const imgA = PNG.sync.read(a);
-  const imgB = PNG.sync.read(b);
+  const imgA = flatten(PNG.sync.read(a));
+  const imgB = flatten(PNG.sync.read(b));
   if (imgA.width !== imgB.width || imgA.height !== imgB.height) {
     throw new Error(`Size mismatch for '${specName}': ${imgA.width}x${imgA.height} vs ${imgB.width}x${imgB.height}.`);
   }
