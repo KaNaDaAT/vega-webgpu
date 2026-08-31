@@ -27,6 +27,10 @@ import textShader from './shaders/text.wgsl';
 const viewBounds = (origin: readonly [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
 
+// Fallback deadline for finishing a frame when requestAnimationFrame does not
+// fire. Longer than a 60Hz frame so rAF wins in a normal page.
+const FRAME_TIMEOUT_MS = 34;
+
 interface PendingRender {
   scene: GPUVegaScene;
   markTypes?: string[];
@@ -337,12 +341,22 @@ export default class WebGPURenderer extends Renderer {
       this._readback(device, canvasTexture).then(capture.resolve, capture.reject);
     }
 
-    // rAF never fires in a hidden tab, which would wedge _isRendering.
-    if (typeof document !== 'undefined' && !document.hidden) {
-      requestAnimationFrame(() => this._endFrame(t1, t2));
-    } else {
-      setTimeout(() => this._endFrame(t1, t2), 0);
+    // rAF is the normal path, but it does not fire in a hidden tab nor on a
+    // headless runner with no compositor, and a frame that never finishes
+    // leaves _isRendering set and wedges every later render. Race it against a
+    // timer and finish on whichever arrives first.
+    let finished = false;
+    const finish = () => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      this._endFrame(t1, t2);
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(finish);
     }
+    setTimeout(finish, FRAME_TIMEOUT_MS);
   }
 
   private _endFrame(t1: number, t2: number): void {
