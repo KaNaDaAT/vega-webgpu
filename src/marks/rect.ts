@@ -66,7 +66,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   );
   const clip = markClip(ctx, scene);
 
-  const gres = getGradientResources(device, ctx);
+  // only materialise the gradient sampler and ramp cache if a gradient shows up
+  let gres: ReturnType<typeof getGradientResources> | null = null;
+  const gradientResources = () => (gres ??= getGradientResources(device, ctx));
   let run: SceneItem[] = [];
   const flushRun = () => {
     if (run.length === 0) {
@@ -98,7 +100,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       bindGroups: [
         createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
         // rect gradients evaluate in uv space, bounds are the unit square
-        createGradientBindGroup(gres, res.gradientPipeline, fill, [0, 0, 1, 1]),
+        createGradientBindGroup(gradientResources(), res.gradientPipeline, fill, [0, 0, 1, 1]),
       ],
       clip,
     });

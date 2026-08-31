@@ -8,7 +8,15 @@ import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } fr
 import { dashPolyline, type Point } from '../util/dash.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry } from '../path/shapes.js';
-import { geometryVertexData, getMarkResources, markClip, type MarkModule } from './util.js';
+import {
+  SEGMENT_LAYOUT,
+  SEGMENT_STRIDE,
+  geometryVertexData,
+  getMarkResources,
+  markClip,
+  segmentInstances,
+  type MarkModule,
+} from './util.js';
 
 const drawName = 'Line';
 // Round joins are drawn as filled circles at interior vertices.
@@ -38,10 +46,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       [],
       ['float32x2', 'float32x2', 'float32x4', 'float32', 'float32x2', 'float32x2'], // start, end, color, width, res, offset
     );
-    const instancedVertexManager = new VertexBufferManager(
-      [],
-      ['float32x2', 'float32x2', 'float32x4', 'float32'], // start, end, color, width
-    );
+    const instancedVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
     const batchPipeline = createRenderPipeline(
       drawName,
       device,
@@ -138,25 +143,16 @@ function drawDashed(
   }
 
   const runs = polylines.flatMap(line => dashPolyline(line, pattern, offset));
-  const segments = runs.reduce((n, r) => n + r.length - 1, 0);
-  if (segments <= 0) {
-    return;
-  }
 
   const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
-  const width = first.strokeWidth ?? 1;
-  const data = new Float32Array(segments * 9);
-  let i = 0;
-  for (const run of runs) {
-    for (let s = 0; s < run.length - 1; s++) {
-      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], col[0], col[1], col[2], col[3], width], i);
-      i += 9;
-    }
+  const data = segmentInstances(runs, col, first.strokeWidth ?? 1);
+  if (!data) {
+    return;
   }
 
   ctx._renderQueue.enqueue({
     pipeline: res.instancedPipeline,
-    drawCounts: [6, segments],
+    drawCounts: [6, data.length / SEGMENT_STRIDE],
     vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
     bindGroups: [
       createUniformBindGroup(`S${drawName}`, device, res.instancedPipeline, res.bufferManager.createUniformBuffer()),

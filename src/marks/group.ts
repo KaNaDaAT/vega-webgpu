@@ -9,7 +9,7 @@ import { createGradientBindGroup, getGradientResources } from '../util/gradient.
 import { visit } from '../util/visit.js';
 import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
 import { rectAttributes } from './rect.js';
-import { dashedBorderInstances, getMarkResources, type MarkModule } from './util.js';
+import { SEGMENT_LAYOUT, SEGMENT_STRIDE, dashedBorderInstances, getMarkResources, type MarkModule } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Group';
@@ -50,10 +50,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       undefined,
       'main_fragment_gradient',
     );
-    const dashVertexManager = new VertexBufferManager(
-      [],
-      ['float32x2', 'float32x2', 'float32x4', 'float32'], // start, end, color, width
-    );
+    const dashVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
     const dashPipeline = createRenderPipeline(
       `${drawName}Dash`,
       device,
@@ -90,7 +87,9 @@ function draw(
   const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
 
   // Group backgrounds share the rect instance layout and shader.
-  const gres = getGradientResources(device, ctx);
+  // only materialise the gradient sampler and ramp cache if a gradient shows up
+  let gres: ReturnType<typeof getGradientResources> | null = null;
+  const gradientResources = () => (gres ??= getGradientResources(device, ctx));
   let run: SceneGroupExt[] = [];
   const flushRun = () => {
     if (run.length === 0) {
@@ -127,7 +126,7 @@ function draw(
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
         createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-        createGradientBindGroup(gres, res.gradientPipeline, fill, [0, 0, 1, 1]),
+        createGradientBindGroup(gradientResources(), res.gradientPipeline, fill, [0, 0, 1, 1]),
       ],
       clip: ctx._clip,
     });
@@ -137,7 +136,7 @@ function draw(
   for (const data of dashed) {
     ctx._renderQueue.enqueue({
       pipeline: res.dashPipeline,
-      drawCounts: [6, data.length / 9],
+      drawCounts: [6, data.length / SEGMENT_STRIDE],
       vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
       bindGroups: [createUniformBindGroup(`${drawName}Dash`, device, res.dashPipeline, uniformBuffer)],
       clip: ctx._clip,

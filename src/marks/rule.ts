@@ -6,7 +6,7 @@ import { BufferManager } from '../util/bufferManager.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createRenderPipeline, createUniformBindGroup, preferredColorFormat } from '../util/webgpu.js';
-import { getMarkResources, markClip, type MarkModule } from './util.js';
+import { SEGMENT_LAYOUT, getMarkResources, markClip, segmentInstance, type MarkModule } from './util.js';
 
 const drawName = 'Rule';
 
@@ -38,10 +38,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     // A rule with both x2 and y2 set is a diagonal segment, which an
     // axis-aligned quad cannot express. Those go through the single-segment
     // line shader instead.
-    const diagonalVertexManager = new VertexBufferManager(
-      [],
-      ['float32x2', 'float32x2', 'float32x4', 'float32'], // start, end, color, width
-    );
+    const diagonalVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
     const diagonalPipeline = createRenderPipeline(
       `${drawName}Diagonal`,
       device,
@@ -128,11 +125,10 @@ function createAttributes(items: SceneItem[]): Float32Array {
   );
 }
 
-/** Single-segment instance for the SLine shader: start, end, color, width. */
 function createDiagonalAttributes(item: SceneRule): Float32Array {
   const { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
   const col = Color.from2(stroke, opacity, strokeOpacity);
-  return Float32Array.from([x, y, x2 ?? x, y2 ?? y, ...col, strokeWidth]);
+  return segmentInstance(x, y, x2 ?? x, y2 ?? y, col, strokeWidth);
 }
 
 export default {

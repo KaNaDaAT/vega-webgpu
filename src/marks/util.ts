@@ -146,6 +146,50 @@ export class GeometryBatch {
  * as a closed polyline instead and emitted as single-segment line instances.
  * Returns null when the item has no dashed border to draw.
  */
+/**
+ * Vertex layout of a single line segment instance, shared by every mark that
+ * falls back to the SLine shader: dashes, dashed borders and diagonal rules.
+ */
+export const SEGMENT_LAYOUT: GPUVertexFormat[] = ['float32x2', 'float32x2', 'float32x4', 'float32'];
+
+/** Packs one segment as start, end, colour, width. */
+export function segmentInstance(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: RGBA,
+  width: number,
+): Float32Array {
+  return Float32Array.from([x1, y1, x2, y2, ...color, width]);
+}
+
+/** Packs every segment of every polyline, or null when there is nothing to draw. */
+export function segmentInstances(runs: Point[][], color: RGBA, width: number): Float32Array | null {
+  const count = runs.reduce((n, r) => n + Math.max(0, r.length - 1), 0);
+  if (count === 0) {
+    return null;
+  }
+  const data = new Float32Array(count * SEGMENT_STRIDE);
+  let i = 0;
+  for (const run of runs) {
+    for (let s = 0; s < run.length - 1; s++) {
+      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], ...color, width], i);
+      i += SEGMENT_STRIDE;
+    }
+  }
+  return data;
+}
+
+/** Floats per segment instance: start, end, colour, width. */
+export const SEGMENT_STRIDE = 9;
+
+/**
+ * Rect and group strokes are drawn analytically in the fragment shader, which
+ * cannot express a dash pattern. When `strokeDash` is set the border is walked
+ * as a closed polyline instead and emitted as single-segment line instances.
+ * Returns null when the item has no dashed border to draw.
+ */
 export function dashedBorderInstances(item: SceneRectExt): Float32Array | null {
   const pattern = Array.isArray(item.strokeDash) ? item.strokeDash : undefined;
   if (!pattern?.length || !item.stroke) {
@@ -166,20 +210,6 @@ export function dashedBorderInstances(item: SceneRectExt): Float32Array | null {
     [x, y],
   ];
   const runs = dashPolyline(border, pattern, item.strokeDashOffset ?? 0);
-  const segments = runs.reduce((n, r) => n + r.length - 1, 0);
-  if (segments <= 0) {
-    return null;
-  }
-
-  const col = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
-  const width = item.strokeWidth ?? 1;
-  const data = new Float32Array(segments * 9);
-  let i = 0;
-  for (const run of runs) {
-    for (let s = 0; s < run.length - 1; s++) {
-      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], col[0], col[1], col[2], col[3], width], i);
-      i += 9;
-    }
-  }
-  return data;
+  const color = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+  return segmentInstances(runs, color, item.strokeWidth ?? 1);
 }
