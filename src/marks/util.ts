@@ -1,4 +1,5 @@
 import type { Bounds } from 'vega-scenegraph';
+import type { BufferManager } from '../util/bufferManager.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import type { VertexBufferManager } from '../util/vertexManager.js';
 import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
@@ -30,15 +31,20 @@ export function getMarkResources<T extends { device: GPUDevice }>(
   ctx: GPUVegaCanvasContext,
   markType: string,
   device: GPUDevice,
+  vb: Bounds | undefined,
   create: () => T,
 ): T {
   const cached = ctx._markCache[markType] as T | undefined;
-  if (cached && cached.device === device) {
-    return cached;
+  const res = cached && cached.device === device ? cached : ((ctx._markCache[markType] = create()) as T);
+  // Resources outlive the frame, so a cached BufferManager still holds the
+  // previous frame's resolution and group offset. Refreshing here means a mark
+  // cannot forget to, which would draw the whole mark at a stale offset.
+  if (vb) {
+    const buffers = (res as { bufferManager?: BufferManager }).bufferManager;
+    buffers?.setResolution(ctx._uniforms.resolution);
+    buffers?.setOffset([vb.x1, vb.y1]);
   }
-  const created = create();
-  ctx._markCache[markType] = created;
-  return created;
+  return res;
 }
 
 /**

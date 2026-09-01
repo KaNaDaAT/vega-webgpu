@@ -21,7 +21,7 @@ interface RectResources {
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RectResources {
-  return getMarkResources(ctx, 'rect', device, () => {
+  return getMarkResources(ctx, 'rect', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
@@ -49,8 +49,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   const res = getResources(device, ctx, vb);
-  res.bufferManager.setResolution(ctx._uniforms.resolution);
-  res.bufferManager.setOffset([vb.x1, vb.y1]);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer(
     Float32Array.from([...ctx._uniforms.resolution, vb.x1, vb.y1, ctx._uniforms.dpi || 1, 0, 0, 0]),

@@ -29,7 +29,7 @@ interface ImageResources {
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): ImageResources {
-  return getMarkResources(ctx, 'image', device, () => {
+  return getMarkResources(ctx, 'image', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
@@ -172,8 +172,6 @@ function draw(
   }
 
   const res = getResources(device, ctx, vb);
-  res.bufferManager.setResolution(ctx._uniforms.resolution);
-  res.bufferManager.setOffset([vb.x1, vb.y1]);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);

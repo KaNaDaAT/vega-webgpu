@@ -41,7 +41,7 @@ interface LineResources {
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
-  return getMarkResources(ctx, 'line', device, () => {
+  return getMarkResources(ctx, 'line', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const batchVertexManager = new VertexBufferManager(
       [],
@@ -168,8 +168,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   const res = getResources(device, ctx, vb);
-  res.bufferManager.setResolution(ctx._uniforms.resolution);
-  res.bufferManager.setOffset([vb.x1, vb.y1]);
 
   const points = items as SceneLinePoint[];
   const clip = markClip(ctx, scene);

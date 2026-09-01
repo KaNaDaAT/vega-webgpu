@@ -30,7 +30,7 @@ interface PathResources {
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): PathResources {
-  return getMarkResources(ctx, 'path', device, () => {
+  return getMarkResources(ctx, 'path', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
@@ -48,8 +48,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   const res = getResources(device, ctx, vb);
-  res.bufferManager.setResolution(ctx._uniforms.resolution);
-  res.bufferManager.setOffset([vb.x1, vb.y1]);
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
   const vertexLength = res.vertexManager.getVertexLength();

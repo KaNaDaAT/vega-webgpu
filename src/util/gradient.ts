@@ -14,7 +14,7 @@ export interface GradientResources {
 }
 
 export function getGradientResources(device: GPUDevice, ctx: GPUVegaCanvasContext): GradientResources {
-  return getMarkResources(ctx, '__gradient', device, () => ({
+  return getMarkResources(ctx, '__gradient', device, undefined, () => ({
     device,
     sampler: device.createSampler({
       label: 'Gradient Sampler',

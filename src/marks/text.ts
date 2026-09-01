@@ -24,7 +24,7 @@ interface TextResources {
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): TextResources {
-  return getMarkResources(ctx, 'text', device, () => {
+  return getMarkResources(ctx, 'text', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager(['float32x2', 'float32x2']); // position, uv
     const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
@@ -93,8 +93,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   const res = getResources(device, ctx, vb);
-  res.bufferManager.setResolution(ctx._uniforms.resolution);
-  res.bufferManager.setOffset([vb.x1, vb.y1]);
 
   const clip = markClip(ctx, scene);
   const [resX, resY] = ctx._uniforms.resolution;

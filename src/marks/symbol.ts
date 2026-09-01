@@ -50,7 +50,7 @@ interface SymbolResources {
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): SymbolResources {
-  return getMarkResources(ctx, 'symbol', device, () => {
+  return getMarkResources(ctx, 'symbol', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const circleVertexManager = new VertexBufferManager(
       ['float32x2'], // position
@@ -89,8 +89,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   const res = getResources(device, ctx, vb);
-  res.bufferManager.setResolution(ctx._uniforms.resolution);
-  res.bufferManager.setOffset([vb.x1, vb.y1]);
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
 
