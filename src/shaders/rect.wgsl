@@ -97,36 +97,34 @@ fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
 }
 
 /**
- * Fraction of the pixel covered by the rect, computed the way canvas does it
- * rather than from MSAA samples. Two abutting rects then produce complementary
- * coverage, so the seam is the faint one canvas leaves and not a whole missing
- * sample. A deliberate gap between rects is preserved exactly, because the
- * geometry is untouched.
+ * Fraction of the pixel covered by an axis-aligned box, computed the way canvas
+ * does it rather than from MSAA samples. Two abutting rects then produce
+ * complementary coverage, so the seam is the faint one canvas leaves and not a
+ * whole missing sample. A deliberate gap between rects is preserved exactly,
+ * because the geometry is untouched. lo/hi are in device pixels.
  */
-fn boxCoverage(in: VertexOutput) -> f32 {
-    let p = in.pos.xy;
-    let cx = clamp(min(p.x - in.lo_dev.x, in.hi_dev.x - p.x) + 0.5, 0.0, 1.0);
-    let cy = clamp(min(p.y - in.lo_dev.y, in.hi_dev.y - p.y) + 0.5, 0.0, 1.0);
+fn boxCoverage(p: vec2<f32>, lo: vec2<f32>, hi: vec2<f32>) -> f32 {
+    let cx = clamp(min(p.x - lo.x, hi.x - p.x) + 0.5, 0.0, 1.0);
+    let cy = clamp(min(p.y - lo.y, hi.y - p.y) + 0.5, 0.0, 1.0);
     return cx * cy;
 }
 
+/**
+ * Fill and stroke each get their true share of the pixel. Thresholding uv
+ * instead would hand the whole pixel to one of them, which drops the inner
+ * half of any stroke thin enough to straddle a pixel boundary.
+ */
 fn straightRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
-    var col = fill;
-    // uv spans the quad enlarged by strokewidth (see main_vertex), so the
-    // stroke band fraction must divide by that enlarged size to keep the
-    // stroke exactly strokewidth px wide, centered on the rect edge.
-    let sw: vec2<f32> = vec2<f32>(in.strokewidth, in.strokewidth) / (in.scale + vec2<f32>(in.strokewidth, in.strokewidth));
-    // uv runs outside 0..1 in the padded ring, so clamp before testing the
-    // stroke band. Without this a rect with no stroke picks up the transparent
-    // stroke colour there and loses its edge coverage.
-    let uvc = clamp(in.uv, vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0));
-    if uvc.x < sw.x || uvc.x > 1.0 - sw.x {
-        col = in.stroke;
-    }
-    if uvc.y < sw.y || uvc.y > 1.0 - sw.y {
-        col = in.stroke;
-    }
-    return vec4<f32>(col.rgb, col.a * boxCoverage(in));
+    let p = in.pos.xy;
+    let sw = vec2<f32>(in.strokewidth, in.strokewidth) * max(uniforms.dpi, 0.001);
+    let outer = boxCoverage(p, in.lo_dev, in.hi_dev);
+    let inner = boxCoverage(p, in.lo_dev + sw, in.hi_dev - sw);
+    // the fill and stroke areas are disjoint inside the pixel, so alphas add
+    let fa = fill.a * inner;
+    let sa = in.stroke.a * max(outer - inner, 0.0);
+    let a = fa + sa;
+    let rgb = (fill.rgb * fa + in.stroke.rgb * sa) / max(a, 1e-6);
+    return vec4<f32>(rgb, a);
 }
 
 fn maxRadius(radii: vec4<f32>) -> f32 {
