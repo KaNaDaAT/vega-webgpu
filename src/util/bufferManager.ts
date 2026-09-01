@@ -38,23 +38,23 @@ export class BufferManager {
     return this.createBuffer(`${this.bufferName} Instance Buffer`, data, usage);
   }
 
-  // source: https://alain.xyz/blog/raw-webgpu
+  /**
+   * Uploads through the queue rather than mappedAtCreation. A mapped range
+   * costs one JS ArrayBuffer per buffer and a frame creates a buffer per mark,
+   * which exhausts that allocation on a memory-constrained runner: every
+   * create then throws "size (32) is too large for the implementation".
+   */
   createBuffer(name: string, data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags): GPUBuffer {
-    const buffer = this.device.createBuffer({
-      label: name,
-      size: (data.byteLength + 3) & ~3,
-      usage,
-      mappedAtCreation: true,
-    });
-
-    if (data instanceof Uint16Array) {
-      new Uint16Array(buffer.getMappedRange()).set(data);
-    } else if (data instanceof Uint32Array) {
-      new Uint32Array(buffer.getMappedRange()).set(data);
-    } else {
-      new Float32Array(buffer.getMappedRange()).set(data);
+    const size = (data.byteLength + 3) & ~3;
+    const buffer = this.device.createBuffer({ label: name, size, usage });
+    const bytes = new Uint8Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
+    // writeBuffer copies whole words, so an unaligned tail needs padding
+    let src = bytes;
+    if (size !== data.byteLength) {
+      src = new Uint8Array(size);
+      src.set(bytes);
     }
-    buffer.unmap();
+    this.device.queue.writeBuffer(buffer, 0, src, 0, size);
     return buffer;
   }
 

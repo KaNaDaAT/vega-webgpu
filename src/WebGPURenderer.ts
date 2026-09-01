@@ -34,6 +34,7 @@ const FRAME_TIMEOUT_MS = 34;
 // Upper bound on a frame capture, so a stalled readback reports instead of
 // hanging its caller.
 const CAPTURE_TIMEOUT_MS = 10_000;
+const MAX_DEVICE_RECOVERIES = 3;
 
 interface PendingRender {
   scene: GPUVegaScene;
@@ -47,6 +48,7 @@ export default class WebGPURenderer extends Renderer {
     debugLog: false,
     cacheShapes: false,
     renderLock: true,
+    offscreen: false,
     sampleCount: defaultSampleCount,
   };
 
@@ -60,11 +62,19 @@ export default class WebGPURenderer extends Renderer {
   private _device: GPUDevice | null = null;
   private _msaaTexture: GPUTexture | null = null;
   private _msaaTextureDevice: GPUDevice | null = null;
+  private _offscreenTexture: GPUTexture | null = null;
+  private _offscreenTextureDevice: GPUDevice | null = null;
   private _queue = new RenderQueue();
   private _uniforms: RenderUniforms = { resolution: [0, 0], origin: [0, 0], dpi: 1 };
 
   private _renderCount = 0;
   private _warnedTextureSize = false;
+
+  /** Reason the GPU device was lost, if it ever was. Set for every reason. */
+  deviceLostReason: string | null = null;
+  /** Number of GPU devices this renderer has created. */
+  deviceGeneration = 0;
+  private _recoveries = 0;
 
   private _pendingDestroy: { destroy(): void }[] = [];
 
@@ -185,6 +195,7 @@ export default class WebGPURenderer extends Renderer {
       }
       device = await adapter.requestDevice();
       this._device = device;
+      this.deviceGeneration++;
       this._handleDeviceLoss(device);
 
       ctx.configure({
@@ -198,21 +209,38 @@ export default class WebGPURenderer extends Renderer {
     return { device, ctx };
   }
 
+  /**
+   * Drops the device and everything built on it. Pipelines, textures and
+   * buffers all belong to a device, so none of them outlive it.
+   */
+  private _dropDevice(): void {
+    this._device = null;
+    this._msaaTexture = null;
+    this._msaaTextureDevice = null;
+    this._offscreenTexture = null;
+    this._offscreenTextureDevice = null;
+    if (this._ctx) {
+      this._ctx._shaderCache = {};
+      this._ctx._markCache = {};
+    }
+  }
+
+  /**
+   * A device is never destroyed from here, so every loss is the browser's,
+   * including reason 'destroyed' (memory pressure reclaims a device that way).
+   * Keeping the dead one leaves the renderer permanently broken.
+   */
   private _handleDeviceLoss(device: GPUDevice): void {
     device.lost.then(info => {
-      if (info.reason === 'destroyed') {
-        return;
+      this.deviceLostReason = `${info.reason}: ${info.message}`;
+      if (this._device !== device) {
+        return; // already replaced
       }
-      console.warn(`[vega-webgpu] GPU device lost (${info.message}); reinitializing.`);
-      this._device = null;
-      this._msaaTexture = null;
-      this._msaaTextureDevice = null;
-      if (this._ctx) {
-        this._ctx._shaderCache = {};
-        this._ctx._markCache = {};
-      }
-      // re-render the last known scene with a fresh device
-      if (this._lastRender) {
+      console.warn(`[vega-webgpu] GPU device lost (${info.reason}: ${info.message}); reinitializing.`);
+      this._dropDevice();
+      // Bounded, so a device the browser keeps reclaiming cannot spin here.
+      if (this._lastRender && this._recoveries < MAX_DEVICE_RECOVERIES) {
+        this._recoveries++;
         this._render(this._lastRender.scene, this._lastRender.markTypes);
       }
     });
@@ -333,19 +361,19 @@ export default class WebGPURenderer extends Renderer {
     // One pass for the whole frame: clears to the background color, draws
     // in scenegraph order, and resolves the MSAA attachment once.
     const renderPassDescriptor = createRenderPassDescriptor('Frame', this.clearColor());
-    const canvasTexture = ctx.getCurrentTexture();
+    const target = this.wgOptions.offscreen ? this.offscreenTexture(device) : ctx.getCurrentTexture();
     if (ctx._sampleCount > 1) {
       renderPassDescriptor.colorAttachments[0].view = this.msaaTexture(device).createView();
-      renderPassDescriptor.colorAttachments[0].resolveTarget = canvasTexture.createView();
+      renderPassDescriptor.colorAttachments[0].resolveTarget = target.createView();
     } else {
-      renderPassDescriptor.colorAttachments[0].view = canvasTexture.createView();
+      renderPassDescriptor.colorAttachments[0].view = target.createView();
     }
     this._queue.submit(device, renderPassDescriptor, [this._canvas?.width ?? 0, this._canvas?.height ?? 0]);
 
     if (this._capture) {
       const capture = this._capture;
       this._capture = null;
-      this._readback(device, canvasTexture).then(capture.resolve, capture.reject);
+      this._readback(device, target).then(capture.resolve, capture.reject);
     }
 
     // rAF is the normal path, but it does not fire in a hidden tab nor on a
@@ -390,7 +418,19 @@ export default class WebGPURenderer extends Renderer {
    * toDataURL, and a headless Linux runner never composites, so both come back
    * blank there. Copying the texture bypasses presentation entirely.
    */
-  captureFrame(timeoutMs = CAPTURE_TIMEOUT_MS): Promise<{ width: number; height: number; data: Uint8Array }> {
+  async captureFrame(timeoutMs = CAPTURE_TIMEOUT_MS): Promise<{ width: number; height: number; data: Uint8Array }> {
+    try {
+      return await this._captureOnce(timeoutMs);
+    } catch {
+      // A device that goes away mid-capture takes its readback buffer with it,
+      // and mapAsync then rejects with the instance already gone. Rebuild and
+      // take the frame again, letting a second failure through.
+      this._dropDevice();
+      return await this._captureOnce(timeoutMs);
+    }
+  }
+
+  private _captureOnce(timeoutMs: number): Promise<{ width: number; height: number; data: Uint8Array }> {
     return new Promise((resolve, reject) => {
       if (!this._lastRender) {
         reject(new Error('[vega-webgpu] Nothing has been rendered yet.'));
@@ -544,6 +584,37 @@ export default class WebGPURenderer extends Renderer {
     });
     this._msaaTextureDevice = gpu;
     return this._msaaTexture;
+  }
+
+  /**
+   * Color target for offscreen mode. Acquiring the canvas swapchain destroys
+   * the device where no compositor exists, so that call is skipped entirely and
+   * the frame lands here instead.
+   */
+  private offscreenTexture(device: GPUDevice): GPUTexture {
+    const canvas = this._canvas;
+    if (!canvas) {
+      throw new Error('[vega-webgpu] Cannot create the offscreen texture before initialization.');
+    }
+    const existing = this._offscreenTexture;
+    if (
+      existing &&
+      this._offscreenTextureDevice === device &&
+      existing.width === canvas.width &&
+      existing.height === canvas.height
+    ) {
+      return existing;
+    }
+    existing?.destroy();
+    this._offscreenTexture = device.createTexture({
+      label: 'Offscreen Color Texture',
+      size: [canvas.width, canvas.height, 1],
+      format: preferredColorFormat(),
+      dimension: '2d',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+    });
+    this._offscreenTextureDevice = device;
+    return this._offscreenTexture;
   }
 
   clearColor(): GPUColor {

@@ -26,6 +26,13 @@ export interface GPUVegaOptions {
   /** Skip re-entrant render calls; always re-runs the most recent request. */
   renderLock: boolean;
   /**
+   * Renders into a texture the renderer owns and never touches the canvas
+   * swapchain. Needed where getCurrentTexture() is unavailable, e.g. a headless
+   * runner with no compositor, where acquiring it destroys the device. The
+   * canvas is left blank, so the frame is only reachable through captureFrame.
+   */
+  offscreen: boolean;
+  /**
    * MSAA samples per pixel: 4 (antialiased, default) or 1 (plain
    * single-sampled rendering). Other values fall back to 4. Can be changed
    * between frames. Pipelines are rebuilt on the next render.
