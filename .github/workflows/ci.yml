@@ -10,12 +10,17 @@ jobs:
   verify:
     name: Typecheck, lint & build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # the versions vega itself covers
+      matrix:
+        node: [22, 24]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - run: npm ci
@@ -26,7 +31,8 @@ jobs:
 
       - run: npm run build
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
+        if: matrix.node == 24
         with:
           name: build
           path: build/
@@ -36,9 +42,9 @@ jobs:
     name: Render tests (WebGPU on SwiftShader)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -65,7 +71,7 @@ jobs:
       # diff images, so it doubles as a manual comparison gallery.
       - name: Upload render report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: render-report
           path: playwright-report/
@@ -75,7 +81,7 @@ jobs:
       # Raw per-spec webgpu / canvas / diff PNGs for direct manual comparison.
       - name: Upload render images
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: render-images
           path: test/render/output/
