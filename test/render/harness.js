@@ -87,7 +87,16 @@ window.addEventListener('unhandledrejection', e => recordTrace('unhandledrejecti
       const el = document.querySelector('#vis canvas');
       if (!el) return null;
       if (kind === 'webgpu' && r && typeof r.captureFrame === 'function') {
-        const shot = await r.captureFrame();
+        let shot;
+        try {
+          shot = await r.captureFrame();
+        } catch (err) {
+          // Fall back rather than hang the test. toDataURL is blank without a
+          // compositor, which the pixel diff will show, and the reason lands in
+          // the failure output instead of a bare timeout.
+          recordTrace('captureFrame failed', err);
+          return { dataUrl: el.toDataURL('image/png') };
+        }
         // base64 rather than a plain array: serializing a few million numbers
         // as JSON across the debugging protocol dwarfs the render itself.
         let binary = '';

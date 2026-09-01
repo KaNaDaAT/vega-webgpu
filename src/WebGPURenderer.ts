@@ -31,6 +31,10 @@ const viewBounds = (origin: readonly [number, number], width: number, height: nu
 // fire. Longer than a 60Hz frame so rAF wins in a normal page.
 const FRAME_TIMEOUT_MS = 34;
 
+// Upper bound on a frame capture, so a stalled readback reports instead of
+// hanging its caller.
+const CAPTURE_TIMEOUT_MS = 10_000;
+
 interface PendingRender {
   scene: GPUVegaScene;
   markTypes?: string[];
@@ -246,6 +250,9 @@ export default class WebGPURenderer extends Renderer {
     this._renderPromise = this._frame(scene, markTypes).catch(err => {
       console.error('[vega-webgpu] Render failed:', err);
       // One failure must not wedge the lock or strand awaiting callers.
+      const capture = this._capture;
+      this._capture = null;
+      capture?.reject(err);
       this._finishFrame();
     });
     return this;
@@ -383,15 +390,34 @@ export default class WebGPURenderer extends Renderer {
    * toDataURL, and a headless Linux runner never composites, so both come back
    * blank there. Copying the texture bypasses presentation entirely.
    */
-  captureFrame(): Promise<{ width: number; height: number; data: Uint8Array }> {
+  captureFrame(timeoutMs = CAPTURE_TIMEOUT_MS): Promise<{ width: number; height: number; data: Uint8Array }> {
     return new Promise((resolve, reject) => {
-      this._capture = { resolve, reject };
-      if (this._lastRender) {
-        this._render(this._lastRender.scene, this._lastRender.markTypes);
-      } else {
-        this._capture = null;
+      if (!this._lastRender) {
         reject(new Error('[vega-webgpu] Nothing has been rendered yet.'));
+        return;
       }
+      // Never hang. A capture that cannot complete has to say so, otherwise the
+      // caller just stops, with no clue whether the frame, the copy or the
+      // buffer mapping was the part that never finished.
+      const timer = setTimeout(() => {
+        if (this._capture) {
+          this._capture = null;
+          reject(
+            new Error(
+              `[vega-webgpu] Frame capture did not finish within ${timeoutMs}ms ` +
+                `(rendering=${this._isRendering}, pending=${this._pendingRender !== null}).`,
+            ),
+          );
+        }
+      }, timeoutMs);
+      const done =
+        <T>(fn: (v: T) => void) =>
+        (value: T) => {
+          clearTimeout(timer);
+          fn(value);
+        };
+      this._capture = { resolve: done(resolve), reject: done(reject) };
+      this._render(this._lastRender.scene, this._lastRender.markTypes);
     });
   }
 
