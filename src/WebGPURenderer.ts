@@ -138,8 +138,6 @@ export default class WebGPURenderer extends Renderer {
     ctx._geometryCacheSize = 0;
     this._ctx = ctx;
 
-    this._bgcolor = '#ffffff';
-
     // this method will invoke resize to size the canvas appropriately
     return super.initialize(el, width, height, origin, scaleFactor, opt);
   }
@@ -495,6 +493,16 @@ export default class WebGPURenderer extends Renderer {
         data[i + 2] = b;
       }
     }
+    // The surface is premultiplied, but getImageData and toDataURL both hand
+    // back straight alpha, so callers comparing the two need the same.
+    for (let i = 0; i < data.length; i += 4) {
+      const a = data[i + 3];
+      if (a !== 0 && a !== 255) {
+        data[i] = Math.min(255, Math.round((data[i] * 255) / a));
+        data[i + 1] = Math.min(255, Math.round((data[i + 1] * 255) / a));
+        data[i + 2] = Math.min(255, Math.round((data[i + 2] * 255) / a));
+      }
+    }
     buffer.destroy();
     return { width, height, data };
   }
@@ -620,7 +628,8 @@ export default class WebGPURenderer extends Renderer {
   clearColor(): GPUColor {
     const bg = this._bgcolor ? Color.from(this._bgcolor) : null;
     if (!bg) {
-      return { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+      // canvas clears to transparent and only fills when a background is set
+      return { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
     }
     // The surface is configured alphaMode premultiplied, so a translucent
     // background has to be premultiplied here too or it composites too bright.
