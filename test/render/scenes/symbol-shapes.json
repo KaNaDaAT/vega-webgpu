@@ -1,0 +1,246 @@
+{
+ "description": "Every built-in symbol shape at two sizes, filled and stroked.",
+ "width": 380,
+ "height": 260,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "shape": "circle",
+        "size": 100,
+        "x": 40,
+        "y": 40,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "circle",
+        "size": 400,
+        "x": 40,
+        "y": 95,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "square",
+        "size": 100,
+        "x": 100,
+        "y": 40,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "square",
+        "size": 400,
+        "x": 100,
+        "y": 95,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "cross",
+        "size": 100,
+        "x": 160,
+        "y": 40,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "cross",
+        "size": 400,
+        "x": 160,
+        "y": 95,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "diamond",
+        "size": 100,
+        "x": 220,
+        "y": 40,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "diamond",
+        "size": 400,
+        "x": 220,
+        "y": 95,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-up",
+        "size": 100,
+        "x": 280,
+        "y": 40,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-up",
+        "size": 400,
+        "x": 280,
+        "y": 95,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-down",
+        "size": 100,
+        "x": 340,
+        "y": 40,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-down",
+        "size": 400,
+        "x": 340,
+        "y": 95,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-right",
+        "size": 100,
+        "x": 40,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-right",
+        "size": 400,
+        "x": 40,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-left",
+        "size": 100,
+        "x": 100,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-left",
+        "size": 400,
+        "x": 100,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle",
+        "size": 100,
+        "x": 160,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle",
+        "size": 400,
+        "x": 160,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "arrow",
+        "size": 100,
+        "x": 220,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "arrow",
+        "size": 400,
+        "x": 220,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "wedge",
+        "size": 100,
+        "x": 280,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "wedge",
+        "size": 400,
+        "x": 280,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "stroke",
+        "size": 100,
+        "x": 340,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "stroke",
+        "size": 400,
+        "x": 340,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

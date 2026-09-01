@@ -92,6 +92,8 @@ Open `http://localhost:5500/test/?spec=bar&renderer=webgpu&version=dev` to run t
 
 `npm test` renders a corpus of official Vega specs ([test/render/specs.ts](test/render/specs.ts)) in headless Chromium (WebGPU on SwiftShader) with **both** the WebGPU and canvas renderers and compares the two directly. The canvas renderer is the ground truth. There are no stored image baselines to drift. Each run pixel-diffs the two renderers with a low tolerance, and asserts that each renderer actually ran (no silent fallback). Known, documented differences (e.g. non-circular symbols) get a per-spec budget in [test/render/specs.ts](test/render/specs.ts).
 
+Alongside the specs, the same run renders the scenegraph fixtures in [test/render/scenes](test/render/scenes). Those are stored scenegraphs handed straight to the renderer, with no View, dataflow or layout in between, so a failure is pinned to the mark code. Vega tests its own renderers the same way. Add a fixture by dropping a JSON file in that directory: `{ "description", "width", "height", "origin", "scene" }`, where `scene` is what `vega.sceneToJSON` produces.
+
 ```bash
 npx playwright install chromium --no-shell   # once
 npm test                                     # render both renderers and compare

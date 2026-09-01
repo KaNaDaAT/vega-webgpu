@@ -1,0 +1,242 @@
+{
+ "description": "Rules at every angle plus axis-aligned rules at sub-pixel offsets.",
+ "width": 360,
+ "height": 230,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 180,
+        "y2": 100,
+        "stroke": "#4c78a8",
+        "strokeWidth": 1
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 169.2820323027551,
+        "y2": 140,
+        "stroke": "#4c78a8",
+        "strokeWidth": 2
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 140,
+        "y2": 169.28203230275508,
+        "stroke": "#4c78a8",
+        "strokeWidth": 3
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 100,
+        "y2": 180,
+        "stroke": "#4c78a8",
+        "strokeWidth": 4
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 60.000000000000014,
+        "y2": 169.2820323027551,
+        "stroke": "#4c78a8",
+        "strokeWidth": 1
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 30.7179676972449,
+        "y2": 140,
+        "stroke": "#4c78a8",
+        "strokeWidth": 2
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 20,
+        "y2": 100.00000000000001,
+        "stroke": "#4c78a8",
+        "strokeWidth": 3
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 30.717967697244916,
+        "y2": 59.99999999999999,
+        "stroke": "#4c78a8",
+        "strokeWidth": 4
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 59.999999999999964,
+        "y2": 30.717967697244916,
+        "stroke": "#4c78a8",
+        "strokeWidth": 1
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 99.99999999999999,
+        "y2": 20,
+        "stroke": "#4c78a8",
+        "strokeWidth": 2
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 140,
+        "y2": 30.717967697244916,
+        "stroke": "#4c78a8",
+        "strokeWidth": 3
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "x2": 169.28203230275506,
+        "y2": 59.999999999999964,
+        "stroke": "#4c78a8",
+        "strokeWidth": 4
+       },
+       {
+        "x": 210,
+        "y": 30,
+        "x2": 340,
+        "stroke": "#e45756",
+        "strokeWidth": 1
+       },
+       {
+        "x": 220,
+        "y": 20,
+        "y2": 180,
+        "stroke": "#54a24b",
+        "strokeWidth": 1
+       },
+       {
+        "x": 210,
+        "y": 70,
+        "x2": 340,
+        "stroke": "#e45756",
+        "strokeWidth": 2
+       },
+       {
+        "x": 250,
+        "y": 20,
+        "y2": 180,
+        "stroke": "#54a24b",
+        "strokeWidth": 2
+       },
+       {
+        "x": 210,
+        "y": 110,
+        "x2": 340,
+        "stroke": "#e45756",
+        "strokeWidth": 3
+       },
+       {
+        "x": 280,
+        "y": 20,
+        "y2": 180,
+        "stroke": "#54a24b",
+        "strokeWidth": 3
+       },
+       {
+        "x": 210,
+        "y": 150,
+        "x2": 340,
+        "stroke": "#e45756",
+        "strokeWidth": 5
+       },
+       {
+        "x": 310,
+        "y": 20,
+        "y2": 180,
+        "stroke": "#54a24b",
+        "strokeWidth": 5
+       },
+       {
+        "x": 20,
+        "y": 200.5,
+        "x2": 340,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 20,
+        "y": 210,
+        "x2": 340,
+        "y2": 210,
+        "stroke": "#333",
+        "strokeWidth": 2
+       },
+       {
+        "x": 20,
+        "y": 200.75,
+        "x2": 340,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 21,
+        "y": 210,
+        "x2": 340,
+        "y2": 210,
+        "stroke": "#333",
+        "strokeWidth": 2
+       },
+       {
+        "x": 20,
+        "y": 201,
+        "x2": 340,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 22,
+        "y": 210,
+        "x2": 340,
+        "y2": 210,
+        "stroke": "#333",
+        "strokeWidth": 2
+       },
+       {
+        "x": 20,
+        "y": 201.25,
+        "x2": 340,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 23,
+        "y": 210,
+        "x2": 340,
+        "y2": 210,
+        "stroke": "#333",
+        "strokeWidth": 2
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

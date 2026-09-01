@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <title>vega-webgpu scene harness</title>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        margin: 0;
+        background: #fff;
+      }
+
+      #vis {
+        display: inline-block;
+      }
+    </style>
+    <script src="/node_modules/vega/build/vega.min.js"></script>
+    <script src="/build/vega-webgpu-renderer.js"></script>
+  </head>
+
+  <body>
+    <div id="vis"></div>
+    <script src="./harness-common.js"></script>
+    <script src="./scene-harness.js"></script>
+  </body>
+</html>

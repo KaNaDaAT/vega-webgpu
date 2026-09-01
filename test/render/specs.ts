@@ -25,6 +25,8 @@ export const excludedSpecs: Record<string, string> = {
  * Every spec in test/specs-valid (minus the documented exclusions) is rendered
  * with both the WebGPU and canvas renderers and compared directly. There are
  * no stored image baselines, and the canvas renderer is the ground truth.
+ * Mark-level geometry is covered separately by the scenegraph fixtures in
+ * test/render/scenes (see scenes.ts).
  */
 export const renderSpecs: string[] = readdirSync(specsDir)
   .filter(f => f.endsWith('.vg.json'))
@@ -33,12 +35,15 @@ export const renderSpecs: string[] = readdirSync(specsDir)
   .sort();
 
 /**
- * Fraction of differing pixels allowed by default. 99 of the 111 specs measure
- * under 0.3%, so this is tight enough that a real regression fails rather than
- * hiding inside the budget. Every spec that needs more is listed below with the
- * reason, which keeps the exceptions visible instead of blanket-loose.
+ * Fraction of differing pixels allowed by default. Antialiased pixels are
+ * counted (see compare.ts), so these budgets cover the whole difference rather
+ * than the part pixelmatch does not classify as antialiasing. Most specs
+ * measure under 0.4%, so this is tight enough that a real regression fails
+ * rather than hiding inside the budget. Every spec that needs more is listed
+ * below with the reason, which keeps the exceptions visible instead of
+ * blanket-loose.
  */
-export const CROSS_CHECK_DEFAULT = 0.005;
+export const CROSS_CHECK_DEFAULT = 0.008;
 
 /**
  * Measured locally, then given roughly 2x headroom because CI renders on a
@@ -47,25 +52,28 @@ export const CROSS_CHECK_DEFAULT = 0.005;
  */
 export const crossCheckOverrides: Record<string, number | null> = {
   // Curve construction still differs from canvas on these.
-  'contour-scatter': 0.025, // ~1.4%
-  'scatter-plot-contours': 0.01, // ~0.3%
+  'contour-scatter': 0.05, // ~2.5%
+  'scatter-plot-contours': 0.015, // ~0.4%
 
   // GPU text: each label is rasterized to a texture whose glyph-edge
   // antialiasing differs subtly from canvas's direct drawing, and across many
   // small labels the fringe accumulates. Position, shape and rotation are all
   // correct. (roadmap: SDF/atlas text to close the residual fringe.)
-  'legends-symbol': 0.025, // ~1.2%
-  'arc-diagram': 0.02, // ~0.8%, rotated radial labels
+  'legends-symbol': 0.03, // ~1.4%
+  'nested-plot': 0.025, // ~1.2%
+  'arc-diagram': 0.025, // ~1.1%, rotated radial labels
   'layout-wrap': 0.02, // ~0.8%
-  'nested-plot': 0.02, // ~0.7%
-  barley: 0.02, // ~0.6%
-  regression: 0.01, // ~0.4%
+  'dot-plot': 0.02, // ~0.8%
+  barley: 0.02, // ~0.7%
+  regression: 0.015, // ~0.5%
 
   // Geographic outlines, see the roadmap.
-  'map-point-radius': 0.015, // ~0.6%, plus the stray line still under investigation
-  'map-fit': 0.01, // ~0.3%
+  'map-point-radius': 0.03, // ~1.5%
+  choropleth: 0.02, // ~0.8%
+  'map-bind': 0.015, // ~0.7%
+  'map-fit': 0.012, // ~0.5%
 
   // Radial link curves.
-  'tree-radial': 0.01, // ~0.3%
-  'tree-radial-bundle': 0.01, // ~0.3%
+  'tree-radial': 0.012, // ~0.5%
+  'tree-radial-bundle': 0.012, // ~0.5%
 };

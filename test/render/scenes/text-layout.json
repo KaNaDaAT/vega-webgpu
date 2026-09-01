@@ -1,0 +1,216 @@
+{
+ "description": "Text at every align/baseline pair and at six rotation angles.",
+ "width": 320,
+ "height": 300,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "text",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "text": "Hg",
+        "x": 40,
+        "y": 30,
+        "align": "left",
+        "baseline": "top",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 40,
+        "y": 64,
+        "align": "left",
+        "baseline": "middle",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 40,
+        "y": 98,
+        "align": "left",
+        "baseline": "bottom",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 40,
+        "y": 132,
+        "align": "left",
+        "baseline": "alphabetic",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 130,
+        "y": 30,
+        "align": "center",
+        "baseline": "top",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 130,
+        "y": 64,
+        "align": "center",
+        "baseline": "middle",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 130,
+        "y": 98,
+        "align": "center",
+        "baseline": "bottom",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 130,
+        "y": 132,
+        "align": "center",
+        "baseline": "alphabetic",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 220,
+        "y": 30,
+        "align": "right",
+        "baseline": "top",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 220,
+        "y": 64,
+        "align": "right",
+        "baseline": "middle",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 220,
+        "y": 98,
+        "align": "right",
+        "baseline": "bottom",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Hg",
+        "x": 220,
+        "y": 132,
+        "align": "right",
+        "baseline": "alphabetic",
+        "font": "sans-serif",
+        "fontSize": 14,
+        "fill": "#000"
+       },
+       {
+        "text": "Rotated",
+        "x": 60,
+        "y": 200,
+        "align": "center",
+        "baseline": "middle",
+        "angle": 0,
+        "font": "sans-serif",
+        "fontSize": 13,
+        "fill": "#4c78a8"
+       },
+       {
+        "text": "Rotated",
+        "x": 170,
+        "y": 200,
+        "align": "center",
+        "baseline": "middle",
+        "angle": 30,
+        "font": "sans-serif",
+        "fontSize": 13,
+        "fill": "#4c78a8"
+       },
+       {
+        "text": "Rotated",
+        "x": 280,
+        "y": 200,
+        "align": "center",
+        "baseline": "middle",
+        "angle": 45,
+        "font": "sans-serif",
+        "fontSize": 13,
+        "fill": "#4c78a8"
+       },
+       {
+        "text": "Rotated",
+        "x": 60,
+        "y": 260,
+        "align": "center",
+        "baseline": "middle",
+        "angle": 90,
+        "font": "sans-serif",
+        "fontSize": 13,
+        "fill": "#4c78a8"
+       },
+       {
+        "text": "Rotated",
+        "x": 170,
+        "y": 260,
+        "align": "center",
+        "baseline": "middle",
+        "angle": 180,
+        "font": "sans-serif",
+        "fontSize": 13,
+        "fill": "#4c78a8"
+       },
+       {
+        "text": "Rotated",
+        "x": 280,
+        "y": 260,
+        "align": "center",
+        "baseline": "middle",
+        "angle": 270,
+        "font": "sans-serif",
+        "fontSize": 13,
+        "fill": "#4c78a8"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

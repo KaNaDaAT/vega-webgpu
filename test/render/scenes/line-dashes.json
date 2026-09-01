@@ -1,0 +1,216 @@
+{
+ "description": "Dash patterns, offsets and caps on straight and curved lines.",
+ "width": 400,
+ "height": 200,
+ "origin": [
+  3,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "group",
+      "role": "scope",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "items": [
+         {
+          "marktype": "line",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 0,
+            "y": 40,
+            "stroke": "#4c78a8",
+            "strokeWidth": 3,
+            "strokeDash": [
+             8,
+             4
+            ]
+           },
+           {
+            "x": 133.33333333333331,
+            "y": 40,
+            "stroke": "#4c78a8",
+            "strokeWidth": 3,
+            "strokeDash": [
+             8,
+             4
+            ]
+           },
+           {
+            "x": 266.66666666666663,
+            "y": 40,
+            "stroke": "#4c78a8",
+            "strokeWidth": 3,
+            "strokeDash": [
+             8,
+             4
+            ]
+           },
+           {
+            "x": 400,
+            "y": 40,
+            "stroke": "#4c78a8",
+            "strokeWidth": 3,
+            "strokeDash": [
+             8,
+             4
+            ]
+           }
+          ],
+          "zindex": 0
+         }
+        ],
+        "y": 0
+       }
+      ],
+      "zindex": 0
+     },
+     {
+      "marktype": "group",
+      "role": "scope",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "items": [
+         {
+          "marktype": "line",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 0,
+            "y": 40,
+            "stroke": "#f58518",
+            "strokeWidth": 2,
+            "strokeDash": [
+             2,
+             6
+            ]
+           },
+           {
+            "x": 133.33333333333331,
+            "y": 40,
+            "stroke": "#f58518",
+            "strokeWidth": 2,
+            "strokeDash": [
+             2,
+             6
+            ]
+           },
+           {
+            "x": 266.66666666666663,
+            "y": 40,
+            "stroke": "#f58518",
+            "strokeWidth": 2,
+            "strokeDash": [
+             2,
+             6
+            ]
+           },
+           {
+            "x": 400,
+            "y": 40,
+            "stroke": "#f58518",
+            "strokeWidth": 2,
+            "strokeDash": [
+             2,
+             6
+            ]
+           }
+          ],
+          "zindex": 0
+         }
+        ],
+        "y": 50
+       }
+      ],
+      "zindex": 0
+     },
+     {
+      "marktype": "group",
+      "role": "scope",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "items": [
+         {
+          "marktype": "line",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 0,
+            "y": 40,
+            "stroke": "#54a24b",
+            "strokeWidth": 2,
+            "strokeDash": [
+             10,
+             5
+            ]
+           },
+           {
+            "x": 133.33333333333331,
+            "y": 0,
+            "stroke": "#54a24b",
+            "strokeWidth": 2,
+            "strokeDash": [
+             10,
+             5
+            ]
+           },
+           {
+            "x": 266.66666666666663,
+            "y": 33.333333333333336,
+            "stroke": "#54a24b",
+            "strokeWidth": 2,
+            "strokeDash": [
+             10,
+             5
+            ]
+           },
+           {
+            "x": 400,
+            "y": 6.666666666666665,
+            "stroke": "#54a24b",
+            "strokeWidth": 2,
+            "strokeDash": [
+             10,
+             5
+            ]
+           }
+          ],
+          "zindex": 0
+         }
+        ],
+        "y": 100
+       }
+      ],
+      "zindex": 0
+     }
+    ],
+    "x": 0,
+    "y": 0,
+    "width": 400,
+    "height": 200
+   }
+  ],
+  "zindex": 0
+ }
+}
