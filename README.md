@@ -147,6 +147,8 @@ machine:
 Setting `redrawOnZoom` to `false` also helps here, since zooming in then cannot
 push a view that already fits back over the cap.
 
+Known gaps and planned work are in [ToDo.md](ToDo.md).
+
 ## Development
 
 Two numbers are reported per spec. The whole-image differing-pixel percentage
