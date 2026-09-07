@@ -63,8 +63,16 @@ const die = (...lines) => {
 };
 const gitRaw = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8' });
 const git = (...a) => gitRaw(...a).trim();
-const run = (cmd, cmdArgs) =>
-  spawnSync(cmd, cmdArgs, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
+/**
+ * npm and npx are .cmd shims on Windows and will not spawn without a shell.
+ * Nothing else gets one: a shell concatenates the arguments without quoting
+ * them, which splits any argument holding a space. A commit message and a tag
+ * message both hold spaces.
+ */
+const run = (cmd, cmdArgs) => {
+  const shim = process.platform === 'win32' && (cmd === 'npm' || cmd === 'npx');
+  return spawnSync(cmd, cmdArgs, { cwd: root, stdio: 'inherit', shell: shim });
+};
 
 async function confirm(question) {
   if (assumeYes) {

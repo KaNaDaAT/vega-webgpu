@@ -296,6 +296,8 @@ try {
   const targets = ['index.html', 'releases/releases.json', 'releases/versions.js'].concat(
     versions.map(v => `releases/${v.replaceAll('.', '_')}/index.html`),
   );
+  // npx is a .cmd shim on Windows, so it needs a shell. Every argument here is
+  // a path without spaces, which a shell would otherwise split.
   execFileSync('npx', ['prettier', '--write', '--log-level', 'warn', ...targets], {
     cwd: root,
     stdio: 'inherit',
