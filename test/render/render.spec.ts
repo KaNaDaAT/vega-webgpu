@@ -1,6 +1,21 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { diffPngs, png, renderInHarness, saveArtifact, type RendererName, type RenderResult } from './compare.js';
 import { CROSS_CHECK_DEFAULT, crossCheckOverrides, renderSpecs } from './specs.js';
+import { specNames } from '../../scripts/specs-manifest.mjs';
+
+/**
+ * The demo page cannot read a directory, so it picks its spec list out of
+ * test/specs-valid.json, which `npm run manifest` generates. A stale manifest
+ * leaves a spec testable here but missing from the page.
+ */
+test('the demo page lists every spec on disk', () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const listed: string[] = JSON.parse(readFileSync(join(root, 'specs-valid.json'), 'utf8'));
+  expect([...listed].sort(), 'run: npm run manifest').toEqual(specNames());
+});
 
 function renderSpec(page: Page, specName: string, renderer: RendererName): Promise<RenderResult> {
   const url = `/test/render/harness.html?spec=${encodeURIComponent(specName)}&renderer=${renderer}`;

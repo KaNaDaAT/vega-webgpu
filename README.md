@@ -149,6 +149,19 @@ push a view that already fits back over the cap.
 
 ## Development
 
+The demo page fills its spec picker from `test/specs-valid.json`, which is
+generated from `test/specs-valid/` by `npm run manifest` (and by `npm run
+build`). Drop a `.vg.json` in and rebuild rather than editing the list. To keep
+one out of the picker, name it in an optional `test/specs-ignore.json`:
+
+```json
+["benchmark", "splom-outer-50k"]
+```
+
+A test fails if the manifest falls behind the directory.
+
+
+
 ```bash
 npm install
 npm run build      # UMD + minified + ESM bundles and type declarations into build/

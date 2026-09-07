@@ -3,7 +3,16 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['build/', 'releases/', 'node_modules/', 'test/data/', 'test-results/', 'playwright-report/'],
+    ignores: [
+      'build/',
+      'releases/',
+      'node_modules/',
+      'test/data/',
+      // vendored vega builds the demo page loads for A/B comparison
+      'test/vendor/',
+      'test-results/',
+      'playwright-report/',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

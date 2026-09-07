@@ -6,6 +6,7 @@ import { shape } from '../path/shapes.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
+import type { Point } from '../util/dash.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -13,7 +14,8 @@ import {
   GeometryBatch,
   SEGMENT_LAYOUT,
   SEGMENT_STRIDE,
-  segmentInstances,
+  segmentCount,
+  writeSegments,
   geometryVertexData,
   getMarkResources,
   enqueueGradient,
@@ -38,6 +40,8 @@ interface ShapeCacheEntry {
   strokeWidth?: number;
   strokeIsGradient: boolean;
   data: [Float32Array, Float32Array];
+  /** Contours the outline is built from, so a hit never re-runs the shape generator. */
+  lines: Point[][];
 }
 
 /** Every interior vertex of a contour gets a round join on the earlier end. */
@@ -53,6 +57,10 @@ interface ShapeResources {
   /** Outlines draw as segments rather than a triangulated ribbon. */
   segmentVertexManager: VertexBufferManager;
   segmentPipeline: GPURenderPipeline;
+  /** Reused between frames so an outline never reallocates. */
+  outlines: OutlineBuffer;
+  /** Floats the outline held last frame, so an unchanged one is not re-uploaded. */
+  outlineLength: number;
   cache: Map<unknown, ShapeCacheEntry>;
 }
 
@@ -81,6 +89,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       gradientPipeline,
       segmentVertexManager,
       segmentPipeline,
+      outlines: new OutlineBuffer(),
+      outlineLength: -1,
       cache: new Map(),
     };
   });
@@ -117,7 +127,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // Outlines accumulate separately and draw after the fills. A sub pixel
   // stroke on a triangulated ribbon takes its coverage from MSAA, which can
   // only express quarter steps, so a 0.2 px country border came out patchy.
-  const outlines: number[] = [];
+  const outlines = res.outlines;
+  outlines.length = 0;
+  // An outline only has to be rebuilt when something it is drawn from moved or
+  // changed colour, which on a stroked choropleth is the difference between
+  // rewriting a few hundred thousand segments a frame and rewriting none.
+  let outlinesHeld = true;
   const flushBatch = () => {
     const data = batch.flush();
     if (data) {
@@ -145,7 +160,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
     let shapeGeom: PathGeometry | null = null;
     const geom = () => (shapeGeom ??= shape(ctx, item));
-    const [fillData, strokeData] = createGeometryData(
+    const [fillData, strokeData, lines, unchanged] = createGeometryData(
       ctx,
       res,
       item,
@@ -166,16 +181,27 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds);
     } else {
       batch.push(strokeData);
-      pushOutline(outlines, item, geom);
+      outlinesHeld &&= unchanged;
+      pushOutline(outlines, item, lines);
     }
   }
   flushBatch();
+
+  const heldOutline = outlinesHeld && outlines.length === res.outlineLength;
+  res.outlineLength = outlines.length;
 
   if (outlines.length > 0) {
     ctx._renderQueue.enqueue({
       pipeline: res.segmentPipeline,
       drawCounts: [6, outlines.length / SEGMENT_STRIDE],
-      vertexBuffers: [res.bufferManager.createInstanceBuffer(Float32Array.from(outlines))],
+      vertexBuffers: [
+        res.bufferManager.persistentBuffer(
+          'Outline',
+          outlines.data.subarray(0, outlines.length),
+          GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+          !heldOutline,
+        ),
+      ],
       bindGroups: [createUniformBindGroup(`${drawName}Stroke`, device, res.segmentPipeline, uniformBuffer)],
       clip,
     });
@@ -183,7 +209,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 }
 
 /** Appends one item's outline, contour by contour, as segment instances. */
-function pushOutline(out: number[], item: SceneShapeItem, geom: () => PathGeometry): void {
+function pushOutline(out: OutlineBuffer, item: SceneShapeItem, lines: Point[][]): void {
   const width = item.strokeWidth ?? 1;
   if (!item.stroke || width <= 0) {
     return;
@@ -192,24 +218,45 @@ function pushOutline(out: number[], item: SceneShapeItem, geom: () => PathGeomet
   if (color[3] <= 0) {
     return;
   }
-  const data = segmentInstances(geom().lines, color, width, CONTOUR_CAPS);
-  if (data) {
-    for (let i = 0; i < data.length; i++) {
-      out.push(data[i]);
+  const needed = segmentCount(lines) * SEGMENT_STRIDE;
+  if (needed === 0) {
+    return;
+  }
+  out.length = writeSegments(out.reserve(needed), out.length, lines, color, width, CONTOUR_CAPS);
+}
+
+/**
+ * A float buffer the shape mark keeps between frames. Outlines run to hundreds
+ * of thousands of segments on a stroked choropleth, so growing a plain array a
+ * number at a time and converting it back cost more than everything else the
+ * mark does.
+ */
+class OutlineBuffer {
+  data = new Float32Array(0);
+  length = 0;
+
+  /** Room for `n` more floats, returning the buffer to write into. */
+  reserve(n: number): Float32Array {
+    if (this.length + n > this.data.length) {
+      let size = Math.max(4096, this.data.length * 2);
+      while (size < this.length + n) {
+        size *= 2;
+      }
+      const grown = new Float32Array(size);
+      grown.set(this.data.subarray(0, this.length));
+      this.data = grown;
     }
+    return this.data;
   }
 }
 
+/**
+ * The item itself, which vega keeps across re-renders of the same tuple. A
+ * datum id is not unique: a county split across several polygons is several
+ * items sharing one id, and they would then share one entry.
+ */
 function cacheKey(item: SceneShapeItem): unknown {
-  if (item.datum?.id != null) {
-    return item.datum.id;
-  }
-  if (item.id != null) {
-    return item.id;
-  }
-  // vega tuple ids are stored under a symbol property
-  const symbols = Object.getOwnPropertySymbols(item);
-  return symbols.length > 0 ? (item as unknown as Record<symbol, unknown>)[symbols[0]] : item;
+  return item;
 }
 
 function sameColor(a: RGBA, b: RGBA): boolean {
@@ -236,7 +283,7 @@ function createGeometryData(
   strokeIsGradient: boolean,
   useCache: boolean,
   geom: () => PathGeometry,
-): [fillData: Float32Array, strokeData: Float32Array] {
+): [fillData: Float32Array, strokeData: Float32Array, lines: Point[][], unchanged: boolean] {
   const key = cacheKey(item);
   const fill = hasGradient
     ? whiteCarrier(item.opacity, item.fillOpacity)
@@ -259,7 +306,7 @@ function createGeometryData(
       res.cache.delete(key);
       res.cache.set(key, entry);
       if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
-        return entry.data;
+        return [entry.data[0], entry.data[1], entry.lines, true];
       }
       // geometry unchanged, rewrite only the colors
       const data: [Float32Array, Float32Array] = [
@@ -268,12 +315,13 @@ function createGeometryData(
       ];
       recolor(data[0], entry.data[0], fill);
       recolor(data[1], entry.data[1], stroke);
-      return data;
+      return [data[0], data[1], entry.lines, false];
     }
   }
 
   // the outline draws as segments, so the triangulation only builds the fill
-  const geometry = geometryForItem(ctx, strokeIsGradient ? item : { ...item, stroke: undefined }, geom());
+  const shapeGeom = geom();
+  const geometry = geometryForItem(ctx, strokeIsGradient ? item : { ...item, stroke: undefined }, shapeGeom);
   const data = geometryVertexData(geometry, fill, stroke);
 
   if (useCache) {
@@ -292,9 +340,10 @@ function createGeometryData(
       strokeWidth: item.strokeWidth,
       strokeIsGradient,
       data,
+      lines: shapeGeom.lines,
     });
   }
-  return data;
+  return [data[0], data[1], shapeGeom.lines, false];
 }
 
 /**
@@ -311,7 +360,15 @@ function sameBounds(b: Bounds | undefined, snap: BoundsSnapshot | undefined): bo
   if (b === undefined || snap === undefined) {
     return b === undefined && snap === undefined;
   }
-  return b.x1 === snap.x1 && b.y1 === snap.y1 && b.x2 === snap.x2 && b.y2 === snap.y2;
+  return sameEdge(b.x1, snap.x1) && sameEdge(b.y1, snap.y1) && sameEdge(b.x2, snap.x2) && sameEdge(b.y2, snap.y2);
+}
+
+/**
+ * A projection can send a shape outside its domain and leave NaN in the bounds,
+ * which never equals itself, so those items would rebuild on every frame.
+ */
+function sameEdge(a: number, b: number): boolean {
+  return a === b || (Number.isNaN(a) && Number.isNaN(b));
 }
 
 export default {

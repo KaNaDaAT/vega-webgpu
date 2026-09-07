@@ -260,19 +260,58 @@ export function segmentInstances(
   width: number,
   caps: readonly [number, number] = BUTT,
 ): Float32Array | null {
-  const count = runs.reduce((n, r) => n + Math.max(0, r.length - 1), 0);
+  const count = segmentCount(runs);
   if (count === 0) {
     return null;
   }
   const data = new Float32Array(count * SEGMENT_STRIDE);
-  let i = 0;
+  writeSegments(data, 0, runs, color, width, caps);
+  return data;
+}
+
+/** Segments a set of polyline runs turns into. */
+export function segmentCount(runs: Point[][]): number {
+  let n = 0;
+  for (const run of runs) {
+    n += Math.max(0, run.length - 1);
+  }
+  return n;
+}
+
+/**
+ * Writes runs as segment instances into `data` at `offset`, returning where it
+ * stopped. Field by field rather than through a temporary array, since a
+ * choropleth's borders run to hundreds of thousands of segments a frame.
+ */
+export function writeSegments(
+  data: Float32Array,
+  offset: number,
+  runs: Point[][],
+  color: RGBA,
+  width: number,
+  caps: readonly [number, number] = BUTT,
+): number {
+  const [r, g, b, a] = color;
+  let i = offset;
   for (const run of runs) {
     for (let s = 0; s < run.length - 1; s++) {
-      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], ...color, width, caps[0], caps[1]], i);
+      const p = run[s];
+      const q = run[s + 1];
+      data[i] = p[0];
+      data[i + 1] = p[1];
+      data[i + 2] = q[0];
+      data[i + 3] = q[1];
+      data[i + 4] = r;
+      data[i + 5] = g;
+      data[i + 6] = b;
+      data[i + 7] = a;
+      data[i + 8] = width;
+      data[i + 9] = caps[0];
+      data[i + 10] = caps[1];
       i += SEGMENT_STRIDE;
     }
   }
-  return data;
+  return i;
 }
 
 /**

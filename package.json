@@ -53,7 +53,8 @@
   ],
   "sideEffects": true,
   "scripts": {
-    "build": "rollup -c && npm run build:types",
+    "build": "npm run manifest && rollup -c && npm run build:types",
+    "manifest": "node scripts/specs-manifest.mjs",
     "build:types": "tsc -p tsconfig.build.json",
     "dev": "rollup -c --watch",
     "serve": "http-server -p 5500 -c-1 .",
