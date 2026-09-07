@@ -52,13 +52,16 @@ A version can be written up long before it ships. It only appears on the site on
 
 ## Prereleases
 
-A version with a suffix, `2.1.0-rc1`, is treated as one throughout:
+An rc needs no notes of its own. `2.1.0-rc1` is a candidate for `2.1.0` and reads whatever `2.1.0` says, because a candidate exists to put the pipeline through its paces rather than to be described twice. Write `2.1.0` once, cut as many candidates as you like, then cut the real thing.
+
+A version with a suffix is treated as a candidate throughout:
 
 - hosted and testable, with its own page and a slot in both version pickers
 - labelled `(prerelease)` on the version table
 - published to npm under `next`, so `npm install` keeps giving people the stable build and `npm install vega-webgpu-renderer@next` opts in
 - flagged on the GitHub release, so it does not read as the latest
 - ignored by the copy and paste snippet on the front page, which tracks the newest stable release
+- listed only while it is the newest candidate for its version, and dropped from the table entirely once that version ships
 
 Each rc commits its bundles to `main` permanently, since that is how Pages serves them. Pruning old rc folders once the final ships is a reasonable habit.
 

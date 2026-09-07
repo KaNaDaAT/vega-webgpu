@@ -124,17 +124,21 @@ if (version !== packageVersion) {
 
 // 2. the notes, which the site and the GitHub release both read
 const releases = JSON.parse(readFileSync(releasesJsonPath, 'utf8'));
-const raw = releases[version];
+// A candidate carries the notes of the version it is a candidate for: an rc
+// exists to put the pipeline through its paces, not to be described twice.
+const base = version.split('-')[0];
+const raw = releases[version] ?? releases[base];
 const entry = typeof raw === 'string' ? { summary: raw } : raw;
 if (!entry) {
   die(
-    `releases/releases.json has nothing for ${version}, so there is nothing to release yet.`,
+    `releases/releases.json has nothing for ${base}, so there is nothing to release yet.`,
+    ...(isPrerelease ? [`${version} is a candidate for ${base} and reads its notes.`] : []),
     'The version table, the release page and the GitHub release all read from it.',
     '',
     'Write this, then run the same command again:',
     '',
-    `    "${version}": {`,
-    `      "vega": ${Number(version.split('.')[0]) >= 2 ? 6 : 5},`,
+    `    "${base}": {`,
+    `      "vega": ${Number(base.split('.')[0]) >= 2 ? 6 : 5},`,
     '      "summary": "One sentence on what this release is.",',
     '      "features": [],',
     '      "performance": [],',
@@ -148,7 +152,7 @@ if (!summary) {
   die(`The ${version} entry has no summary.`, 'That sentence is the whole Changes column on the front page.');
 }
 const counts = ['features', 'performance', 'fixes'].map(k => (entry[k] ?? []).length);
-if (counts.reduce((a, b) => a + b, 0) === 0) {
+if (counts.reduce((a, b) => a + b, 0) === 0 && !(isPrerelease && releases[base])) {
   const lines = [
     `The ${version} entry lists no features, performance work or fixes.`,
     'Its release page would be a heading and nothing else.',
@@ -160,7 +164,7 @@ if (counts.reduce((a, b) => a + b, 0) === 0) {
   }
 }
 
-console.log(`\n  ${version}${isPrerelease ? '  (prerelease)' : ''}`);
+console.log(`\n  ${version}${isPrerelease ? `  (candidate for ${base})` : ''}`);
 say(summary, `${counts[0]} features, ${counts[1]} performance notes, ${counts[2]} fixes`, '');
 
 // 3. the suite

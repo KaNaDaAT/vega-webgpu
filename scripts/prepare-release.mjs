@@ -10,7 +10,7 @@
  * The build must exist (npm run build) before invoking this script.
  */
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -59,9 +59,14 @@ if (!pagesOnly) {
 
 // 2. record release notes
 const releases = JSON.parse(readFileSync(releasesJsonPath, 'utf8'));
+/** 2.0.0-rc1 is a candidate for 2.0.0, and carries whatever 2.0.0 says. */
+const base = v => v.split('-')[0];
 /** An entry is `{summary, features, performance, fixes, vega}`; a bare string is the old shape. */
-const entry = v => (typeof releases[v] === 'string' ? { summary: releases[v] } : (releases[v] ?? {}));
-if (!pagesOnly && (notes || releases[version] === undefined)) {
+const entry = v => {
+  const raw = releases[v] ?? releases[base(v)];
+  return typeof raw === 'string' ? { summary: raw } : (raw ?? {});
+};
+if (!pagesOnly && (notes || (releases[version] === undefined && releases[base(version)] === undefined))) {
   releases[version] = {
     vega: Number(version.split('.')[0]) >= 2 ? 6 : 5,
     summary: '',
@@ -124,11 +129,34 @@ const byVersionDesc = (a, b) => {
 // a row linking at a folder that is not there yet would only 404. The release
 // run copies the bundle first, so by then the version shows up on its own.
 const hosted = v => existsSync(join(releasesDir, v.replaceAll('.', '_'), 'vega-webgpu-renderer.js'));
+/**
+ * Versions with a folder on disk. An rc has no entry of its own, so the
+ * directory is the only record that it is hosted. The folder name swaps dots
+ * for underscores, and a prerelease suffix never contains one.
+ */
+const hostedDirs = () =>
+  readdirSync(releasesDir, { withFileTypes: true })
+    .filter(d => d.isDirectory() && existsSync(join(releasesDir, d.name, 'vega-webgpu-renderer.js')))
+    .map(d => d.name.replaceAll('_', '.'));
 const prerelease = v => v.includes('-');
-const versions = Object.keys(releases).filter(hosted).sort(byVersionDesc);
+const all = [...new Set(Object.keys(releases).concat(hostedDirs()))].sort(byVersionDesc);
+const versions = all.filter(hosted);
+/**
+ * An rc is a throwaway for checking the pipeline, so the table lists only the
+ * newest one for a version, and none at all once that version has shipped.
+ */
+const listed = versions.filter(v => {
+  if (!prerelease(v)) {
+    return true;
+  }
+  if (versions.includes(base(v))) {
+    return false;
+  }
+  return versions.find(o => prerelease(o) && base(o) === base(v)) === v;
+});
 /** Written up but not hosted, which is what the note under the table says. */
 const pending = Object.keys(releases)
-  .filter(v => !hosted(v))
+  .filter(v => !hosted(v) && !versions.some(h => base(h) === v))
   .sort(byVersionDesc);
 writeFileSync(
   join(releasesDir, 'versions.js'),
@@ -137,7 +165,7 @@ writeFileSync(
 
 // 4. splice the version rows and the date into releases/index.html
 // The page is hand written, so only the marked regions are generated.
-const rows = versions
+const rows = listed
   .map(v => {
     const href = `./releases/${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
     const e = entry(v);
@@ -172,7 +200,7 @@ const pendingNote = pending.length
   : '\n      ';
 // the copy and paste snippet points at the newest stable build. An rc is
 // hosted so it can be tried, not so it can be the one people paste.
-const stable = versions.find(v => !prerelease(v));
+const stable = listed.find(v => !prerelease(v));
 if (stable) {
   page = splice(page, indexPath, 'latest', stable.replaceAll('.', '_'));
 }
