@@ -127,12 +127,22 @@ export function turnOf(item: SceneTextItem): Turn {
  * Anchor offset inside the texture, in device pixels. The rotated corner sits
  * at `p - R * anchor`, so rounding that to a whole pixel and mapping back
  * through the inverse rotation gives the offset that lands it there.
+ *
+ * An upright label keeps its vertical phase exactly. The browser positions a
+ * glyph sub-pixel across the baseline and snaps it to a whole pixel along it,
+ * so a phase quantized onto a grid can land the other side of that snap from
+ * where canvas put it, which moves the whole label a pixel. The snapping is
+ * also why the finer key costs nothing: every phase on one side of it
+ * rasterizes to the same glyph.
  */
 function anchorOffset(px: number, py: number, padLeft: number, padTop: number, [c, s]: Turn): [number, number] {
   const nx = Math.round(px - (c * padLeft - s * padTop));
   const ny = Math.round(py - (s * padLeft + c * padTop));
   const dx = px - nx;
   const dy = py - ny;
+  if (s === 0 && c === 1) {
+    return [quantize(dx), dy];
+  }
   return [quantize(c * dx + s * dy), quantize(-s * dx + c * dy)];
 }
 
