@@ -115,6 +115,8 @@ async function load(name) {
 }
 
 function configureWebGPU() {
+  // count renders rather than animation frames, see fps.js
+  window.watchRenderer?.(view?._renderer);
   if (selectedRenderer !== 'webgpu' || !view._renderer) {
     return;
   }

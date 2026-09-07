@@ -23,8 +23,10 @@ const SPECS = [
 interface FrameCost {
   /** Main thread time: building the draws and encoding them. */
   cpu: number;
-  /** Including a full GPU drain, which a real render loop does not wait for. */
+  /** Wall time for a render, which no longer waits on the gpu. */
   total: number;
+  /** Gpu time from timestamp queries, 0 where the adapter offers none. */
+  gpu: number;
 }
 
 async function bench(page: Page, spec: string, renderer: 'webgpu' | 'canvas', extra = ''): Promise<FrameCost> {
@@ -54,7 +56,22 @@ async function bench(page: Page, spec: string, renderer: 'webgpu' | 'canvas', ex
     r.markTimings = null;
     // the canvas renderer reports nothing, so its whole frame is main thread
     const cpu = timings['_draw'] === undefined ? total : (timings['_draw'] + (timings['_submit'] ?? 0)) / N;
-    return { cpu, total };
+
+    // The gpu timestamps read back a frame or more later, so they need a turn
+    // of the event loop to land. Sampling them inside the timed loop would
+    // measure the yield rather than the frame.
+    let gpu = 0;
+    let samples = 0;
+    for (let i = 0; i < 6; i++) {
+      await render.call(r, scene);
+      await new Promise(resolve => setTimeout(resolve, 4));
+      const frame = r.gpuFrameTime as number | undefined;
+      if (frame) {
+        gpu += frame;
+        samples++;
+      }
+    }
+    return { cpu, total, gpu: samples > 0 ? gpu / samples : 0 };
   });
 }
 
@@ -68,7 +85,8 @@ test('frame cost, webgpu vs canvas', async ({ page }) => {
     const ratio = wg.cpu > 0 ? cv.cpu / wg.cpu : 0;
     const verdict = ratio >= 1 ? `${ratio.toFixed(1)}x faster` : `${(1 / ratio).toFixed(1)}x slower`;
     rows.push(
-      `${spec.padEnd(20)} cpu ${wg.cpu.toFixed(2).padStart(6)}   canvas ${cv.cpu.toFixed(2).padStart(6)}   ${verdict}`,
+      `${spec.padEnd(20)} cpu ${wg.cpu.toFixed(2).padStart(6)}  gpu ${wg.gpu.toFixed(2).padStart(6)}  ` +
+        `frame ${wg.total.toFixed(2).padStart(6)}   canvas ${cv.cpu.toFixed(2).padStart(6)}   ${verdict}`,
     );
   }
   console.log(['', '=== steady state, main thread ===', ...rows, '=== end ===', ''].join('\n'));

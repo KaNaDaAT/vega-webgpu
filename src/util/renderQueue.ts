@@ -1,5 +1,6 @@
 import type { ClipRect } from '../types/context.js';
 import { BufferManager } from './bufferManager.js';
+import type { GpuTimer } from './gpuTimer.js';
 import type { VertexBufferManager } from './vertexManager.js';
 
 export type DrawCounts = [vertexCount: number, instanceCount?: number, firstVertex?: number, firstInstance?: number];
@@ -106,6 +107,7 @@ export class RenderQueue {
     device: GPUDevice,
     renderPassDescriptor: GPURenderPassDescriptor,
     attachmentSize: [width: number, height: number],
+    timer?: GpuTimer | null,
   ): void {
     this.flushBatch();
     const commandEncoder = device.createCommandEncoder({ label: 'RenderQueue Encoder' });
@@ -140,7 +142,9 @@ export class RenderQueue {
       passEncoder.draw(q.drawCounts[0], q.drawCounts[1] ?? 1, q.drawCounts[2] ?? 0, q.drawCounts[3] ?? 0);
     }
     passEncoder.end();
+    timer?.resolve(commandEncoder);
     device.queue.submit([commandEncoder.finish()]);
+    timer?.sample();
     this.queue = [];
   }
 }

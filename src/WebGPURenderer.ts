@@ -2,6 +2,7 @@ import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import marks from './marks/index.js';
 import type { GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene, RenderUniforms } from './types/context.js';
 import { Color } from './util/color.js';
+import { GpuTimer } from './util/gpuTimer.js';
 import { RenderQueue } from './util/renderQueue.js';
 import resize from './util/resize.js';
 import {
@@ -68,6 +69,8 @@ export default class WebGPURenderer extends Renderer {
 
   private _isRendering = false;
   private _pendingRender: PendingRender | null = null;
+  private _gpuTimer: GpuTimer | null = null;
+  private _finalized = false;
   private _lastRender: PendingRender | null = null;
   private _renderPromise: Promise<void> = Promise.resolve();
   // Stands in for a deferred frame so awaiting callers follow it, not the
@@ -175,7 +178,11 @@ export default class WebGPURenderer extends Renderer {
       if (!adapter) {
         throw new Error('[vega-webgpu] No suitable GPU adapter found.');
       }
-      device = await adapter.requestDevice();
+      device = await adapter.requestDevice({
+        // timestamps measure gpu time without stalling the frame, where offered
+        requiredFeatures: adapter.features.has('timestamp-query') ? ['timestamp-query'] : [],
+      });
+      this._gpuTimer = GpuTimer.create(device);
       this._device = device;
       this.deviceGeneration++;
       this._handleDeviceLoss(device);
@@ -196,6 +203,7 @@ export default class WebGPURenderer extends Renderer {
    */
   private _dropDevice(): void {
     this._device = null;
+    this._gpuTimer = null;
     this._msaaTexture = null;
     this._msaaTextureDevice = null;
     this._offscreenTexture = null;
@@ -217,6 +225,9 @@ export default class WebGPURenderer extends Renderer {
       this.deviceLostReason = `${info.reason}: ${info.message}`;
       if (this._device !== device) {
         return; // already replaced
+      }
+      if (this._finalized) {
+        return; // finalize() destroyed it on purpose
       }
       console.warn(`[vega-webgpu] GPU device lost (${info.reason}: ${info.message}); reinitializing.`);
       this._dropDevice();
@@ -268,7 +279,12 @@ export default class WebGPURenderer extends Renderer {
     return this;
   }
 
-  /** Resolves when all in-flight render work has been submitted to the GPU. */
+  /**
+   * Resolves when the frame has been submitted to the GPU. vega awaits this on
+   * every frame, so waiting for the GPU to finish here would stop the cpu from
+   * ever running ahead of it. A caller that needs the pixels reads them back
+   * through captureFrame, which is ordered behind the frame in the same queue.
+   */
   override async renderAsync(scene: GPUVegaScene, markTypes?: string[]): Promise<this> {
     this.render(scene, markTypes);
     await this._renderPromise;
@@ -277,16 +293,45 @@ export default class WebGPURenderer extends Renderer {
       await this._ready;
       await this._renderPromise;
     }
-    if (this._device) {
-      // A lost device rejects this. Loss is handled by _handleDeviceLoss and the
-      // pixel output is the real check, so do not fail the render over it.
-      await this._device.queue.onSubmittedWorkDone().catch((err: unknown) => {
-        if (this.wgOptions.debugLog === true) {
-          console.warn('[vega-webgpu] onSubmittedWorkDone rejected:', err);
-        }
-      });
-    }
     return this;
+  }
+
+  /**
+   * Releases the GPU device and everything built on it.
+   *
+   * vega's own View.finalize does not reach the renderer, so a page that
+   * creates and discards views leaks a device each time. Nothing recreates one
+   * after this, so call it when the view is going away for good.
+   */
+  finalize(): void {
+    this._finalized = true;
+    const device = this._device;
+    this._gpuTimer?.destroy();
+    this._dropDevice();
+    device?.destroy();
+  }
+
+  /**
+   * Gpu time for the most recently measured frame, in milliseconds, or 0 where
+   * the adapter offers no timestamps. Sampled a frame or more behind, so it
+   * never stalls the one being drawn.
+   */
+  get gpuFrameTime(): number {
+    return this._gpuTimer?.lastMs ?? 0;
+  }
+
+  /** Resolves once the GPU has finished everything submitted so far. */
+  async idle(): Promise<void> {
+    if (!this._device) {
+      return;
+    }
+    // A lost device rejects this. Loss is handled by _handleDeviceLoss and the
+    // pixel output is the real check, so do not fail over it.
+    await this._device.queue.onSubmittedWorkDone().catch((err: unknown) => {
+      if (this.wgOptions.debugLog === true) {
+        console.warn('[vega-webgpu] onSubmittedWorkDone rejected:', err);
+      }
+    });
   }
 
   /** Applies a changed wgOptions.sampleCount: pipelines bake the sample
@@ -344,6 +389,9 @@ export default class WebGPURenderer extends Renderer {
     // One pass for the whole frame: clears to the background color, draws
     // in scenegraph order, and resolves the MSAA attachment once.
     const renderPassDescriptor = createRenderPassDescriptor('Frame', this.clearColor());
+    if (this._gpuTimer) {
+      renderPassDescriptor.timestampWrites = this._gpuTimer.timestampWrites();
+    }
     const target = this.wgOptions.offscreen ? this.offscreenTexture(device) : ctx.getCurrentTexture();
     if (ctx._sampleCount > 1) {
       renderPassDescriptor.colorAttachments[0].view = this.msaaTexture(device).createView();
@@ -352,7 +400,12 @@ export default class WebGPURenderer extends Renderer {
       renderPassDescriptor.colorAttachments[0].view = target.createView();
     }
     const tSubmit = performance.now();
-    this._queue.submit(device, renderPassDescriptor, [this._canvas?.width ?? 0, this._canvas?.height ?? 0]);
+    this._queue.submit(
+      device,
+      renderPassDescriptor,
+      [this._canvas?.width ?? 0, this._canvas?.height ?? 0],
+      this._gpuTimer,
+    );
     if (this.markTimings) {
       this.markTimings['_draw'] = (this.markTimings['_draw'] ?? 0) + (t2 - t1);
       this.markTimings['_submit'] = (this.markTimings['_submit'] ?? 0) + (performance.now() - tSubmit);
