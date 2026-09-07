@@ -8,7 +8,7 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import geometryForItem from '../path/geometryForItem.js';
-import { line as lineGeometry } from '../path/shapes.js';
+import { line as lineGeometry, lineSpans } from '../path/shapes.js';
 import {
   SEGMENT_LAYOUT,
   SEGMENT_STRIDE,
@@ -43,6 +43,10 @@ interface LineResources {
   basisVertexManager: VertexBufferManager;
   basisBindGroup: GPUBindGroup | null;
   basisBindGroupBuffer: GPUBuffer | null;
+  /** Same layout as basis, evaluating cubic Beziers instead. */
+  bezierPipeline: GPURenderPipeline;
+  bezierBindGroup: GPUBindGroup | null;
+  bezierBindGroupBuffer: GPUBuffer | null;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
@@ -68,7 +72,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // p0, p1, p2, p3, color, stroke width, kind
       ['float32x2', 'float32x2', 'float32x2', 'float32x2', 'float32x4', 'float32', 'float32'],
     );
-    const basisPipeline = markPipeline(ctx, device, `${drawName}Basis`, 'Curve', basisVertexManager);
+    const basisPipeline = markPipeline(ctx, device, `${drawName}Basis`, 'Curve:basis', basisVertexManager);
+    const bezierPipeline = markPipeline(ctx, device, `${drawName}Bezier`, 'Curve:bezier', basisVertexManager);
     const curvePipeline = markPipeline(ctx, device, `${drawName}Curve`, 'Path', curveVertexManager);
     return {
       curveVertexManager,
@@ -77,6 +82,9 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       basisVertexManager,
       basisBindGroup: null,
       basisBindGroupBuffer: null,
+      bezierPipeline,
+      bezierBindGroup: null,
+      bezierBindGroupBuffer: null,
       device,
       bufferManager,
       batchVertexManager,
@@ -164,6 +172,19 @@ function isBasisCurve(points: SceneLinePoint[]): boolean {
 }
 
 /**
+ * Curves d3 emits as cubic Beziers. They go to the GPU as their own control
+ * points, so the stroke follows the real curve instead of a flattened polyline.
+ * `linear` and the `step` family stay on the tessellated path, which is what
+ * gives their corners a join.
+ */
+const BEZIER_CURVES = new Set(['cardinal', 'catmull-rom', 'monotone', 'natural']);
+
+function isBezierCurve(points: SceneLinePoint[]): boolean {
+  const interpolate = points[0]?.interpolate;
+  return interpolate !== undefined && BEZIER_CURVES.has(interpolate) && points.length >= 2;
+}
+
+/**
  * Instance data for one curve: a span per B-spline segment plus the two
  * straight runs d3's basis opens and closes with. Control points are doubled
  * at each end, which is what puts the first span's start at (5*P0 + P1) / 6.
@@ -235,6 +256,36 @@ function basisInstances(points: SceneLinePoint[], out: number[]): void {
   push(basis(spans - 1, 1, cx), basis(spans - 1, 1, cy), xs[n - 1], ys[n - 1], 0, 0, 0, 0, 1);
 }
 
+/**
+ * Instance data for a curve d3 writes as cubic Beziers, collected from the same
+ * generator canvas draws through, so the control points are exactly its own.
+ * A `moveTo` starts a run, which is how `defined: false` leaves its gaps.
+ */
+function bezierInstances(points: SceneLinePoint[], out: number[]): void {
+  const first = points[0];
+  const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const width = first.strokeWidth ?? 1;
+  let cx = 0;
+  let cy = 0;
+  lineSpans(points, {
+    moveTo(x, y) {
+      cx = x;
+      cy = y;
+    },
+    lineTo(x, y) {
+      out.push(cx, cy, x, y, 0, 0, 0, 0, col[0], col[1], col[2], col[3], width, 1);
+      cx = x;
+      cy = y;
+    },
+    bezierCurveTo(x1, y1, x2, y2, x, y) {
+      out.push(cx, cy, x1, y1, x2, y2, x, y, col[0], col[1], col[2], col[3], width, 0);
+      cx = x;
+      cy = y;
+    },
+    closePath() {},
+  });
+}
+
 /** Draws a basis or bundle curve entirely on the GPU, with no tessellation. */
 function drawBasis(
   device: GPUDevice,
@@ -266,6 +317,39 @@ function drawBasis(
   });
   const rows: number[] = [];
   basisInstances(points, rows);
+  ctx._renderQueue.queueBatchInstance(rows);
+}
+
+/** Draws every other cubic curve on the GPU, from d3's own control points. */
+function drawBezier(
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  res: LineResources,
+  points: SceneLinePoint[],
+  clip: ReturnType<typeof markClip>,
+): void {
+  const first = points[0];
+  if (!first.stroke || (first.strokeWidth ?? 1) <= 0) {
+    return;
+  }
+  const rows: number[] = [];
+  bezierInstances(points, rows);
+  if (rows.length === 0) {
+    return;
+  }
+  const uniformBuffer = res.bufferManager.sharedUniformBuffer();
+  if (res.bezierBindGroup === null || res.bezierBindGroupBuffer !== uniformBuffer) {
+    res.bezierBindGroup = createUniformBindGroup(`${drawName}Bezier`, device, res.bezierPipeline, uniformBuffer);
+    res.bezierBindGroupBuffer = uniformBuffer;
+  }
+  ctx._renderQueue.setupBatch({
+    device,
+    vertexManager: res.basisVertexManager,
+    pipeline: res.bezierPipeline,
+    clip,
+    vertexCount: 6 * BASIS_SUBDIVISIONS,
+    bindGroups: [res.bezierBindGroup],
+  });
   ctx._renderQueue.queueBatchInstance(rows);
 }
 
@@ -315,6 +399,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   if (isBasisCurve(points)) {
     drawBasis(device, ctx, res, points, clip);
+    return;
+  }
+
+  if (isBezierCurve(points)) {
+    drawBezier(device, ctx, res, points, clip);
     return;
   }
 

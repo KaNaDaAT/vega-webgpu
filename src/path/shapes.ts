@@ -63,6 +63,24 @@ export function line(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeo
   return geometryForPath(context, lineShape.curve(curve).context(null)(items) ?? '', 0.1);
 }
 
+/** The path calls d3's generators make, for a consumer that is not a canvas. */
+export interface PathSink {
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  bezierCurveTo(x1: number, y1: number, x2: number, y2: number, x: number, y: number): void;
+  closePath(): void;
+}
+
+/**
+ * Runs the line generator straight into `sink`, so a caller that wants the
+ * curve's own control points gets them without a path string in between.
+ */
+export function lineSpans(items: AreaPoint[], sink: PathSink): void {
+  const item = items[0];
+  const curve = pathCurves(item.interpolate || 'linear', item.orient, item.tension);
+  lineShape.curve(curve).context(sink as unknown as CanvasRenderingContext2D)(items);
+}
+
 export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem): PathGeometry {
   const generator = ((item.mark as { shape?: unknown }).shape ?? item.shape) as ShapeGenerator;
   return geometryForPath(context, generator.context(null)(item) ?? '', 0.1);

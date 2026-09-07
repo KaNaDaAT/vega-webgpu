@@ -1,16 +1,41 @@
 import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
 
 /**
- * Uniform cubic B-splines evaluated on the GPU, one instance per span. This is
- * the curve d3's basis and bundle draw.
+ * How a span's four control points become a point and a tangent. Every cubic
+ * d3 draws is one of these two: basis is the uniform B-spline behind `basis`
+ * and `bundle`, bezier is what every other curve emits as a `C` command.
  */
-export const curveShader = (blend: string): string => `
+const CURVES: Record<string, { at: string; tangent: string }> = {
+  basis: {
+    at: `    let t2 = t * t;
+    let t3 = t2 * t;
+    return ((1.0 - 3.0 * t + 3.0 * t2 - t3) * p0 + (4.0 - 6.0 * t2 + 3.0 * t3) * p1 +
+            (1.0 + 3.0 * t + 3.0 * t2 - 3.0 * t3) * p2 + t3 * p3) / 6.0;`,
+    tangent: `    let t2 = t * t;
+    return (-3.0 * (1.0 - t) * (1.0 - t) * p0 + (9.0 * t2 - 12.0 * t) * p1 +
+            (-9.0 * t2 + 6.0 * t + 3.0) * p2 + 3.0 * t2 * p3) / 6.0;`,
+  },
+  bezier: {
+    at: `    let u = 1.0 - t;
+    return u * u * u * p0 + 3.0 * u * u * t * p1 + 3.0 * u * t * t * p2 + t * t * t * p3;`,
+    tangent: `    let u = 1.0 - t;
+    return 3.0 * u * u * (p1 - p0) + 6.0 * u * t * (p2 - p1) + 3.0 * t * t * (p3 - p2);`,
+  },
+};
+
+/** Cubic splines evaluated on the GPU, one instance per span. */
+export const curveShader = (blend: string, kind = 'basis'): string => {
+  const curve = CURVES[kind];
+  if (!curve) {
+    throw new Error(`[vega-webgpu] No curve evaluation named '${kind}'.`);
+  }
+  return `
 ${uniformBlock()}
 
 ${TO_NDC}
 
-// One instance per B-spline span. kind 0 is a curved span over p0..p3, 1 is a
-// straight run from p0 to p1, which is how d3's basis opens and closes a line.
+// One instance per span. kind 0 is a curved span over p0..p3, 1 is a straight
+// run from p0 to p1, which is how a line opens, closes and bridges an L command.
 struct InstanceInput {
   @location(0) p0: vec2<f32>,
   @location(1) p1: vec2<f32>,
@@ -33,19 +58,24 @@ struct VertexOutput {
 // indistinguishable and cost the same, 4 is visibly worse.
 const K: u32 = 8u;
 
-/** Uniform cubic B-spline, the curve d3's basis draws. */
-fn basisAt(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f32) -> vec2<f32> {
-    let t2 = t * t;
-    let t3 = t2 * t;
-    return ((1.0 - 3.0 * t + 3.0 * t2 - t3) * p0 + (4.0 - 6.0 * t2 + 3.0 * t3) * p1 +
-            (1.0 + 3.0 * t + 3.0 * t2 - 3.0 * t3) * p2 + t3 * p3) / 6.0;
+/** The span's curve, substituted per variant. */
+fn curveAt(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f32) -> vec2<f32> {
+${curve.at}
 }
 
 /** Its derivative, so each joint takes the exact tangent. */
-fn basisTangent(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f32) -> vec2<f32> {
-    let t2 = t * t;
-    return (-3.0 * (1.0 - t) * (1.0 - t) * p0 + (9.0 * t2 - 12.0 * t) * p1 +
-            (-9.0 * t2 + 6.0 * t + 3.0) * p2 + 3.0 * t2 * p3) / 6.0;
+fn curveTangent(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f32) -> vec2<f32> {
+${curve.tangent}
+}
+
+/**
+ * A cubic whose first control point repeats its endpoint has a zero derivative
+ * there, which d3's monotone curves produce on a flat run. The chord is the
+ * limiting direction, so fall back to it rather than to an arbitrary normal.
+ */
+fn spanTangent(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f32) -> vec2<f32> {
+    let d = curveTangent(p0, p1, p2, p3, t);
+    return select(p3 - p0, d, length(d) > 1e-6);
 }
 
 fn normalAt(d: vec2<f32>) -> vec2<f32> {
@@ -86,10 +116,10 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
     } else {
         let t0 = f32(sub) / f32(K);
         let t1 = f32(sub + 1u) / f32(K);
-        a = basisAt(instance.p0, instance.p1, instance.p2, instance.p3, t0);
-        b = basisAt(instance.p0, instance.p1, instance.p2, instance.p3, t1);
-        na = normalAt(basisTangent(instance.p0, instance.p1, instance.p2, instance.p3, t0));
-        nb = normalAt(basisTangent(instance.p0, instance.p1, instance.p2, instance.p3, t1));
+        a = curveAt(instance.p0, instance.p1, instance.p2, instance.p3, t0);
+        b = curveAt(instance.p0, instance.p1, instance.p2, instance.p3, t1);
+        na = normalAt(spanTangent(instance.p0, instance.p1, instance.p2, instance.p3, t0));
+        nb = normalAt(spanTangent(instance.p0, instance.p1, instance.p2, instance.p3, t1));
     }
 
     // grow by a pixel so the analytic falloff is never clipped by the geometry
@@ -123,3 +153,4 @@ ${blendPrelude(blend)}
 
 ${fragmentEntry('main_fragment', 'fragmentColor')}
 `;
+};
