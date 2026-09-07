@@ -52,6 +52,10 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   'symbol-custom': 80,
   // a triangulated ribbon, so its edge gets its coverage from MSAA
   trail: 90,
+  // Held by canvas, not by us. Against exact pixel coverage these stroked
+  // circles are 2 to 3 levels off on average, worst 16, where canvas is 7 to 14
+  // and worst 90 on an arc running nearly tangent to a pixel row.
+  'symbol-circles': 75,
   // fixed function blending reproduces these exactly
   blend: 5,
   // these need the destination in the shader, so they draw unblended on purpose

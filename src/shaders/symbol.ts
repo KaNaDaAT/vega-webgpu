@@ -28,9 +28,8 @@ struct VertexOutput {
   @location(5) geom_radius: f32,
 }
 
-// Antialiasing half-width (px) and extra geometry padding so the analytic
-// circle edge fades out inside the tessellated geometry.
-const aa = 0.75;
+// Extra geometry padding so the analytic circle edge fades out inside the
+// tessellated geometry.
 const pad = 1.0;
 
 @vertex
@@ -51,16 +50,23 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
     return output;
 }
 
+/**
+ * Fill and stroke each take their true share of the pixel, the same model the
+ * rect and symbolSdf shaders use. Mixing fill towards the stroke colour instead
+ * reads a strokeless symbol's transparent black as a colour, which darkens
+ * every edge pixel and squares its alpha.
+ */
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // distance from the symbol center, in pixels
     let d = distance(in.uv, vec2<f32>(0.5, 0.5)) * 2.0 * in.geom_radius;
     let half_sw = in.stroke_width * 0.5;
-    let outer = in.radius + half_sw;
-    let inner = in.radius - half_sw;
-    let coverage = 1.0 - smoothstep(outer - aa, outer + aa, d);
-    let strokeMix = smoothstep(inner - aa, inner + aa, d);
-    let col = mix(in.fill, in.stroke_color, strokeMix);
-    return vec4<f32>(col.rgb, col.a * coverage);
+    let outer = clamp(0.5 - (d - in.radius - half_sw), 0.0, 1.0);
+    let inner = clamp(0.5 - (d - in.radius + half_sw), 0.0, 1.0);
+    let fa = in.fill.a * inner;
+    let sa = in.stroke_color.a * max(outer - inner, 0.0);
+    let a = fa + sa;
+    let rgb = (in.fill.rgb * fa + in.stroke_color.rgb * sa) / max(a, 1e-6);
+    return vec4<f32>(rgb, a);
 }
 
 ${blendPrelude(blend)}
