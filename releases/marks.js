@@ -53,7 +53,7 @@ const EXPLAIN = {
     na: 'this mark has no stroke',
   },
   strokeCap: {
-    yes: 'round and square ends are both drawn',
+    yes: 'round and square ends are drawn on a plain line; a dashed or curved one still draws butt',
     partial: 'square is drawn, round falls back to butt',
     no: 'ignored, ends draw butt',
     na: 'this mark has no open ends',

@@ -156,3 +156,17 @@ svg {
   padding: 0;
   vertical-align: middle;
 }
+
+#pagefoot {
+  margin-top: 28px;
+  padding: 14px 0;
+  border-top: 1px solid #ddd;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+}
+
+#pagefoot a {
+  color: #555;
+}

@@ -298,13 +298,23 @@
         $('error').textContent =
           'No WebGPU build could be loaded. Run npm run build for the dev option, or pick a hosted version.';
       } else if (loaded.id !== 'dev') {
+        // an old build disagrees with the table wholesale, so say which one is
+        // on and give a way back rather than leaving the reader to guess
         $('error').hidden = false;
         $('error').className = 'callout warn';
-        $('error').textContent =
-          `Drawing with the hosted ${loaded.id} build on Vega ${loaded.vega}. The feature table describes 2.0.0, ` +
-          `which is not released yet, so what you see here will differ. Build from source and pick "dev" for the ` +
-          `current state.`;
+        $('error').innerHTML = '';
+        const said = document.createElement('span');
+        said.textContent =
+          `You are on the hosted ${loaded.id} build, which runs on Vega ${loaded.vega}. Everything the feature ` +
+          `table describes is 2.0.0, which is not released yet, so this build will disagree with it. `;
+        const back = document.createElement('a');
+        const to = new URLSearchParams(params);
+        to.set('build', 'dev');
+        back.href = `?${to}`;
+        back.textContent = 'Use the local dev build';
+        $('error').append(said, back);
       }
+
       // navigator.gpu can exist with no adapter behind it, which draws a blank
       // panel rather than throwing, so ask for one before saying anything
       const adapter = navigator.gpu ? await navigator.gpu.requestAdapter().catch(() => null) : null;

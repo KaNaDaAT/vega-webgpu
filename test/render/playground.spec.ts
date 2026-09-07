@@ -27,6 +27,7 @@ const HONOURED: [mark: string, feature: string][] = [
   ['text', 'gradientStroke'],
   ['line', 'strokeDash'],
   ['group', 'strokeDash'],
+  ['line', 'strokeCap'],
 ];
 
 /** A cell the table says we ignore: the two renderers should visibly differ. */
