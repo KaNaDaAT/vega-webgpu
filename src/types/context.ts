@@ -76,6 +76,12 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   _sampleCount: number;
 
   _shaderCache: Record<string, GPUShaderModule>;
+  /**
+   * Compiled pipelines, keyed by everything that defines one. Creating them is
+   * the bulk of a first frame, and marks with the same shader and layout would
+   * otherwise each compile their own.
+   */
+  _pipelineCache: Record<string, GPURenderPipeline>;
   /** Per-mark GPU resources (pipelines, buffers), keyed by mark type. */
   _markCache: Record<string, unknown>;
 

@@ -86,4 +86,8 @@ function applyTestOptions(renderer, params) {
   if (params?.get('cacheShapes')) {
     options.cacheShapes = true;
   }
+  const renderBatch = params?.get('renderBatch');
+  if (renderBatch) {
+    options.renderBatch = renderBatch !== '0';
+  }
 }

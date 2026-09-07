@@ -12,6 +12,7 @@ import {
 } from './util/webgpu.js';
 
 import areaShader from './shaders/area.wgsl';
+import curveShader from './shaders/curve.wgsl';
 import gradientFillShader from './shaders/gradientFill.wgsl';
 import imageShader from './shaders/image.wgsl';
 import lineShader from './shaders/line.wgsl';
@@ -133,6 +134,7 @@ export default class WebGPURenderer extends Renderer {
     ctx._ratio = 1;
     ctx._sampleCount = normalizeSampleCount(this.wgOptions.sampleCount);
     ctx._shaderCache = {};
+    ctx._pipelineCache = {};
     ctx._markCache = {};
     ctx._pathCache = {};
     ctx._pathCacheSize = 0;
@@ -221,6 +223,7 @@ export default class WebGPURenderer extends Renderer {
     this._offscreenTextureDevice = null;
     if (this._ctx) {
       this._ctx._shaderCache = {};
+      this._ctx._pipelineCache = {};
       this._ctx._markCache = {};
     }
   }
@@ -322,6 +325,7 @@ export default class WebGPURenderer extends Renderer {
   }
 
   private async _frame(scene: GPUVegaScene, markTypes?: string[]): Promise<void> {
+    const tFrameStart = performance.now();
     const { device, ctx } = await this._reinit();
 
     // WebGPU textures (and the swapchain) are capped at maxTextureDimension2D
@@ -368,7 +372,13 @@ export default class WebGPURenderer extends Renderer {
     } else {
       renderPassDescriptor.colorAttachments[0].view = target.createView();
     }
+    const tSubmit = performance.now();
     this._queue.submit(device, renderPassDescriptor, [this._canvas?.width ?? 0, this._canvas?.height ?? 0]);
+    if (this.markTimings) {
+      this.markTimings['_draw'] = (this.markTimings['_draw'] ?? 0) + (t2 - t1);
+      this.markTimings['_submit'] = (this.markTimings['_submit'] ?? 0) + (performance.now() - tSubmit);
+      this.markTimings['_reinit'] = (this.markTimings['_reinit'] ?? 0) + (t1 - tFrameStart);
+    }
 
     if (this._capture) {
       const capture = this._capture;
@@ -652,6 +662,7 @@ export default class WebGPURenderer extends Renderer {
       Line: device.createShaderModule({ code: lineShader, label: 'Line Shader' }),
       Rule: device.createShaderModule({ code: ruleShader, label: 'Rule Shader' }),
       SLine: device.createShaderModule({ code: slineShader, label: 'SLine Shader' }),
+      Curve: device.createShaderModule({ code: curveShader, label: 'Curve Shader' }),
       Path: device.createShaderModule({ code: pathShader, label: 'Path Shader' }),
       Rect: device.createShaderModule({ code: rectShader, label: 'Rect Shader' }),
       // Group backgrounds are rounded rectangles, so they reuse the rect shader.

@@ -167,16 +167,24 @@ export function markPipeline(
   vertexManager: VertexBufferManager,
   fragmentEntryPoint?: string,
 ): GPURenderPipeline {
-  return createRenderPipeline(
+  const buffers = vertexManager.getBuffers();
+  const key = `${shaderKey}|${fragmentEntryPoint ?? ''}|${ctx._sampleCount}|${JSON.stringify(buffers)}`;
+  const cached = ctx._pipelineCache[key];
+  if (cached) {
+    return cached;
+  }
+  const pipeline = createRenderPipeline(
     label,
     device,
     ctx._shaderCache[shaderKey],
     preferredColorFormat(),
     ctx._sampleCount,
-    vertexManager.getBuffers(),
+    buffers,
     undefined,
     fragmentEntryPoint,
   );
+  ctx._pipelineCache[key] = pipeline;
+  return pipeline;
 }
 
 /**

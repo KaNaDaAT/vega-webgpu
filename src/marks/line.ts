@@ -38,6 +38,10 @@ interface LineResources {
   joinGeometryBuffer: GPUBuffer;
   curveVertexManager: VertexBufferManager;
   curvePipeline: GPURenderPipeline;
+  basisPipeline: GPURenderPipeline;
+  basisVertexManager: VertexBufferManager;
+  basisBindGroup: GPUBindGroup | null;
+  basisBindGroupBuffer: GPUBuffer | null;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
@@ -58,10 +62,20 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     const joinPipeline = markPipeline(ctx, device, `${drawName}Join`, 'Symbol', joinVertexManager);
     const joinGeometryBuffer = bufferManager.createGeometryBuffer(createJoinGeometry());
     const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
+    const basisVertexManager = new VertexBufferManager(
+      [],
+      // p0, p1, p2, p3, color, stroke width, kind
+      ['float32x2', 'float32x2', 'float32x2', 'float32x2', 'float32x4', 'float32', 'float32'],
+    );
+    const basisPipeline = markPipeline(ctx, device, `${drawName}Basis`, 'Curve', basisVertexManager);
     const curvePipeline = markPipeline(ctx, device, `${drawName}Curve`, 'Path', curveVertexManager);
     return {
       curveVertexManager,
       curvePipeline,
+      basisPipeline,
+      basisVertexManager,
+      basisBindGroup: null,
+      basisBindGroupBuffer: null,
       device,
       bufferManager,
       batchVertexManager,
@@ -134,6 +148,126 @@ function drawDashed(
   });
 }
 
+const BASIS_SUBDIVISIONS = 8;
+
+/**
+ * True when the whole line can go through the GPU basis shader: an unbroken
+ * basis or bundle curve. Anything else keeps the tessellated path.
+ */
+function isBasisCurve(points: SceneLinePoint[]): boolean {
+  const interpolate = points[0]?.interpolate;
+  if (interpolate !== 'basis' && interpolate !== 'bundle') {
+    return false;
+  }
+  return points.length >= 3 && points.every(p => p.defined !== false);
+}
+
+/**
+ * Instance data for one curve: a span per B-spline segment plus the two
+ * straight runs d3's basis opens and closes with. Control points are doubled
+ * at each end, which is what puts the first span's start at (5*P0 + P1) / 6.
+ *
+ * `bundle` blends every point toward the straight chord by its tension first,
+ * exactly as d3 does before running basis.
+ */
+function basisInstances(points: SceneLinePoint[], out: number[]): void {
+  const first = points[0];
+  const n = points.length;
+  const beta = first.interpolate === 'bundle' ? (first.tension ?? 0.85) : 1;
+  const xs = new Float64Array(n);
+  const ys = new Float64Array(n);
+  const x0 = points[0].x ?? 0;
+  const y0 = points[0].y ?? 0;
+  const dx = (points[n - 1].x ?? 0) - x0;
+  const dy = (points[n - 1].y ?? 0) - y0;
+  for (let i = 0; i < n; i++) {
+    const px = points[i].x ?? 0;
+    const py = points[i].y ?? 0;
+    if (beta === 1) {
+      xs[i] = px;
+      ys[i] = py;
+    } else {
+      const t = i / (n - 1);
+      xs[i] = beta * px + (1 - beta) * (x0 + t * dx);
+      ys[i] = beta * py + (1 - beta) * (y0 + t * dy);
+    }
+  }
+
+  const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const width = first.strokeWidth ?? 1;
+  // controls, doubled at both ends
+  const cx = [xs[0], ...xs, xs[n - 1]];
+  const cy = [ys[0], ...ys, ys[n - 1]];
+
+  const push = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    ccx: number,
+    ccy: number,
+    ddx: number,
+    ddy: number,
+    kind: number,
+  ) => {
+    out.push(ax, ay, bx, by, ccx, ccy, ddx, ddy, col[0], col[1], col[2], col[3], width, kind);
+  };
+  const basis = (i: number, t: number, axis: number[]): number => {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (
+      ((1 - 3 * t + 3 * t2 - t3) * axis[i] +
+        (4 - 6 * t2 + 3 * t3) * axis[i + 1] +
+        (1 + 3 * t + 3 * t2 - 3 * t3) * axis[i + 2] +
+        t3 * axis[i + 3]) /
+      6
+    );
+  };
+
+  // the straight run into the first knot
+  push(xs[0], ys[0], basis(0, 0, cx), basis(0, 0, cy), 0, 0, 0, 0, 1);
+  const spans = cx.length - 3;
+  for (let i = 0; i < spans; i++) {
+    push(cx[i], cy[i], cx[i + 1], cy[i + 1], cx[i + 2], cy[i + 2], cx[i + 3], cy[i + 3], 0);
+  }
+  // and the straight run out of the last
+  push(basis(spans - 1, 1, cx), basis(spans - 1, 1, cy), xs[n - 1], ys[n - 1], 0, 0, 0, 0, 1);
+}
+
+/** Draws a basis or bundle curve entirely on the GPU, with no tessellation. */
+function drawBasis(
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  res: LineResources,
+  points: SceneLinePoint[],
+  clip: ReturnType<typeof markClip>,
+): void {
+  const first = points[0];
+  if (!first.stroke || (first.strokeWidth ?? 1) <= 0) {
+    return;
+  }
+  // Batched, so a spec whose curves are one faceted mark each still issues a
+  // single draw instead of one per curve.
+  // The batch only merges draws whose bind groups are the same object, so this
+  // is held rather than rebuilt per curve.
+  const uniformBuffer = res.bufferManager.sharedUniformBuffer();
+  if (res.basisBindGroup === null || res.basisBindGroupBuffer !== uniformBuffer) {
+    res.basisBindGroup = createUniformBindGroup(`${drawName}Basis`, device, res.basisPipeline, uniformBuffer);
+    res.basisBindGroupBuffer = uniformBuffer;
+  }
+  ctx._renderQueue.setupBatch({
+    device,
+    vertexManager: res.basisVertexManager,
+    pipeline: res.basisPipeline,
+    clip,
+    vertexCount: 6 * BASIS_SUBDIVISIONS,
+    bindGroups: [res.basisBindGroup],
+  });
+  const rows: number[] = [];
+  basisInstances(points, rows);
+  ctx._renderQueue.queueBatchInstance(rows);
+}
+
 /** Curved or gapped lines go through the shared path tessellation. */
 function drawPath(
   device: GPUDevice,
@@ -178,6 +312,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     return;
   }
 
+  if (isBasisCurve(points)) {
+    drawBasis(device, ctx, res, points, clip);
+    return;
+  }
+
   if (needsPath(points)) {
     drawPath(device, ctx, res, points, clip);
     return;
@@ -215,11 +354,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     });
     const resolution = res.bufferManager.getResolution();
     const offset = res.bufferManager.getOffset();
+    const first = points[0];
+    const col = Color.from2(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
+    const strokeWidth = first.strokeWidth ?? 1;
     for (let i = 0; i < points.length - 1; i++) {
-      const { x = 0, y = 0, stroke, strokeOpacity = 1, strokeWidth = 1, opacity = 1 } = points[i];
+      const { x = 0, y = 0 } = points[i];
       const x2 = points[i + 1].x ?? 0;
       const y2 = points[i + 1].y ?? 0;
-      const col = Color.from2(stroke, opacity, strokeOpacity);
 
       ctx._renderQueue.queueBatchInstance([
         x,
@@ -297,11 +438,16 @@ function createJoinGeometry(): Float32Array {
 
 function createAttributes(points: SceneLinePoint[]): Float32Array {
   const result = new Float32Array((points.length - 1) * 9);
+  // A line mark carries one stroke, which is the first item's; canvas strokes
+  // the whole path with it. Resolving the colour per segment showed up as the
+  // largest single cost on a spec with many short lines.
+  const first = points[0];
+  const col = Color.from2(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
+  const strokeWidth = first.strokeWidth ?? 1;
   for (let i = 0; i < points.length - 1; i++) {
-    const { x = 0, y = 0, stroke, strokeOpacity = 1, strokeWidth = 1, opacity = 1 } = points[i];
+    const { x = 0, y = 0 } = points[i];
     const x2 = points[i + 1].x ?? 0;
     const y2 = points[i + 1].y ?? 0;
-    const col = Color.from2(stroke, opacity, strokeOpacity);
 
     const index = i * 9;
     result[index] = x;

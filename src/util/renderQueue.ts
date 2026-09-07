@@ -20,6 +20,8 @@ export interface RenderBatchInfo {
   bindGroups: GPUBindGroup[];
   geometryBuffer?: GPUBuffer;
   geometryCount?: number;
+  /** Vertices per instance when there is no geometry buffer. Defaults to a quad. */
+  vertexCount?: number;
 }
 
 /**
@@ -79,7 +81,7 @@ export class RenderQueue {
     if (info.geometryBuffer == null) {
       this.enqueue({
         pipeline: info.pipeline,
-        drawCounts: [6, instanceCount],
+        drawCounts: [info.vertexCount ?? 6, instanceCount],
         vertexBuffers: [data],
         bindGroups: info.bindGroups,
         clip: info.clip,
@@ -149,7 +151,12 @@ export class RenderQueue {
  * differently clipped groups into one draw carrying the first mark's clip.
  */
 function sameBatchTarget(a: RenderBatchInfo, b: RenderBatchInfo): boolean {
-  if (a.pipeline !== b.pipeline || a.geometryBuffer !== b.geometryBuffer || a.geometryCount !== b.geometryCount) {
+  if (
+    a.pipeline !== b.pipeline ||
+    a.geometryBuffer !== b.geometryBuffer ||
+    a.geometryCount !== b.geometryCount ||
+    a.vertexCount !== b.vertexCount
+  ) {
     return false;
   }
   if (!sameClip(a.clip, b.clip)) {
