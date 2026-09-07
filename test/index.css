@@ -76,13 +76,18 @@ svg {
   position: relative;
   display: inline-block;
   min-width: max-content;
+  background: var(--vis-bg, #fff);
 }
 
+/* the background is what makes this layer cover the one under it. A canvas is
+   transparent wherever nothing was drawn, so without it a mark present in only
+   one of the two shows through on both sides of the wipe */
 .layer.top {
   position: absolute;
   top: 0;
   left: 0;
   clip-path: inset(0 0 0 var(--wipe, 50%));
+  background: var(--vis-bg, #fff);
 }
 
 /* a hairline where the two meet, so the divider is visible on flat areas */

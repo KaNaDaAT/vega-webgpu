@@ -145,12 +145,20 @@ function disposeAll() {
   compared = [];
 }
 
+/**
+ * `watchPixelRatio` is vega's own zoom watcher, which only acts on a canvas
+ * renderer. The webgpu one has its own, so both views follow a zoom and stay
+ * the same size.
+ */
 async function buildView(spec, container, renderer, bindEl) {
-  const v = new vega.View(vega.parse(spec))
-    .logLevel(vega.Warn)
-    .initialize(container, bindEl)
-    .renderer(renderer)
-    .hover();
+  const v = new vega.View(vega.parse(spec), {
+    logLevel: vega.Warn,
+    container,
+    bind: bindEl,
+    renderer,
+    hover: true,
+    watchPixelRatio: true,
+  });
   await v.runAsync();
   return v;
 }
@@ -190,11 +198,13 @@ async function load(name) {
     console.log('LOAD', name);
 
     if (!pair) {
-      view = new vega.View(vega.parse(spec))
-        .logLevel(vega.Warn)
-        .initialize(document.querySelector('#vis'))
-        .renderer(selectedRenderer)
-        .hover();
+      view = new vega.View(vega.parse(spec), {
+        logLevel: vega.Warn,
+        container: document.querySelector('#vis'),
+        renderer: selectedRenderer,
+        hover: true,
+        watchPixelRatio: true,
+      });
       configureWebGPU();
       window.view = view;
       view.runAsync();
@@ -210,6 +220,9 @@ async function load(name) {
       window.view = b;
       window.watchRenderer?.(b._renderer);
       shareBindings(spec, a, b);
+      // the stacked layers need something opaque to cover each other with
+      const bg = b.background();
+      overlay.style.setProperty('--vis-bg', !bg || bg === 'transparent' || bg === 'none' ? '#fff' : bg);
       if (showDiff) {
         watchForDiff(a, b);
         await refreshDiff(a, b);
@@ -240,7 +253,12 @@ function shareBindings(spec, a, b) {
   }
 }
 
-/** Redraws the diff shortly after either view does, so hover stays comparable. */
+/**
+ * Redraws the diff shortly after either view does, so hover, drag and zoom stay
+ * comparable. `_render` rather than `renderAsync`, because a zoom redraw and a
+ * settling frame go straight there, and a ResizeObserver on top of that, since
+ * a canvas can change size without either view rendering.
+ */
 function watchForDiff(a, b) {
   let pending = null;
   const bump = () => {
@@ -249,12 +267,19 @@ function watchForDiff(a, b) {
   };
   for (const v of [a, b]) {
     const r = v._renderer;
-    const inner = r.renderAsync.bind(r);
-    r.renderAsync = async function (...args) {
-      const out = await inner(...args);
+    const inner = r._render.bind(r);
+    r._render = function (...args) {
+      const out = inner(...args);
       bump();
       return out;
     };
+  }
+  const observer = new ResizeObserver(bump);
+  for (const v of [a, b]) {
+    const canvas = v.container().querySelector('canvas');
+    if (canvas) {
+      observer.observe(canvas);
+    }
   }
 }
 
