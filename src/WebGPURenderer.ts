@@ -4,7 +4,7 @@ import type { GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene, RenderUniforms
 import { Color } from './util/color.js';
 import { GpuTimer } from './util/gpuTimer.js';
 import { RenderQueue } from './util/renderQueue.js';
-import resize from './util/resize.js';
+import resize, { pixelRatio } from './util/resize.js';
 import {
   createRenderPassDescriptor,
   defaultSampleCount,
@@ -19,6 +19,12 @@ const viewBounds = (origin: readonly [number, number], width: number, height: nu
 // hanging its caller.
 const CAPTURE_TIMEOUT_MS = 10_000;
 const MAX_DEVICE_RECOVERIES = 3;
+/**
+ * Texture size every WebGPU device must support, used until the real adapter
+ * limit is known. Nothing is over-committed by assuming it, since a device
+ * cannot report less.
+ */
+const MIN_TEXTURE_DIM = 8192;
 /** Quiet time before a settling frame redraws at full quality. */
 const SETTLE_DELAY_MS = 150;
 
@@ -36,6 +42,7 @@ export default class WebGPURenderer extends Renderer {
     renderLock: true,
     offscreen: false,
     sampleCount: defaultSampleCount,
+    redrawOnZoom: true,
   };
 
   private _canvas: (HTMLCanvasElement & { _pickCanvas?: HTMLCanvasElement }) | null = null;
@@ -85,6 +92,9 @@ export default class WebGPURenderer extends Renderer {
   private _resolvePending: (() => void) | null = null;
   private _dpr: { query: MediaQueryList; onChange: () => void } | null = null;
   private _scaleFactor: number | undefined;
+  private _maxTextureDim = MIN_TEXTURE_DIM;
+  private _lockedRatio: number | null = null;
+  private _warnedRatioCap = false;
 
   constructor(loader?: unknown) {
     super(loader);
@@ -144,7 +154,8 @@ export default class WebGPURenderer extends Renderer {
 
     const o: [number, number] = [this._origin[0], this._origin[1]];
     if (this._canvas && this._ctx && this._pickCanvas && this._pickContext) {
-      resize(this._canvas, this._ctx, this._width, this._height, o, this._pickCanvas, this._pickContext, scaleFactor);
+      const ratio = this._pixelRatio(this._width, this._height, scaleFactor);
+      resize(this._canvas, this._ctx, this._width, this._height, o, this._pickCanvas, this._pickContext, ratio);
 
       // devicePixelRatio disagrees with this for a detached canvas or an
       // explicit scaleFactor.
@@ -163,6 +174,60 @@ export default class WebGPURenderer extends Renderer {
     return this._canvas;
   }
 
+  /** Stops following zoom, so the canvas keeps the size it has. */
+  private _unwatchPixelRatio(): void {
+    if (this._dpr) {
+      this._dpr.query.removeEventListener('change', this._dpr.onChange);
+      this._dpr = null;
+    }
+  }
+
+  /**
+   * Takes the real ceiling from the adapter in place of the assumed minimum,
+   * and re-sizes when that changes what the canvas is allowed to be.
+   */
+  private _applyTextureLimit(limit: number): void {
+    if (limit === this._maxTextureDim) {
+      return;
+    }
+    this._maxTextureDim = limit;
+    const want = this._pixelRatio(this._width, this._height, this._scaleFactor);
+    if (this._ctx && this._ctx._ratio !== want) {
+      this.resize(this._width, this._height, this._origin, this._scaleFactor);
+    }
+  }
+
+  /**
+   * Device pixels per logical pixel for the canvas, after holding it against
+   * browser zoom when `redrawOnZoom` is off and capping it to what the GPU can
+   * actually allocate.
+   */
+  private _pixelRatio(width: number, height: number, scaleFactor?: number): number {
+    let ratio = this._canvas ? pixelRatio(this._canvas, scaleFactor) : (scaleFactor ?? 1);
+    if (scaleFactor == null && !this.wgOptions.redrawOnZoom) {
+      this._lockedRatio ??= ratio;
+      ratio = this._lockedRatio;
+    }
+
+    // The canvas is a texture, so the adapter's 2D limit is a hard ceiling.
+    // Dropping to a ratio that fits keeps a very large view on screen, where
+    // refusing to draw it left the user with a blank chart.
+    const largest = Math.max(width, height);
+    const cap = largest > 0 ? this._maxTextureDim / largest : ratio;
+    if (ratio <= cap) {
+      return ratio;
+    }
+    if (!this._warnedRatioCap) {
+      this._warnedRatioCap = true;
+      console.warn(
+        `[vega-webgpu] ${width}x${height} at ${ratio}x needs ${Math.ceil(largest * ratio)}px, ` +
+          `over the GPU's maximum texture size (${this._maxTextureDim}px). ` +
+          `Drawing at ${cap.toFixed(3)}x instead, so the view is softer than requested.`,
+      );
+    }
+    return cap;
+  }
+
   /**
    * Redraws when the device pixel ratio changes, which browser zoom does
    * without changing the view's width or height, so nothing else asks for it.
@@ -170,7 +235,12 @@ export default class WebGPURenderer extends Renderer {
    * change registers the next one.
    */
   private _watchPixelRatio(): void {
-    if (this._scaleFactor != null || typeof window === 'undefined' || !window.matchMedia) {
+    if (this._scaleFactor != null || !this.wgOptions.redrawOnZoom) {
+      // the option can be turned off after a watch was already registered
+      this._unwatchPixelRatio();
+      return;
+    }
+    if (typeof window === 'undefined' || !window.matchMedia) {
       return;
     }
     const ratio = window.devicePixelRatio || 1;
@@ -223,6 +293,7 @@ export default class WebGPURenderer extends Renderer {
       });
       this._gpuTimer = GpuTimer.create(device);
       this._device = device;
+      this._applyTextureLimit(device.limits.maxTextureDimension2D);
       this.deviceGeneration++;
       this._handleDeviceLoss(device);
 
@@ -344,10 +415,7 @@ export default class WebGPURenderer extends Renderer {
    */
   finalize(): void {
     this._finalized = true;
-    if (this._dpr) {
-      this._dpr.query.removeEventListener('change', this._dpr.onChange);
-      this._dpr = null;
-    }
+    this._unwatchPixelRatio();
     if (this._settleTimer !== null) {
       clearTimeout(this._settleTimer);
       this._settleTimer = null;

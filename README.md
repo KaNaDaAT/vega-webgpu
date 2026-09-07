@@ -60,20 +60,58 @@ view._renderer.wgOptions.debugLog = true;
 | `renderLock` | Skip re-entrant render calls while a frame is in flight. The most recent request always runs. Improves responsiveness of interactive charts. | `true` | 1.1.1 |
 | `renderBatch` | Draw each line mark as one instanced call. When `false`, segments of consecutive line marks are accumulated into a single draw call instead (helps e.g. parallel coordinates). | `true` | 1.2.0 |
 | `sampleCount` | MSAA samples per pixel: `4` (antialiased) or `1` (plain single-sampled rendering). Can be changed between frames. | `4` | 2.0.0 |
+| `redrawOnZoom` | Follow browser zoom. Zoom changes `devicePixelRatio`, and the default re-sizes the canvas and redraws so the view stays sharp. When `false` the canvas holds the ratio it was first sized at and the browser scales it, which is softer but skips the redraw. | `true` | 2.0.0 |
 | `cacheShapes` | Cache triangulated shape geometry between frames (experimental). | `false` | 1.1.0 |
 | `simpleLine` | Deprecated since 1.2.0, superseded by `renderBatch`. | `true` | 1.0.0 |
 
 ## Supported marks & known limitations
 
-Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, text (via 2D overlay), and gradient fills (linear + radial) on rect, symbol, area, path, shape and arc marks.
+Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, trail, text (rasterized into a GPU glyph atlas), rounded rect and group corners, line dashes, gradient fills (linear + radial) on rect, symbol, area, path, shape and arc marks, and gradient strokes on area, path, shape, arc and trail marks.
 
 Not supported yet:
 
-- Gradient strokes (a placeholder color is used)
+- Gradient strokes on symbol, rect, rule and line marks (a placeholder color is used)
 - Radial gradients with an offset focal point (approximated as concentric circles)
-- Rounded rect/group corners (corner radii are accepted but drawn square)
-- Line dashes, and miter/bevel line joins (round joins are used for all lines)
-- Trail marks
+- Miter and bevel line joins (round joins are used for all lines)
+
+### Maximum canvas size
+
+WebGPU caps a texture at `maxTextureDimension2D`, which is 8192 on most GPUs and
+16384 on some desktop parts. The canvas is a texture, so no view can hold more
+device pixels than that on either axis.
+
+The cap is on **device** pixels, not CSS pixels, which is the part that catches
+people out. The canvas is sized `width * devicePixelRatio`, so a 2x display
+halves how wide a chart can be before it starts losing sharpness:
+
+| devicePixelRatio | widest chart at full sharpness, 8192 cap |
+| --- | --- |
+| 1 | 8192 css px |
+| 2 | 4096 css px |
+| 3 | 2730 css px |
+
+A long sorted bar list or a tall facet grid reaches this well before it looks
+unreasonable.
+
+The renderer reads the cap from the GPU adapter and lowers the ratio to fit
+rather than refusing to draw, so a large view stays on screen and only loses
+sharpness. It says so once:
+
+```
+[vega-webgpu] 8192x300 at 2x needs 16384px, over the GPU's maximum texture size
+(8192px). Drawing at 1.000x instead, so the view is softer than requested.
+```
+
+To get full sharpness back, keep `width * devicePixelRatio` and
+`height * devicePixelRatio` under the cap. To read the cap on the current
+machine:
+
+```js
+(await navigator.gpu.requestAdapter()).limits.maxTextureDimension2D;
+```
+
+Setting `redrawOnZoom` to `false` also helps here, since zooming in then cannot
+push a view that already fits back over the cap.
 
 ## Development
 

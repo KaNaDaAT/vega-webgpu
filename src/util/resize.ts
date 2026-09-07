@@ -1,6 +1,18 @@
 import type { GPUVegaCanvasContext } from '../types/context.js';
 
 /**
+ * The ratio a canvas asks for, before the renderer caps or locks it. A
+ * detached canvas has no display to follow, so it stays at 1.
+ */
+export function pixelRatio(canvas: HTMLCanvasElement, scaleFactor?: number): number {
+  if (scaleFactor != null) {
+    return scaleFactor;
+  }
+  const inDOM = typeof HTMLElement !== 'undefined' && canvas instanceof HTMLElement && canvas.parentNode != null;
+  return inDOM ? window.devicePixelRatio || 1 : 1;
+}
+
+/**
  * Sizes the WebGPU canvas to the view and mirrors the coordinate transform
  * onto the detached pick canvas so geometric hit-testing (isPointInPath)
  * matches what is rendered.
@@ -13,11 +25,8 @@ export default function resize(
   origin: readonly [number, number],
   pickCanvas: HTMLCanvasElement,
   pickContext: CanvasRenderingContext2D,
-  scaleFactor?: number,
+  ratio: number,
 ): HTMLCanvasElement {
-  const inDOM = typeof HTMLElement !== 'undefined' && canvas instanceof HTMLElement && canvas.parentNode != null;
-  const ratio = scaleFactor ?? (inDOM ? window.devicePixelRatio || 1 : 1);
-
   canvas.width = width * ratio;
   canvas.height = height * ratio;
 

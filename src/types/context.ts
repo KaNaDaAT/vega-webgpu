@@ -34,6 +34,13 @@ export interface GPUVegaOptions {
    * between frames. Pipelines are rebuilt on the next render.
    */
   sampleCount: number;
+  /**
+   * Follow browser zoom. Zoom changes devicePixelRatio, and the default
+   * re-sizes the canvas and redraws so the view stays sharp. When false the
+   * canvas keeps the ratio it was first sized at and the browser scales it,
+   * which is softer but skips the redraw and cannot grow past the texture cap.
+   */
+  redrawOnZoom: boolean;
 }
 
 /** A scenegraph mark node as passed to mark draw functions. */
