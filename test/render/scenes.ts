@@ -65,10 +65,9 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   'arc-shapes': 130,
   'area-shapes': 80,
   'path-shapes': 180,
-  // Stroke heavy, so it carries the same triangulated ribbon gap as
-  // path-shapes. A gradient that stopped being sampled would move the pixel
-  // count instead, which is the check that stays tight here.
-  'gradient-strokes': 230,
+  // Rings and curves drawn thick, so the ribbon edge is the whole difference,
+  // the same gap arc-shapes carries.
+  'gradient-strokes': 120,
   // Both renderers approximate a slanted edge. Against exact pixel coverage
   // these are 3.1 levels off on average where canvas is 15.8, so the budget is
   // mostly canvas's own error.

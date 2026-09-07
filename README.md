@@ -74,6 +74,40 @@ Not supported yet:
 - Radial gradients with an offset focal point (approximated as concentric circles)
 - Miter and bevel line joins (round joins are used for all lines)
 
+### Borders between abutting fills
+
+Two polygons that share an edge, a choropleth's counties for instance, come out
+without a line between them where canvas draws one.
+
+That line is not something the spec asked for. Canvas fills each polygon
+separately, so a shared edge takes about half of one fill over the background
+and then about half of the next over that, and roughly a quarter of the
+background survives as a pale seam. This renderer draws the polygons in one
+multisampled pass, where the two fills split the samples between them and cover
+the edge completely, so nothing shows through.
+
+Reproducing the seam would mean giving each polygon its own fractional coverage,
+which a triangulated fill cannot supply: the fragment would need its distance to
+the polygon's outline, and the triangulation only knows its own edges, which have
+to stay hard. So the seam is not reproduced.
+
+Ask for the border instead, which is clearer about the intent and renders the
+same everywhere:
+
+```json
+"encode": {
+  "update": {
+    "fill": {"scale": "color", "field": "rate"},
+    "stroke": {"value": "#fff"},
+    "strokeWidth": {"value": 0.5}
+  }
+}
+```
+
+`choropleth-stroked` and `map-fit-stroked` in `test/specs-valid` are the two
+corpus specs of this kind written that way. Both track canvas more closely than
+the versions that rely on the seam.
+
 ### Maximum canvas size
 
 WebGPU caps a texture at `maxTextureDimension2D`, which is 8192 on most GPUs and

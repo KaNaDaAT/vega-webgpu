@@ -19,7 +19,9 @@ export const excludedSpecs: Record<string, string> = {
   benchmark: 'signal-driven stress demo (up to 300k points)',
   'earthquakes-globe': 'a timer rotates the globe, so the captured frame depends on wall clock',
   'splom-outer-50k': '50k-point stress demo, too slow for software-rendered CI',
-  'movies-sort': 'canvas exceeds the WebGPU max texture size; the renderer intentionally skips it',
+  'movies-sort':
+    'a 47678px tall canvas, past the GPU texture cap, so the renderer draws it at a ' +
+    'reduced ratio and the two images are no longer the same size to compare',
 };
 
 /**
