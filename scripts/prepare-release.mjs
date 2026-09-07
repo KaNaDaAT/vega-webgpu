@@ -160,7 +160,7 @@ const pending = Object.keys(releases)
   .sort(byVersionDesc);
 writeFileSync(
   join(releasesDir, 'versions.js'),
-  `const vegaWebGPURendererVersions = [${versions.map(v => `'${v}'`).join(', ')}];\n`,
+  `const vegaWebGPURendererVersions = [${listed.map(v => `'${v}'`).join(', ')}];\n`,
 );
 
 // 4. splice the version rows and the date into releases/index.html
