@@ -19,10 +19,14 @@ const viewBounds = (origin: readonly [number, number], width: number, height: nu
 // hanging its caller.
 const CAPTURE_TIMEOUT_MS = 10_000;
 const MAX_DEVICE_RECOVERIES = 3;
+/** Quiet time before a settling frame redraws at full quality. */
+const SETTLE_DELAY_MS = 150;
 
 interface PendingRender {
   scene: GPUVegaScene;
   markTypes?: string[];
+  /** Draw at full quality, however long that takes. */
+  settle?: boolean;
 }
 
 export default class WebGPURenderer extends Renderer {
@@ -71,6 +75,8 @@ export default class WebGPURenderer extends Renderer {
   private _pendingRender: PendingRender | null = null;
   private _gpuTimer: GpuTimer | null = null;
   private _finalized = false;
+  private _settling = false;
+  private _settleTimer: ReturnType<typeof setTimeout> | null = null;
   private _lastRender: PendingRender | null = null;
   private _renderPromise: Promise<void> = Promise.resolve();
   // Stands in for a deferred frame so awaiting callers follow it, not the
@@ -252,12 +258,12 @@ export default class WebGPURenderer extends Renderer {
     return this;
   }
 
-  override _render(scene: GPUVegaScene, markTypes?: string[]): this {
+  override _render(scene: GPUVegaScene, markTypes?: string[], settle?: boolean): this {
     this._lastRender = { scene, markTypes };
     if (this.wgOptions.renderLock && this._isRendering) {
       // Without a stand-in promise renderAsync would resolve against the
       // in-flight frame, so callers would read the canvas before this scene ran.
-      this._pendingRender = { scene, markTypes };
+      this._pendingRender = { scene, markTypes, settle };
       if (!this._pendingPromise) {
         this._pendingPromise = new Promise<void>(resolve => {
           this._resolvePending = resolve;
@@ -268,7 +274,7 @@ export default class WebGPURenderer extends Renderer {
     }
     this._isRendering = true;
 
-    this._renderPromise = this._frame(scene, markTypes).catch(err => {
+    this._renderPromise = this._frame(scene, markTypes, settle).catch(err => {
       console.error('[vega-webgpu] Render failed:', err);
       // One failure must not wedge the lock or strand awaiting callers.
       const capture = this._capture;
@@ -305,6 +311,10 @@ export default class WebGPURenderer extends Renderer {
    */
   finalize(): void {
     this._finalized = true;
+    if (this._settleTimer !== null) {
+      clearTimeout(this._settleTimer);
+      this._settleTimer = null;
+    }
     const device = this._device;
     this._gpuTimer?.destroy();
     this._dropDevice();
@@ -348,7 +358,7 @@ export default class WebGPURenderer extends Renderer {
     this._msaaTextureDevice = null;
   }
 
-  private async _frame(scene: GPUVegaScene, markTypes?: string[]): Promise<void> {
+  private async _frame(scene: GPUVegaScene, markTypes?: string[], settle?: boolean): Promise<void> {
     const tFrameStart = performance.now();
     const { device, ctx } = await this._reinit();
 
@@ -383,7 +393,12 @@ export default class WebGPURenderer extends Renderer {
     ctx._ty = 0;
 
     const t1 = performance.now();
-    this.draw(device, ctx, scene, vb, markTypes);
+    this._settling = settle === true;
+    try {
+      this.draw(device, ctx, scene, vb, markTypes);
+    } finally {
+      this._settling = false;
+    }
     const t2 = performance.now();
 
     // One pass for the whole frame: clears to the background color, draws
@@ -487,7 +502,8 @@ export default class WebGPURenderer extends Renderer {
           fn(value);
         };
       this._capture = { resolve: done(resolve), reject: done(reject) };
-      this._render(this._lastRender.scene, this._lastRender.markTypes);
+      // A capture is the finished picture, so it draws at full quality.
+      this._render(this._lastRender.scene, this._lastRender.markTypes, true);
     });
   }
 
@@ -565,7 +581,7 @@ export default class WebGPURenderer extends Renderer {
     this._resolvePending = null;
 
     if (pending) {
-      this._render(pending.scene, pending.markTypes);
+      this._render(pending.scene, pending.markTypes, pending.settle);
       // Settle only once the flushed frame does, so callers track real work.
       this._renderPromise.then(
         () => resolve?.(),
@@ -583,6 +599,31 @@ export default class WebGPURenderer extends Renderer {
       this._render(this._lastRender.scene, this._lastRender.markTypes);
     }
     return this;
+  }
+
+  /** True while drawing a frame that is not allowed to take a cheaper path. */
+  get settling(): boolean {
+    return this._settling;
+  }
+
+  /**
+   * Asks for one more frame once renders stop arriving, for a mark that took a
+   * cheaper path to keep up. Each render pushes it back, so a drag pays nothing
+   * and the frame it comes to rest on is the full quality one.
+   */
+  requestSettle(): void {
+    if (this._finalized || this._settling) {
+      return;
+    }
+    if (this._settleTimer !== null) {
+      clearTimeout(this._settleTimer);
+    }
+    this._settleTimer = setTimeout(() => {
+      this._settleTimer = null;
+      if (this._lastRender) {
+        this._render(this._lastRender.scene, this._lastRender.markTypes, true);
+      }
+    }, SETTLE_DELAY_MS);
   }
 
   draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, bounds: Bounds, markTypes?: string[]): void {
