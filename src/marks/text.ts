@@ -82,8 +82,6 @@ interface Placement {
   turn: Turn;
 }
 
-
-
 /**
  * Slot for one rasterization of a label. On a miss it draws the label into the
  * atlas, unless `rasterize` is false, which asks only whether it is already

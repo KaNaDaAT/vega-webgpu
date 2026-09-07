@@ -53,7 +53,7 @@ interface ShapeResources {
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
   pipelineFor: (blend: string) => GPURenderPipeline;
-  gradientPipeline: GPURenderPipeline;
+  gradientPipelineFor: (blend: string) => GPURenderPipeline;
   /** Outlines draw as segments rather than a triangulated ribbon. */
   segmentVertexManager: VertexBufferManager;
   segmentPipeline: GPURenderPipeline;
@@ -82,6 +82,11 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
         ? pipeline
         : markPipeline(ctx, device, `${drawName} ${blend}`, 'SolidFill', vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
+    // a gradient fill under a blend needs its own pipeline too
+    const gradientPipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? gradientPipeline
+        : markPipeline(ctx, device, `${drawName}Gradient ${blend}`, 'GradientFill', vertexManager, undefined, blend);
     const segmentVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
     const segmentPipeline = markPipeline(ctx, device, `${drawName}Stroke`, 'SLine', segmentVertexManager);
     return {
@@ -90,7 +95,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       vertexManager,
       pipeline,
       pipelineFor,
-      gradientPipeline,
+      gradientPipelineFor,
       segmentVertexManager,
       segmentPipeline,
       outlines: new OutlineBuffer(),
@@ -116,7 +121,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     ctx,
     device,
     name: `${drawName}Gradient`,
-    pipeline: res.gradientPipeline,
+    pipelineFor: res.gradientPipelineFor,
     bufferManager: res.bufferManager,
     uniformBuffer,
     vertexLength,
@@ -176,13 +181,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
     if (fillData.length > 0 && gradient && bounds) {
       flushBatch();
-      enqueueGradient(gradientTarget, fillData, gradient, bounds);
+      enqueueGradient(gradientTarget, fillData, gradient, bounds, blendKey(item.blend));
     } else {
       batch.push(fillData);
     }
     if (strokeData.length > 0 && strokeGradient && bounds) {
       flushBatch();
-      enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds);
+      enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds, blendKey(item.blend));
     } else {
       batch.push(strokeData);
       outlinesHeld &&= unchanged;
@@ -235,12 +240,7 @@ interface OutlineState {
  * writeBuffer is ordered on the queue, so a rewrite lands after the previous
  * frame's draws have read it.
  */
-function outlineBuffer(
-  device: GPUDevice,
-  state: OutlineState,
-  outlines: OutlineBuffer,
-  held: boolean,
-): GPUBuffer {
+function outlineBuffer(device: GPUDevice, state: OutlineState, outlines: OutlineBuffer, held: boolean): GPUBuffer {
   const bytes = new Uint8Array(outlines.data.buffer, 0, outlines.length * 4);
   if (state.buffer && held) {
     return state.buffer;

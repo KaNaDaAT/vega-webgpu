@@ -336,3 +336,205 @@ footer p {
 footer .updated {
   display: block;
 }
+
+/* --- mark playground and impressum --- */
+
+header.slim {
+  padding: 32px 0 24px;
+}
+
+header.slim .eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+header.slim .eyebrow a:hover {
+  color: var(--accent);
+}
+
+.controls {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.controls .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 20px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.controls label > span {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.controls select {
+  font: inherit;
+  font-size: 15px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+legend {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 14px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.callout {
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin: 20px 0;
+  max-width: none;
+  font-size: 15px;
+}
+
+.callout.bad {
+  border-left-color: var(--no);
+}
+
+.callout.warn {
+  border-left-color: var(--partial);
+}
+
+.panels {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.panel {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+}
+
+.panel figcaption {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel > div {
+  padding: 8px;
+  overflow-x: auto;
+}
+
+details {
+  margin-top: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+details .actions {
+  margin: 14px 0;
+}
+
+button.btn {
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.matrix td a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--muted);
+}
+
+.matrix td a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+dl.legal dt {
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+dl.legal dd {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.todo {
+  color: var(--no);
+  font-style: italic;
+}
+
+.callout ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.callout li {
+  margin-bottom: 4px;
+}
+
+.callout .y {
+  color: var(--yes);
+}
+
+.callout .p {
+  color: var(--partial);
+}
+
+.callout .n {
+  color: var(--no);
+}
+
+.callout .na {
+  color: var(--muted);
+}
+
+.madewith {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}

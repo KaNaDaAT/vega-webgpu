@@ -125,7 +125,7 @@ export interface GradientTarget {
   ctx: GPUVegaCanvasContext;
   device: GPUDevice;
   name: string;
-  pipeline: GPURenderPipeline;
+  pipelineFor: (blend: string) => GPURenderPipeline;
   bufferManager: BufferManager;
   uniformBuffer: GPUBuffer;
   vertexLength: number;
@@ -138,8 +138,10 @@ export function enqueueGradient(
   data: Float32Array,
   gradient: SceneGradient,
   bounds: Bounds,
+  blend = 'normal',
 ): void {
-  const { ctx, device, pipeline } = target;
+  const { ctx, device } = target;
+  const pipeline = target.pipelineFor(blend);
   ctx._renderQueue.enqueue({
     pipeline,
     drawCounts: [data.length / target.vertexLength],

@@ -18,6 +18,7 @@
         </p>
         <p class="actions">
           <a class="btn primary" href="../test/">Live demo</a>
+          <a class="btn" href="./marks.html">Mark playground</a>
           <a class="btn" href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
           <span class="btn off" aria-disabled="true">npm, not published yet</span>
         </p>
@@ -74,9 +75,32 @@
       }).runAsync();
     });
 &lt;/script&gt;</code></pre>
-        <p>
-          Every hosted build is listed under <a href="#versions">versions</a>. Anything before 2.0 was built for Vega 5.
+        <p>Every hosted build is listed under <a href="#versions">versions</a>, each with its own page.</p>
+        <p class="note">
+          <strong>Match the Vega major version.</strong> 2.0.0 and later target Vega 6. Everything before it targets
+          Vega 5 and throws <code>Class constructor cannot be invoked without 'new'</code> when loaded next to Vega 6,
+          because a renderer registers itself against whichever Vega is already on the page.
         </p>
+        <div class="scroll">
+          <table class="opts">
+            <thead>
+              <tr>
+                <th>Renderer</th>
+                <th>Load this Vega</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2.0.0 and later</td>
+                <td><code>https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js</code></td>
+              </tr>
+              <tr>
+                <td>1.2.0 and earlier</td>
+                <td><code>https://cdn.jsdelivr.net/npm/vega@5/build/vega.min.js</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h3>npm</h3>
         <p class="note">Not published yet. Until it is, take a hosted build with the script tag above.</p>
@@ -192,106 +216,14 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
                 <th>blend</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td>arc</td>
-                <td class="y">yes</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="na">n/a</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>area</td>
-                <td class="y">yes</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="p">square only</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>group</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="y">yes</td>
-                <td class="na">n/a</td>
-                <td class="n">no</td>
-              </tr>
-              <tr>
-                <td>image</td>
-                <td class="na">n/a</td>
-                <td class="na">n/a</td>
-                <td class="na">n/a</td>
-                <td class="na">n/a</td>
-                <td class="n">no</td>
-              </tr>
-              <tr>
-                <td>line</td>
-                <td class="na">n/a</td>
-                <td class="n">no</td>
-                <td class="y">yes</td>
-                <td class="y">yes</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>path</td>
-                <td class="y">yes</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="p">square only</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>rect</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="n">no</td>
-                <td class="na">n/a</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>rule</td>
-                <td class="na">n/a</td>
-                <td class="n">no</td>
-                <td class="n">no</td>
-                <td class="n">no</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>shape</td>
-                <td class="y">yes</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="p">square only</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>symbol</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="n">no</td>
-                <td class="na">n/a</td>
-                <td class="y">yes</td>
-              </tr>
-              <tr>
-                <td>text</td>
-                <td class="n">no</td>
-                <td class="n">no</td>
-                <td class="na">n/a</td>
-                <td class="na">n/a</td>
-                <td class="n">no</td>
-              </tr>
-              <tr>
-                <td>trail</td>
-                <td class="y">yes</td>
-                <td class="y">yes</td>
-                <td class="n">no</td>
-                <td class="na">n/a</td>
-                <td class="y">yes</td>
-              </tr>
-            </tbody>
+            <!-- filled from marks.js, which the playground reads too, so the two cannot disagree -->
+            <tbody id="matrix"></tbody>
           </table>
         </div>
+        <p>
+          Every mark name is a link into the <a href="./marks.html">playground</a>, where you can tick these properties
+          on and off and watch canvas and WebGPU draw the same spec side by side.
+        </p>
         <p>
           Where a gradient is not supported the mark draws a flat colour from the gradient's first stop. Where
           <code>strokeDash</code> is not read the stroke draws solid, which is most visible on a dashed axis grid, since
@@ -317,6 +249,12 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
             <strong>Edges of triangulated marks.</strong> arc, area, path and shape take their edge coverage from MSAA,
             which expresses quarter steps, so an edge landing on a pixel boundary can read a quarter light or heavy
             against canvas. rect, rule, symbol and line segments compute coverage analytically and do not have this.
+          </li>
+          <li>
+            <strong>A blend mode needs an opaque backdrop.</strong> WebGPU's fixed function blending cannot express the
+            term that leaves a source colour unchanged where the backdrop is empty, so a blended mark over a fully
+            transparent background comes out dark where canvas leaves it alone. Charts normally set a background, and
+            with one the four supported modes match canvas exactly.
           </li>
           <li>
             <strong>Downscaled images.</strong> The GPU samples bilinearly where canvas box filters a large reduction,
@@ -424,30 +362,30 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
               <tr>
                 <th>Version</th>
                 <th>Changes</th>
+                <th>Files</th>
               </tr>
             </thead>
             <tbody>
               <!-- versions:start -->
               <tr>
-                <td><a href="./1_2_0/vega-webgpu-renderer.js">1.2.0</a></td>
-                <td>
-                  Performance improvements on Lines. Render Bundling Option <code>renderBatch</code>. Support Clipping.
-                  Path offset fixed.
-                </td>
+                <td><a href="./1_2_0/">1.2.0</a></td>
+                <td>Performance work on lines, clipping support and a path offset fix. <em>(needs Vega 5)</em></td>
+                <td><a href="./1_2_0/vega-webgpu-renderer.js">js</a> <a href="./1_2_0/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <tr>
-                <td><a href="./1_1_1/vega-webgpu-renderer.js">1.1.1</a></td>
-                <td>
-                  Performance improvements on Paths.<br />Introducing WebGPU Render Option <code>renderLock</code>.
-                </td>
+                <td><a href="./1_1_1/">1.1.1</a></td>
+                <td>Performance work on paths, plus the renderLock option. <em>(needs Vega 5)</em></td>
+                <td><a href="./1_1_1/vega-webgpu-renderer.js">js</a> <a href="./1_1_1/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <tr>
-                <td><a href="./1_1_0/vega-webgpu-renderer.js">1.1.0</a></td>
-                <td>Over all improvements in terms of performance and structure.</td>
+                <td><a href="./1_1_0/">1.1.0</a></td>
+                <td>Overall improvements to performance, types and structure. <em>(needs Vega 5)</em></td>
+                <td><a href="./1_1_0/vega-webgpu-renderer.js">js</a> <a href="./1_1_0/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <tr>
-                <td><a href="./1_0_0/vega-webgpu-renderer.js">1.0.0</a></td>
-                <td>First WebGPU Implementation</td>
+                <td><a href="./1_0_0/">1.0.0</a></td>
+                <td>First WebGPU implementation. <em>(needs Vega 5)</em></td>
+                <td><a href="./1_0_0/vega-webgpu-renderer.js">js</a> <a href="./1_0_0/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <!-- versions:end -->
             </tbody>
@@ -461,9 +399,15 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
       <div class="wrap">
         <p>
           <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="./marks.html">Mark playground</a>
           <a href="../test/">Live demo</a>
           <a href="https://vega.github.io/vega/">Vega</a>
           <a href="https://github.com/KaNaDaAT/vega-webgpu/blob/main/ToDo.md">Full roadmap</a>
+          <a href="./impressum.html">Impressum</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
         </p>
         <p class="updated">
           Last updated
@@ -471,5 +415,28 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
         </p>
       </div>
     </footer>
+
+    <script type="module">
+      import { SUPPORT, MARKS, FEATURES, CELL_TEXT, CELL_CLASS } from './marks.js';
+
+      const body = document.getElementById('matrix');
+      for (const mark of MARKS) {
+        const row = document.createElement('tr');
+        const name = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = `./marks.html?mark=${mark}`;
+        link.textContent = mark;
+        link.title = `Try ${mark} in the playground`;
+        name.append(link);
+        row.append(name);
+        for (const f of FEATURES) {
+          const cell = document.createElement('td');
+          cell.className = CELL_CLASS[SUPPORT[mark][f.key]];
+          cell.textContent = CELL_TEXT[SUPPORT[mark][f.key]];
+          row.append(cell);
+        }
+        body.append(row);
+      }
+    </script>
   </body>
 </html>

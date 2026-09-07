@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../index.css" />
+    <title>vega-webgpu-renderer 1.2.0</title>
+  </head>
+  <body>
+    <header class="slim">
+      <div class="wrap">
+        <p class="eyebrow"><a href="../">vega-webgpu-renderer</a></p>
+        <h1>Version 1.2.0</h1>
+        <p class="lede">Performance work on lines, clipping support and a path offset fix.</p>
+        <p class="actions">
+          <a class="btn primary" href="./vega-webgpu-renderer.js">vega-webgpu-renderer.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.min.js">vega-webgpu-renderer.min.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.module.js">ESM build</a>
+          <a class="btn" href="../marks.html?build=1.2.0">Try it</a>
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section>
+        <h2>Load it</h2>
+        <p>
+          This build targets <strong>Vega 5</strong>. Loaded next to a different major version of Vega it
+          throws when it registers itself.
+        </p>
+        <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@5/build/vega.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/1_2_0/vega-webgpu-renderer.min.js"&gt;&lt;/script&gt;</code></pre>
+      </section>
+
+      <section>
+        <h2>Features</h2>
+        <ul>
+          <li>renderBatch render bundling option</li>
+          <li>Clipping support</li>
+        </ul>
+
+        <h2>Performance</h2>
+        <ul>
+          <li>Line marks</li>
+        </ul>
+
+        <h2>Fixes</h2>
+        <ul>
+          <li>Path offsets were applied incorrectly</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="../">Project page</a>
+          <a href="../#versions">All versions</a>
+          <a href="../marks.html?build=1.2.0">Mark playground</a>
+          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="../impressum.html">Impressum</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

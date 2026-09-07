@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./index.css" />
+    <title>Mark playground</title>
+    <meta
+      name="description"
+      content="Try each Vega mark type with gradients, dashes, caps and blend, canvas against WebGPU."
+    />
+  </head>
+  <body>
+    <header class="slim">
+      <div class="wrap">
+        <p class="eyebrow"><a href="./">vega-webgpu-renderer</a></p>
+        <h1>Mark playground</h1>
+        <p class="lede">
+          Pick a mark, tick the properties, and see what each renderer does with them. Everything here is drawn from a
+          plain Vega spec, shown at the bottom.
+        </p>
+      </div>
+    </header>
+
+    <div class="controls">
+      <div class="wrap">
+        <label>
+          <span>Mark</span>
+          <select id="mark"></select>
+        </label>
+        <fieldset id="features">
+          <legend>Properties</legend>
+        </fieldset>
+        <label>
+          <span>Show</span>
+          <select id="view">
+            <option value="both">canvas and webgpu</option>
+            <option value="webgpu">webgpu only</option>
+            <option value="canvas">canvas only</option>
+          </select>
+        </label>
+        <label>
+          <span>Build</span>
+          <select id="build"></select>
+        </label>
+      </div>
+    </div>
+
+    <main class="wrap">
+      <div id="status" class="callout"></div>
+      <div id="panels" class="panels"></div>
+      <p id="error" class="callout bad" hidden></p>
+
+      <details id="specbox">
+        <summary>The spec being drawn</summary>
+        <p class="actions">
+          <button class="btn" id="copy" type="button">Copy spec</button>
+          <a class="btn" id="docs" href="https://vega.github.io/vega/docs/marks/">Mark docs on vega.github.io</a>
+          <a class="btn" href="https://vega.github.io/editor/">Vega editor</a>
+        </p>
+        <pre><code id="spec"></code></pre>
+      </details>
+
+      <section>
+        <h2>Vega's own</h2>
+        <p>
+          This page only varies five properties. Vega documents every mark and every property it has, with a live
+          example on each page, and its gallery is where the corpus this renderer is tested against comes from.
+        </p>
+        <ul>
+          <li><a href="https://vega.github.io/vega/docs/marks/">Mark types and their full property list</a></li>
+          <li><a href="https://vega.github.io/vega/examples/">Example gallery</a></li>
+          <li><a href="https://vega.github.io/editor/">Vega editor, for pasting a spec and editing it live</a></li>
+          <li><a href="https://vega.github.io/vega/docs/">Vega documentation</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="./">Project page</a>
+          <a href="../test/">Full demo</a>
+          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="https://vega.github.io/vega/">Vega</a>
+          <a href="./impressum.html">Impressum</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script type="module">
+      import { SUPPORT, MARKS, FEATURES, CELL_CLASS, EXPLAIN, docsUrl, baseSpec, applyFeatures } from './marks.js';
+
+      const $ = id => document.getElementById(id);
+      const params = new URLSearchParams(location.search);
+      const state = {
+        mark: MARKS.includes(params.get('mark')) ? params.get('mark') : 'symbol',
+        view: ['both', 'webgpu', 'canvas'].includes(params.get('view')) ? params.get('view') : 'both',
+        on: Object.fromEntries(FEATURES.map(f => [f.key, params.get(f.key) === '1'])),
+      };
+      let views = [];
+
+      for (const m of MARKS) {
+        $('mark').append(new Option(m, m, false, m === state.mark));
+      }
+      for (const f of FEATURES) {
+        const label = document.createElement('label');
+        label.className = 'check';
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.dataset.key = f.key;
+        box.checked = state.on[f.key];
+        box.addEventListener('change', () => {
+          state.on[f.key] = box.checked;
+          render();
+        });
+        label.append(box, document.createTextNode(f.label));
+        $('features').append(label);
+      }
+      $('mark').addEventListener('change', () => {
+        state.mark = $('mark').value;
+        render();
+      });
+      $('view').value = state.view;
+      $('view').addEventListener('change', () => {
+        state.view = $('view').value;
+        render();
+      });
+
+      const VEGA = {
+        5: 'https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js',
+        6: 'https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js',
+      };
+
+      /** Builds before 2.0.0 were written against Vega 5 and throw on Vega 6. */
+      const vegaMajorFor = id => (id === 'dev' || Number(id.split('.')[0]) >= 2 ? 6 : 5);
+
+      const script = src =>
+        new Promise(resolve => {
+          const el = document.createElement('script');
+          el.src = src;
+          el.onload = () => resolve(true);
+          el.onerror = () => resolve(false);
+          document.head.append(el);
+        });
+
+      const reachable = async url => {
+        try {
+          return (await fetch(url, { method: 'HEAD' })).ok;
+        } catch {
+          return false;
+        }
+      };
+
+      /**
+       * Picks the build first, then loads the Vega it was written against, then
+       * the renderer. Loading Vega 6 and then a 1.x build is what throws "Class
+       * constructor cannot be invoked without new", so the order matters. A
+       * build swap reloads, since a UMD bundle registers itself with whichever
+       * vega is already on the page.
+       */
+      async function loadRenderer() {
+        let hosted = [];
+        try {
+          hosted = Object.keys(await fetch('./releases.json').then(r => r.json())).sort((a, b) =>
+            b.localeCompare(a, undefined, { numeric: true }),
+          );
+        } catch {
+          hosted = [];
+        }
+        const dev = { id: 'dev', url: '../build/vega-webgpu-renderer.js', label: 'dev (local build)' };
+        const sources = [dev].concat(
+          hosted.map(v => ({
+            id: v,
+            url: `./${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`,
+            label: vegaMajorFor(v) === 5 ? `${v} (needs Vega 5)` : v,
+          })),
+        );
+        for (const s of sources) {
+          $('build').append(new Option(s.label, s.id, false, s.id === params.get('build')));
+        }
+        $('build').addEventListener('change', () => {
+          params.set('build', $('build').value);
+          location.search = params.toString();
+        });
+
+        const asked = sources.find(s => s.id === params.get('build'));
+        const chosen = asked ?? ((await reachable(dev.url)) ? dev : sources[1]);
+        if (!chosen) {
+          return null;
+        }
+        $('build').value = chosen.id;
+        const major = vegaMajorFor(chosen.id);
+        if (!(await script(VEGA[major]))) {
+          return null;
+        }
+        if (!(await script(chosen.url)) || !vega.renderModule('webgpu')) {
+          return null;
+        }
+        return { ...chosen, vega: major };
+      }
+
+      function buildSpec() {
+        return applyFeatures(baseSpec(state.mark), state.on);
+      }
+
+      /** One line per ticked property, saying what this renderer does with it. */
+      function fillStatus() {
+        const row = SUPPORT[state.mark];
+        const ticked = FEATURES.filter(f => state.on[f.key]);
+        const el = $('status');
+        el.innerHTML = '';
+        if (ticked.length === 0) {
+          el.textContent = `Showing a ${state.mark} mark. Tick a property to see how it is handled.`;
+          return;
+        }
+        const list = document.createElement('ul');
+        for (const f of ticked) {
+          const level = row[f.key];
+          const item = document.createElement('li');
+          const name = document.createElement('strong');
+          name.textContent = `${f.label}: `;
+          const text = document.createElement('span');
+          text.className = CELL_CLASS[level];
+          text.textContent = EXPLAIN[f.key][level];
+          item.append(name, text);
+          list.append(item);
+        }
+        el.append(list);
+      }
+
+      function statusKind() {
+        const row = SUPPORT[state.mark];
+        const ticked = FEATURES.filter(f => state.on[f.key]).map(f => row[f.key]);
+        if (ticked.includes('no')) return 'bad';
+        if (ticked.includes('partial')) return 'warn';
+        return '';
+      }
+
+      async function render() {
+        for (const v of views) {
+          v.finalize();
+        }
+        views = [];
+        window.__views = views; // the page's own test drives it through this
+        $('panels').innerHTML = '';
+        fillStatus();
+        $('status').className = `callout ${statusKind()}`;
+        $('docs').href = docsUrl(state.mark);
+
+        const spec = buildSpec();
+        $('spec').textContent = JSON.stringify(spec, null, 2);
+        for (const f of FEATURES) {
+          params.set(f.key, state.on[f.key] ? '1' : '0');
+        }
+        params.set('mark', state.mark);
+        params.set('view', state.view);
+        history.replaceState({}, '', `?${params}`);
+
+        const wanted = state.view === 'both' ? ['canvas', 'webgpu'] : [state.view];
+        for (const renderer of wanted) {
+          const panel = document.createElement('figure');
+          panel.className = 'panel';
+          const cap = document.createElement('figcaption');
+          cap.textContent = renderer;
+          const host = document.createElement('div');
+          panel.append(cap, host);
+          $('panels').append(panel);
+          try {
+            const view = new vega.View(vega.parse(spec), {
+              renderer,
+              container: host,
+              hover: true,
+              logLevel: vega.Warn,
+            });
+            views.push(view);
+            view.__renderer = renderer;
+            await view.runAsync();
+          } catch (err) {
+            cap.textContent = `${renderer}: ${err}`;
+          }
+        }
+      }
+
+      $('copy').addEventListener('click', async () => {
+        await navigator.clipboard.writeText($('spec').textContent);
+        $('copy').textContent = 'Copied';
+        setTimeout(() => ($('copy').textContent = 'Copy spec'), 1200);
+      });
+
+      const loaded = await loadRenderer();
+      if (!loaded) {
+        $('error').hidden = false;
+        $('error').textContent =
+          'No WebGPU build could be loaded. Run npm run build for the dev option, or pick a hosted version.';
+      } else if (loaded.id !== 'dev') {
+        $('error').hidden = false;
+        $('error').className = 'callout warn';
+        $('error').textContent =
+          `Drawing with the hosted ${loaded.id} build on Vega ${loaded.vega}. The feature table describes 2.0.0, ` +
+          `which is not released yet, so what you see here will differ. Build from source and pick "dev" for the ` +
+          `current state.`;
+      }
+      // navigator.gpu can exist with no adapter behind it, which draws a blank
+      // panel rather than throwing, so ask for one before saying anything
+      const adapter = navigator.gpu ? await navigator.gpu.requestAdapter().catch(() => null) : null;
+      if (!adapter) {
+        $('error').hidden = false;
+        $('error').className = 'callout bad';
+        $('error').textContent = navigator.gpu
+          ? 'This browser exposes WebGPU but no GPU adapter is available, so the webgpu panel stays blank. The canvas panel still works.'
+          : 'This browser has no WebGPU, so the webgpu panel stays blank. The canvas panel still works.';
+        if (state.view === 'both') {
+          state.view = 'canvas';
+          $('view').value = 'canvas';
+        }
+      }
+      await render();
+    </script>
+  </body>
+</html>

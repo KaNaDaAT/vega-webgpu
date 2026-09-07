@@ -17,7 +17,7 @@ interface RectResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
-  gradientPipeline: GPURenderPipeline;
+  gradientPipelineFor: (blend: string) => GPURenderPipeline;
   geometryBuffer: GPUBuffer;
   blendPipelines: Map<string, GPURenderPipeline>;
 }
@@ -39,13 +39,27 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       vertexManager,
       'main_fragment_gradient',
     );
+    // a gradient fill under a blend needs its own pipeline too
+    const gradientPipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? gradientPipeline
+        : markPipeline(
+            ctx,
+            device,
+            `${drawName}Gradient ${blend}`,
+            'Rect',
+            vertexManager,
+            'main_fragment_gradient',
+            blend,
+          );
+
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
     return {
       device,
       bufferManager,
       vertexManager,
       pipeline,
-      gradientPipeline,
+      gradientPipelineFor,
       geometryBuffer,
       blendPipelines: new Map(),
     };
@@ -109,15 +123,16 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     flushRun();
     runBlend = blend;
+    const gradientPipeline = res.gradientPipelineFor(blend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item as SceneRectExt], true));
     ctx._renderQueue.enqueue({
-      pipeline: res.gradientPipeline,
+      pipeline: gradientPipeline,
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
-        createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
+        createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
         // rect gradients evaluate in uv space, bounds are the unit square
-        createGradientBindGroup(gradientResources(), res.gradientPipeline, fill, [0, 0, 1, 1]),
+        createGradientBindGroup(gradientResources(), gradientPipeline, fill, [0, 0, 1, 1]),
       ],
       clip,
     });

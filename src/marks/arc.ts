@@ -29,7 +29,7 @@ interface ArcResources {
   /** Arc geometry is translated to world space and shares the path shader. */
   pipeline: GPURenderPipeline;
   pipelineFor: (blend: string) => GPURenderPipeline;
-  gradientPipeline: GPURenderPipeline;
+  gradientPipelineFor: (blend: string) => GPURenderPipeline;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): ArcResources {
@@ -46,7 +46,12 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
         ? pipeline
         : markPipeline(ctx, device, `${drawName} ${blend}`, 'SolidFill', vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
-    return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipeline };
+    // a gradient fill under a blend needs its own pipeline too
+    const gradientPipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? gradientPipeline
+        : markPipeline(ctx, device, `${drawName}Gradient ${blend}`, 'GradientFill', vertexManager, undefined, blend);
+    return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipelineFor };
   });
 }
 
@@ -64,7 +69,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     ctx,
     device,
     name: `${drawName}Gradient`,
-    pipeline: res.gradientPipeline,
+    pipelineFor: res.gradientPipelineFor,
     bufferManager: res.bufferManager,
     uniformBuffer,
     vertexLength,
@@ -113,13 +118,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
     if (fillData.length > 0 && gradient && bounds) {
       flushBatch();
-      enqueueGradient(gradientTarget, fillData, gradient, bounds);
+      enqueueGradient(gradientTarget, fillData, gradient, bounds, blendKey(item.blend));
     } else {
       batch.push(fillData);
     }
     if (strokeData.length > 0 && strokeGradient && bounds) {
       flushBatch();
-      enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds);
+      enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds, blendKey(item.blend));
     } else {
       batch.push(strokeData);
     }

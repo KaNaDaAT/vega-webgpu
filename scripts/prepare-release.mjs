@@ -18,8 +18,10 @@ const releasesDir = join(root, 'releases');
 const releasesJsonPath = join(releasesDir, 'releases.json');
 
 const args = process.argv.slice(2);
-const version = (args[0] ?? '').replace(/^v/, '');
-if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) {
+/** Rebuilds the pages from releases.json without cutting a release. */
+const pagesOnly = args[0] === '--pages';
+const version = pagesOnly ? '' : (args[0] ?? '').replace(/^v/, '');
+if (!pagesOnly && !/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) {
   console.error(`Usage: node scripts/prepare-release.mjs <version> [--notes "..."]\nGot version: '${version}'`);
   process.exit(1);
 }
@@ -27,34 +29,48 @@ const notesIndex = args.indexOf('--notes');
 const notes = notesIndex !== -1 ? (args[notesIndex + 1] ?? '') : '';
 
 const packageVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
-if (packageVersion !== version) {
+if (!pagesOnly && packageVersion !== version) {
   console.error(`Version mismatch: package.json has ${packageVersion}, release is ${version}.`);
   process.exit(1);
 }
 
 // 1. copy build artifacts
-const folder = join(releasesDir, version.replaceAll('.', '_'));
-mkdirSync(folder, { recursive: true });
-const artifacts = [
-  'vega-webgpu-renderer.js',
-  'vega-webgpu-renderer.js.map',
-  'vega-webgpu-renderer.min.js',
-  'vega-webgpu-renderer.min.js.map',
-  'vega-webgpu-renderer.module.js',
-  'vega-webgpu-renderer.module.js.map',
-];
-for (const file of artifacts) {
-  const source = join(root, 'build', file);
-  if (!existsSync(source)) {
-    console.error(`Missing build artifact: ${source}. Run 'npm run build' first.`);
-    process.exit(1);
+const folder = pagesOnly ? '' : join(releasesDir, version.replaceAll('.', '_'));
+if (!pagesOnly) {
+  mkdirSync(folder, { recursive: true });
+  const artifacts = [
+    'vega-webgpu-renderer.js',
+    'vega-webgpu-renderer.js.map',
+    'vega-webgpu-renderer.min.js',
+    'vega-webgpu-renderer.min.js.map',
+    'vega-webgpu-renderer.module.js',
+    'vega-webgpu-renderer.module.js.map',
+  ];
+  for (const file of artifacts) {
+    const source = join(root, 'build', file);
+    if (!existsSync(source)) {
+      console.error(`Missing build artifact: ${source}. Run 'npm run build' first.`);
+      process.exit(1);
+    }
+    copyFileSync(source, join(folder, file));
   }
-  copyFileSync(source, join(folder, file));
 }
 
 // 2. record release notes
 const releases = JSON.parse(readFileSync(releasesJsonPath, 'utf8'));
-releases[version] = notes || releases[version] || '';
+/** An entry is `{summary, features, performance, fixes, vega}`; a bare string is the old shape. */
+const entry = v => (typeof releases[v] === 'string' ? { summary: releases[v] } : (releases[v] ?? {}));
+if (!pagesOnly && (notes || releases[version] === undefined)) {
+  releases[version] = {
+    vega: Number(version.split('.')[0]) >= 2 ? 6 : 5,
+    summary: '',
+    features: [],
+    performance: [],
+    fixes: [],
+    ...(typeof releases[version] === 'object' ? releases[version] : {}),
+    ...(notes ? { summary: notes } : {}),
+  };
+}
 writeFileSync(releasesJsonPath, `${JSON.stringify(releases, null, 2)}\n`);
 
 // 3. regenerate versions.js (newest first)
@@ -114,9 +130,11 @@ writeFileSync(
 const rows = versions
   .map(v => {
     const href = `./${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
+    const e = entry(v);
     return `              <tr>
-                <td><a href="${href}">${v}</a></td>
-                <td>${notesHtml(releases[v])}</td>
+                <td><a href="./${v.replaceAll('.', '_')}/">${v}</a></td>
+                <td>${notesHtml(e.summary ?? '')}${e.vega === 5 ? ' <em>(needs Vega 5)</em>' : ''}</td>
+                <td><a href="${href}">js</a> <a href="${href.replace('.js', '.min.js')}">min</a></td>
               </tr>`;
   })
   .join('\n');
@@ -134,4 +152,81 @@ ${rows}
 page = splice(page, indexPath, 'updated', new Date().toISOString().slice(0, 10));
 writeFileSync(indexPath, page);
 
-console.log(`Prepared release ${version} in ${folder}`);
+// 5. one page per release, so a version in the table has somewhere to point
+const list = (title, items) =>
+  items?.length
+    ? [`        <h2>${title}</h2>`, '        <ul>']
+        .concat(items.map(i => `          <li>${notesHtml(i)}</li>`))
+        .concat('        </ul>')
+        .join('\n')
+    : '';
+
+for (const v of versions) {
+  const e = entry(v);
+  const dir = v.replaceAll('.', '_');
+  const body = [list('Features', e.features), list('Performance', e.performance), list('Fixes', e.fixes)]
+    .filter(Boolean)
+    .join('\n\n');
+  const vegaMajor = e.vega ?? (Number(v.split('.')[0]) >= 2 ? 6 : 5);
+  const sub = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../index.css" />
+    <title>vega-webgpu-renderer ${v}</title>
+  </head>
+  <body>
+    <header class="slim">
+      <div class="wrap">
+        <p class="eyebrow"><a href="../">vega-webgpu-renderer</a></p>
+        <h1>Version ${v}</h1>
+        <p class="lede">${notesHtml(e.summary ?? '')}</p>
+        <p class="actions">
+          <a class="btn primary" href="./vega-webgpu-renderer.js">vega-webgpu-renderer.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.min.js">vega-webgpu-renderer.min.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.module.js">ESM build</a>
+          <a class="btn" href="../marks.html?build=${v}">Try it</a>
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section>
+        <h2>Load it</h2>
+        <p>
+          This build targets <strong>Vega ${vegaMajor}</strong>. Loaded next to a different major version of Vega it
+          throws when it registers itself.
+        </p>
+        <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@${vegaMajor}/build/vega.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/${dir}/vega-webgpu-renderer.min.js"&gt;&lt;/script&gt;</code></pre>
+      </section>
+
+      <section>
+${body || '        <p class="note">Nothing further was recorded for this release.</p>'}
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="../">Project page</a>
+          <a href="../#versions">All versions</a>
+          <a href="../marks.html?build=${v}">Mark playground</a>
+          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="../impressum.html">Impressum</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
+`;
+  mkdirSync(join(releasesDir, dir), { recursive: true });
+  writeFileSync(join(releasesDir, dir, 'index.html'), sub);
+}
+
+console.log(pagesOnly ? `Rebuilt pages for ${versions.length} versions` : `Prepared release ${version} in ${folder}`);

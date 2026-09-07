@@ -51,7 +51,7 @@ interface SymbolResources {
   // legend swatch): one non-instanced draw per item.
   colorVertexManager: VertexBufferManager;
   solidPipeline: GPURenderPipeline;
-  gradientPipeline: GPURenderPipeline;
+  gradientPipelineFor: (blend: string) => GPURenderPipeline;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): SymbolResources {
@@ -82,6 +82,19 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
     const solidPipeline = markPipeline(ctx, device, `${drawName}Solid`, 'SolidFill', colorVertexManager);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', colorVertexManager);
+    // a gradient fill under a blend needs its own pipeline too
+    const gradientPipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? gradientPipeline
+        : markPipeline(
+            ctx,
+            device,
+            `${drawName}Gradient ${blend}`,
+            'GradientFill',
+            colorVertexManager,
+            undefined,
+            blend,
+          );
     return {
       device,
       bufferManager,
@@ -95,7 +108,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       quadGeometry,
       colorVertexManager,
       solidPipeline,
-      gradientPipeline,
+      gradientPipelineFor,
     };
   });
 }
@@ -256,13 +269,14 @@ function drawGradientSymbol(
 
   if (fillData.length > 0) {
     const gres = getGradientResources(device, ctx);
+    const gradientPipeline = res.gradientPipelineFor(blendKey(item.blend));
     ctx._renderQueue.enqueue({
-      pipeline: res.gradientPipeline,
+      pipeline: gradientPipeline,
       drawCounts: [fillData.length / vertexLength],
       vertexBuffers: [res.bufferManager.createGeometryBuffer(fillData)],
       bindGroups: [
-        createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-        createGradientBindGroup(gres, res.gradientPipeline, item.fill as SceneGradient, gradientBounds(ctx, bounds)),
+        createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
+        createGradientBindGroup(gres, gradientPipeline, item.fill as SceneGradient, gradientBounds(ctx, bounds)),
       ],
       clip,
     });

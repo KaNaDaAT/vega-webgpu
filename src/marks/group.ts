@@ -4,6 +4,7 @@ import type { SceneGroupExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
+import { blendKey } from '../util/blend.js';
 import { isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { visit } from '../util/visit.js';
@@ -27,7 +28,7 @@ interface GroupResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
-  gradientPipeline: GPURenderPipeline;
+  gradientPipelineFor: (blend: string) => GPURenderPipeline;
   dashPipeline: GPURenderPipeline;
   geometryBuffer: GPUBuffer;
 }
@@ -49,10 +50,24 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       vertexManager,
       'main_fragment_gradient',
     );
+    // a gradient fill under a blend needs its own pipeline too
+    const gradientPipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? gradientPipeline
+        : markPipeline(
+            ctx,
+            device,
+            `${drawName}Gradient ${blend}`,
+            'Rect',
+            vertexManager,
+            'main_fragment_gradient',
+            blend,
+          );
+
     const dashVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
     const dashPipeline = markPipeline(ctx, device, `${drawName}Dash`, 'SLine', dashVertexManager);
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, dashPipeline, geometryBuffer };
+    return { device, bufferManager, vertexManager, pipeline, gradientPipelineFor, dashPipeline, geometryBuffer };
   });
 }
 
@@ -117,14 +132,15 @@ function draw(
       continue;
     }
     flushRun();
+    const gradientPipeline = res.gradientPipelineFor(blendKey(item.blend));
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([drawn], true));
     ctx._renderQueue.enqueue({
-      pipeline: res.gradientPipeline,
+      pipeline: gradientPipeline,
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
-        createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-        createGradientBindGroup(gradientResources(), res.gradientPipeline, fill, [0, 0, 1, 1]),
+        createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
+        createGradientBindGroup(gradientResources(), gradientPipeline, fill, [0, 0, 1, 1]),
       ],
       clip: ctx._clip,
     });

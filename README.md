@@ -68,7 +68,7 @@ segments unconditionally now, so neither had anything left to switch.
 
 ## Supported marks & known limitations
 
-Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, trail, text (rasterized into a GPU glyph atlas), rounded rect and group corners, line dashes, gradient fills (linear + radial) on arc, area, group, path, rect, shape, symbol and trail marks, and gradient strokes on arc, area, path, shape and trail marks.
+Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, trail, text (rasterized into a GPU glyph atlas), rounded rect and group corners, line dashes, gradient fills (linear + radial) on arc, area, group, path, rect, shape, symbol, text and trail marks, and gradient strokes on arc, area, path, shape, text and trail marks.
 
 Not supported yet:
 
@@ -77,6 +77,7 @@ Not supported yet:
 - Miter and bevel line joins (round joins are used for all lines)
 - `strokeDash` outside line marks and group borders, so a dashed axis grid draws solid
 - `blend` on group, image and text marks (they always draw normal)
+- A blend over a translucent source or a transparent background (opaque marks on a background match)
 
 ### Borders between abutting fills
 
