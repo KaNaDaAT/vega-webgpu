@@ -1,4 +1,11 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { SEGMENT_NORMAL, TO_NDC, fragmentTail, uniformBlock } from './common.js';
+
+/**
+ * Sub-segments each span is split into, and the vertex count a curve draw
+ * asks for. Measured against canvas: 8 and 16 are indistinguishable and cost
+ * the same, 4 is visibly worse.
+ */
+export const CURVE_SUBDIVISIONS = 8;
 
 /**
  * How a span's four control points become a point and a tangent. Every cubic
@@ -54,9 +61,7 @@ struct VertexOutput {
   @location(2) half_width: f32,
 }
 
-// Sub-segments each span is split into. Measured against canvas: 8 and 16 are
-// indistinguishable and cost the same, 4 is visibly worse.
-const K: u32 = 8u;
+const K: u32 = ${CURVE_SUBDIVISIONS}u;
 
 /** The span's curve, substituted per variant. */
 fn curveAt(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f32) -> vec2<f32> {
@@ -78,11 +83,7 @@ fn spanTangent(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f3
     return select(p3 - p0, d, length(d) > 1e-6);
 }
 
-fn normalAt(d: vec2<f32>) -> vec2<f32> {
-    let len = length(d);
-    let dir = select(vec2<f32>(1.0, 0.0), d / len, len > 1e-9);
-    return vec2<f32>(-dir.y, dir.x);
-}
+${SEGMENT_NORMAL}
 
 /**
  * Every joint offsets along the analytic tangent, so neighbouring quads share
@@ -149,8 +150,6 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(in.color.rgb, in.color.a * coverage);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;
 };

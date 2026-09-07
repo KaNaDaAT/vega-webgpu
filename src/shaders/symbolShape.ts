@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /**
  * Instanced triangulated symbol shapes: one triangulated geometry per
@@ -41,7 +41,5 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return in.color;
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

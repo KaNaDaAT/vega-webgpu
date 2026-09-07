@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { BOX_COVERAGE, FILL_STROKE_SHARE, TO_NDC, fragmentTail, uniformBlock } from './common.js';
 import { GRADIENT_BLOCK } from './gradient.js';
 
 /**
@@ -13,6 +13,10 @@ ${uniformBlock('dpi')}
 ${GRADIENT_BLOCK}
 
 ${TO_NDC}
+
+${FILL_STROKE_SHARE}
+
+${BOX_COVERAGE}
 
 struct VertexInput {
   @location(0) position: vec2<f32>,
@@ -97,35 +101,12 @@ fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     return vec4<f32>(col.rgb, col.a * coverage);
 }
 
-/**
- * Fraction of the pixel covered by an axis-aligned box, computed the way canvas
- * does it rather than from MSAA samples. Two abutting rects then produce
- * complementary coverage, so the seam is the faint one canvas leaves and not a
- * whole missing sample. A deliberate gap between rects is preserved exactly,
- * because the geometry is untouched. lo/hi are in device pixels.
- */
-fn boxCoverage(p: vec2<f32>, lo: vec2<f32>, hi: vec2<f32>) -> f32 {
-    let cx = clamp(min(p.x - lo.x, hi.x - p.x) + 0.5, 0.0, 1.0);
-    let cy = clamp(min(p.y - lo.y, hi.y - p.y) + 0.5, 0.0, 1.0);
-    return cx * cy;
-}
-
-/**
- * Fill and stroke each get their true share of the pixel. Thresholding uv
- * instead would hand the whole pixel to one of them, which drops the inner
- * half of any stroke thin enough to straddle a pixel boundary.
- */
 fn straightRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     let p = in.pos.xy;
     let sw = vec2<f32>(in.strokewidth, in.strokewidth) * max(uniforms.dpi, 0.001);
     let outer = boxCoverage(p, in.lo_dev, in.hi_dev);
     let inner = boxCoverage(p, in.lo_dev + sw, in.hi_dev - sw);
-    // the fill and stroke areas are disjoint inside the pixel, so alphas add
-    let fa = fill.a * inner;
-    let sa = in.stroke.a * max(outer - inner, 0.0);
-    let a = fa + sa;
-    let rgb = (fill.rgb * fa + in.stroke.rgb * sa) / max(a, 1e-6);
-    return vec4<f32>(rgb, a);
+    return fillStrokeShare(fill, in.stroke, inner, outer);
 }
 
 fn maxRadius(radii: vec4<f32>) -> f32 {
@@ -151,9 +132,5 @@ fn gradientColor(in: VertexOutput) -> vec4<f32> {
     return rectColor(in, vec4<f32>(sample.rgb, sample.a * in.fill.a));
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
-
-${fragmentEntry('main_fragment_gradient', 'gradientColor')}
+${fragmentTail(blend, { main_fragment: 'fragmentColor', main_fragment_gradient: 'gradientColor' })}
 `;

@@ -7,6 +7,7 @@ import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { dashPolyline, type Point } from '../util/dash.js';
+import { CURVE_SUBDIVISIONS } from '../shaders/curve.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry, lineSpans } from '../path/shapes.js';
 import {
@@ -39,15 +40,21 @@ interface LineResources {
   joinGeometryBuffer: GPUBuffer;
   curveVertexManager: VertexBufferManager;
   curvePipeline: GPURenderPipeline;
-  basisPipeline: GPURenderPipeline;
-  basisVertexManager: VertexBufferManager;
-  basisBindGroup: GPUBindGroup | null;
-  basisBindGroupBuffer: GPUBuffer | null;
-  /** Same layout as basis, evaluating cubic Beziers instead. */
-  bezierPipeline: GPURenderPipeline;
-  bezierBindGroup: GPUBindGroup | null;
-  bezierBindGroupBuffer: GPUBuffer | null;
+  /** basis and bezier share this layout and differ only in the shader. */
+  spanVertexManager: VertexBufferManager;
+  spanBindGroups: Map<CurveKind, { group: GPUBindGroup; buffer: GPUBuffer }>;
 }
+
+/**
+ * The two cubics the GPU evaluates, each with the shader that reads its control
+ * points and the packer that produces them.
+ */
+const CURVES = {
+  basis: { shader: 'Curve:basis', instances: basisInstances },
+  bezier: { shader: 'Curve:bezier', instances: bezierInstances },
+} as const;
+
+type CurveKind = keyof typeof CURVES;
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
   return getMarkResources(ctx, 'line', device, vb, () => {
@@ -67,24 +74,17 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     const joinPipeline = markPipeline(ctx, device, `${drawName}Join`, 'Symbol', joinVertexManager);
     const joinGeometryBuffer = bufferManager.createGeometryBuffer(createJoinGeometry());
     const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
-    const basisVertexManager = new VertexBufferManager(
+    const spanVertexManager = new VertexBufferManager(
       [],
       // p0, p1, p2, p3, color, stroke width, kind
       ['float32x2', 'float32x2', 'float32x2', 'float32x2', 'float32x4', 'float32', 'float32'],
     );
-    const basisPipeline = markPipeline(ctx, device, `${drawName}Basis`, 'Curve:basis', basisVertexManager);
-    const bezierPipeline = markPipeline(ctx, device, `${drawName}Bezier`, 'Curve:bezier', basisVertexManager);
-    const curvePipeline = markPipeline(ctx, device, `${drawName}Curve`, 'Path', curveVertexManager);
+    const curvePipeline = markPipeline(ctx, device, `${drawName}Curve`, 'SolidFill', curveVertexManager);
     return {
       curveVertexManager,
       curvePipeline,
-      basisPipeline,
-      basisVertexManager,
-      basisBindGroup: null,
-      basisBindGroupBuffer: null,
-      bezierPipeline,
-      bezierBindGroup: null,
-      bezierBindGroupBuffer: null,
+      spanVertexManager,
+      spanBindGroups: new Map(),
       device,
       bufferManager,
       batchVertexManager,
@@ -98,35 +98,54 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   });
 }
 
-/**
- * True when the line ends in a square cap, which the GPU segment and curve
- * shaders do not draw. extrude-polyline does, so those go through the
- * tessellated path. A round cap is drawn as a disc at each end instead, since
- * extrude-polyline has no round cap either.
- */
-function needsSquareCap(points: SceneLinePoint[]): boolean {
-  return points[0]?.strokeCap === 'square';
-}
-
 function hasRoundCap(points: SceneLinePoint[]): boolean {
   return points[0]?.strokeCap === 'round';
 }
 
-/**
- * True when the mark cannot be drawn as a plain polyline, either because it
- * uses a curve interpolation or because `defined: false` puts gaps in it.
- */
-function needsPath(points: SceneLinePoint[]): boolean {
-  const interp = points[0]?.interpolate;
-  if (interp && interp !== 'linear') {
-    return true;
-  }
-  return points.some(p => p.defined === false);
+function dashPattern(points: SceneLinePoint[]): number[] | undefined {
+  const dash = points[0]?.strokeDash;
+  return Array.isArray(dash) && dash.length > 0 ? dash : undefined;
 }
 
-function dashPattern(item: SceneLinePoint): number[] | undefined {
-  const dash = item.strokeDash;
-  return Array.isArray(dash) && dash.length > 0 ? dash : undefined;
+/** True when the points can be drawn as they are, with no curve and no gaps. */
+function isPolyline(points: SceneLinePoint[]): boolean {
+  const interpolate = points[0]?.interpolate;
+  return (!interpolate || interpolate === 'linear') && points.every(p => p.defined !== false);
+}
+
+/** Which cubic each interpolation is. Anything absent tessellates. */
+const CURVE_OF: Record<string, CurveKind> = {
+  basis: 'basis',
+  bundle: 'basis',
+  cardinal: 'bezier',
+  'catmull-rom': 'bezier',
+  monotone: 'bezier',
+  natural: 'bezier',
+};
+
+type LineRoute = CurveKind | 'path' | 'segments';
+
+/**
+ * Where an undashed line draws. A square cap needs the tessellated path, since
+ * only extrude-polyline draws one, and it outranks the rest. A recognised cubic
+ * goes to the GPU as its own control points, so the stroke follows the real
+ * curve instead of a flattened polyline. linear and the step family tessellate,
+ * which is what gives their corners a join, and so does a line with gaps.
+ */
+function lineRoute(points: SceneLinePoint[]): LineRoute {
+  if (points[0]?.strokeCap === 'square') {
+    return 'path';
+  }
+  const interpolate = points[0]?.interpolate;
+  const curve = interpolate === undefined ? undefined : CURVE_OF[interpolate];
+  const whole = points.every(p => p.defined !== false);
+  if (curve === 'basis' && points.length >= 3 && whole) {
+    return 'basis';
+  }
+  if (curve === 'bezier' && points.length >= 2) {
+    return 'bezier';
+  }
+  return isPolyline(points) ? 'segments' : 'path';
 }
 
 /**
@@ -145,12 +164,9 @@ function drawDashed(
   const first = points[0];
   const offset = first.strokeDashOffset ?? 0;
 
-  let polylines: Point[][];
-  if (needsPath(points)) {
-    polylines = lineGeometry(ctx, points).lines.map(line => line.map(p => [p[0], p[1]] as Point));
-  } else {
-    polylines = [points.map(p => [p.x ?? 0, p.y ?? 0] as Point)];
-  }
+  const polylines: Point[][] = isPolyline(points)
+    ? [points.map(p => [p.x ?? 0, p.y ?? 0] as Point)]
+    : lineGeometry(ctx, points).lines.map(line => line.map(p => [p[0], p[1]] as Point));
 
   const runs = polylines.flatMap(line => dashPolyline(line, pattern, offset));
 
@@ -171,33 +187,6 @@ function drawDashed(
   });
 }
 
-const BASIS_SUBDIVISIONS = 8;
-
-/**
- * True when the whole line can go through the GPU basis shader: an unbroken
- * basis or bundle curve. Anything else keeps the tessellated path.
- */
-function isBasisCurve(points: SceneLinePoint[]): boolean {
-  const interpolate = points[0]?.interpolate;
-  if (interpolate !== 'basis' && interpolate !== 'bundle') {
-    return false;
-  }
-  return points.length >= 3 && points.every(p => p.defined !== false);
-}
-
-/**
- * Curves d3 emits as cubic Beziers. They go to the GPU as their own control
- * points, so the stroke follows the real curve instead of a flattened polyline.
- * `linear` and the `step` family stay on the tessellated path, which is what
- * gives their corners a join.
- */
-const BEZIER_CURVES = new Set(['cardinal', 'catmull-rom', 'monotone', 'natural']);
-
-function isBezierCurve(points: SceneLinePoint[]): boolean {
-  const interpolate = points[0]?.interpolate;
-  return interpolate !== undefined && BEZIER_CURVES.has(interpolate) && points.length >= 2;
-}
-
 /**
  * Instance data for one curve: a span per B-spline segment plus the two
  * straight runs d3's basis opens and closes with. Control points are doubled
@@ -206,7 +195,8 @@ function isBezierCurve(points: SceneLinePoint[]): boolean {
  * `bundle` blends every point toward the straight chord by its tension first,
  * exactly as d3 does before running basis.
  */
-function basisInstances(points: SceneLinePoint[], out: number[]): void {
+function basisInstances(points: SceneLinePoint[]): number[] {
+  const out: number[] = [];
   const first = points[0];
   const n = points.length;
   const beta = first.interpolate === 'bundle' ? (first.tension ?? 0.85) : 1;
@@ -268,6 +258,7 @@ function basisInstances(points: SceneLinePoint[], out: number[]): void {
   }
   // and the straight run out of the last
   push(basis(spans - 1, 1, cx), basis(spans - 1, 1, cy), xs[n - 1], ys[n - 1], 0, 0, 0, 0, 1);
+  return out;
 }
 
 /**
@@ -275,7 +266,8 @@ function basisInstances(points: SceneLinePoint[], out: number[]): void {
  * generator canvas draws through, so the control points are exactly its own.
  * A `moveTo` starts a run, which is how `defined: false` leaves its gaps.
  */
-function bezierInstances(points: SceneLinePoint[], out: number[]): void {
+function bezierInstances(points: SceneLinePoint[]): number[] {
+  const out: number[] = [];
   const first = points[0];
   const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
   const width = first.strokeWidth ?? 1;
@@ -298,71 +290,45 @@ function bezierInstances(points: SceneLinePoint[], out: number[]): void {
     },
     closePath() {},
   });
+  return out;
 }
 
-/** Draws a basis or bundle curve entirely on the GPU, with no tessellation. */
-function drawBasis(
+/**
+ * Draws a cubic entirely on the GPU, with no tessellation. Batched, so a spec
+ * whose curves are one faceted mark each still issues a single draw.
+ */
+function drawCurve(
   device: GPUDevice,
   ctx: GPUVegaCanvasContext,
   res: LineResources,
   points: SceneLinePoint[],
   clip: ReturnType<typeof markClip>,
+  kind: CurveKind,
 ): void {
   const first = points[0];
   if (!first.stroke || (first.strokeWidth ?? 1) <= 0) {
     return;
   }
-  // Batched, so a spec whose curves are one faceted mark each still issues a
-  // single draw instead of one per curve.
-  // The batch only merges draws whose bind groups are the same object, so this
-  // is held rather than rebuilt per curve.
-  const uniformBuffer = res.bufferManager.sharedUniformBuffer();
-  if (res.basisBindGroup === null || res.basisBindGroupBuffer !== uniformBuffer) {
-    res.basisBindGroup = createUniformBindGroup(`${drawName}Basis`, device, res.basisPipeline, uniformBuffer);
-    res.basisBindGroupBuffer = uniformBuffer;
-  }
-  ctx._renderQueue.setupBatch({
-    device,
-    vertexManager: res.basisVertexManager,
-    pipeline: res.basisPipeline,
-    clip,
-    vertexCount: 6 * BASIS_SUBDIVISIONS,
-    bindGroups: [res.basisBindGroup],
-  });
-  const rows: number[] = [];
-  basisInstances(points, rows);
-  ctx._renderQueue.queueBatchInstance(rows);
-}
-
-/** Draws every other cubic curve on the GPU, from d3's own control points. */
-function drawBezier(
-  device: GPUDevice,
-  ctx: GPUVegaCanvasContext,
-  res: LineResources,
-  points: SceneLinePoint[],
-  clip: ReturnType<typeof markClip>,
-): void {
-  const first = points[0];
-  if (!first.stroke || (first.strokeWidth ?? 1) <= 0) {
-    return;
-  }
-  const rows: number[] = [];
-  bezierInstances(points, rows);
+  const rows = CURVES[kind].instances(points);
   if (rows.length === 0) {
     return;
   }
-  const uniformBuffer = res.bufferManager.sharedUniformBuffer();
-  if (res.bezierBindGroup === null || res.bezierBindGroupBuffer !== uniformBuffer) {
-    res.bezierBindGroup = createUniformBindGroup(`${drawName}Bezier`, device, res.bezierPipeline, uniformBuffer);
-    res.bezierBindGroupBuffer = uniformBuffer;
+  const pipeline = markPipeline(ctx, device, `${drawName} ${kind}`, CURVES[kind].shader, res.spanVertexManager);
+  // The batch only merges draws whose bind groups are the same object, so this
+  // is held rather than rebuilt per curve.
+  const buffer = res.bufferManager.sharedUniformBuffer();
+  let held = res.spanBindGroups.get(kind);
+  if (!held || held.buffer !== buffer) {
+    held = { group: createUniformBindGroup(`${drawName} ${kind}`, device, pipeline, buffer), buffer };
+    res.spanBindGroups.set(kind, held);
   }
   ctx._renderQueue.setupBatch({
     device,
-    vertexManager: res.basisVertexManager,
-    pipeline: res.bezierPipeline,
+    vertexManager: res.spanVertexManager,
+    pipeline,
     clip,
-    vertexCount: 6 * BASIS_SUBDIVISIONS,
-    bindGroups: [res.bezierBindGroup],
+    vertexCount: 6 * CURVE_SUBDIVISIONS,
+    bindGroups: [held.group],
   });
   ctx._renderQueue.queueBatchInstance(rows);
 }
@@ -405,29 +371,19 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const points = items as SceneLinePoint[];
   const clip = markClip(ctx, scene);
 
-  const pattern = points.length > 0 ? dashPattern(points[0]) : undefined;
+  const pattern = dashPattern(points);
   if (pattern) {
     drawDashed(device, ctx, res, points, pattern, clip);
     return;
   }
 
-  if (needsSquareCap(points)) {
+  const route = lineRoute(points);
+  if (route === 'path') {
     drawPath(device, ctx, res, points, clip);
     return;
   }
-
-  if (isBasisCurve(points)) {
-    drawBasis(device, ctx, res, points, clip);
-    return;
-  }
-
-  if (isBezierCurve(points)) {
-    drawBezier(device, ctx, res, points, clip);
-    return;
-  }
-
-  if (needsPath(points)) {
-    drawPath(device, ctx, res, points, clip);
+  if (route !== 'segments') {
+    drawCurve(device, ctx, res, points, clip, route);
     return;
   }
 

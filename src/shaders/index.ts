@@ -13,31 +13,27 @@ import { symbolSdfShader } from './symbolSdf.js';
 import { symbolShapeShader } from './symbolShape.js';
 import { textShader } from './text.js';
 
-/**
- * Every shader source, by the name marks ask for. Area, path and shape all draw
- * triangulated geometry with a colour per vertex, and group backgrounds are
- * rounded rects, so those share a builder.
- */
-const BUILDERS: Record<string, ShaderBuilder> = {
-  Area: solidFillShader,
+/** Every shader source, by the name marks ask for. */
+const BUILDERS = {
   Curve: curveShader,
   GradientFill: gradientFillShader,
-  Group: rectShader,
   Image: imageShader,
   Line: lineShader,
-  Path: solidFillShader,
   Rect: rectShader,
   Rule: ruleShader,
-  Shape: solidFillShader,
   SLine: slineShader,
+  SolidFill: solidFillShader,
   Symbol: symbolShader,
   SymbolSdf: symbolSdfShader,
   SymbolShape: symbolShapeShader,
   Text: textShader,
-};
+} satisfies Record<string, ShaderBuilder>;
+
+/** A builder name, optionally followed by a sub-variant after a colon. */
+export type ShaderKey = keyof typeof BUILDERS | `${keyof typeof BUILDERS}:${string}`;
 
 /** Shader key for one analytic symbol shape. */
-export function symbolSdfKey(shape: string): string {
+export function symbolSdfKey(shape: string): ShaderKey {
   return `SymbolSdf:${shape}`;
 }
 
@@ -53,7 +49,7 @@ export function symbolSdfKey(shape: string): string {
 export function shaderModule(
   ctx: GPUVegaCanvasContext,
   device: GPUDevice,
-  key: string,
+  key: ShaderKey,
   blend: string,
 ): GPUShaderModule {
   const cacheKey = `${key}|${blend}`;
@@ -62,11 +58,7 @@ export function shaderModule(
     return cached;
   }
   const sep = key.indexOf(':');
-  const name = sep < 0 ? key : key.slice(0, sep);
-  const build = BUILDERS[name];
-  if (!build) {
-    throw new Error(`[vega-webgpu] No shader named '${name}'.`);
-  }
+  const build = BUILDERS[(sep < 0 ? key : key.slice(0, sep)) as keyof typeof BUILDERS];
   const shader = device.createShaderModule({
     code: build(blend, sep < 0 ? undefined : key.slice(sep + 1)),
     label: `${cacheKey} Shader`,

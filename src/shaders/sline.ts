@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { SEGMENT_NORMAL, TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /**
  * One quad per line segment instance, with the coverage of a butt capped
@@ -9,6 +9,8 @@ export const slineShader = (blend: string): string => `
 ${uniformBlock('dpi')}
 
 ${TO_NDC}
+
+${SEGMENT_NORMAL}
 
 struct VertexInput {
     @location(0) start: vec2<f32>,
@@ -29,11 +31,9 @@ struct VertexOutput {
 @vertex
 fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     let d = max(uniforms.dpi, 0.001);
-    // normalize() on a zero-length segment returns NaN
     let delta = in.end - in.start;
-    let seg_len = length(delta);
-    let direction = select(vec2<f32>(1.0, 0.0), delta / seg_len, seg_len > 1e-6);
-    let normal = vec2<f32>(-direction.y, direction.x);
+    let direction = safeDirection(delta);
+    let normal = normalAt(delta);
 
     // Grow the quad by one device pixel so the falloff is not clipped, which
     // leaves every pixel the segment touches fully rasterized.
@@ -66,7 +66,7 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let ab = in.b_dev - in.a_dev;
     let len = length(ab);
-    let e = select(vec2<f32>(1.0, 0.0), ab / max(len, 1e-6), len > 1e-6);
+    let e = safeDirection(ab);
     let v = in.pos.xy - in.a_dev;
     let along = dot(v, e);
     let perp = abs(v.y * e.x - v.x * e.y);
@@ -75,7 +75,5 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(in.fill.rgb, in.fill.a * across * ends);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

@@ -79,6 +79,7 @@ export function lineSpans(items: AreaPoint[], sink: PathSink): void {
   const item = items[0];
   const curve = pathCurves(item.interpolate || 'linear', item.orient, item.tension);
   lineShape.curve(curve).context(sink as unknown as CanvasRenderingContext2D)(items);
+  lineShape.context(null);
 }
 
 export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem): PathGeometry {

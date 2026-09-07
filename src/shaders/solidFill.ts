@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /**
  * Triangulated geometry with a colour per vertex, which is what the area, path
@@ -34,7 +34,5 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return in.fill;
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

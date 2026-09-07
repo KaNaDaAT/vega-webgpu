@@ -37,13 +37,12 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x3', 'float32x4'], // position, color
       [],
     );
-    // a trail is a filled path, so it shares the area shader
-    const pipeline = markPipeline(ctx, device, drawName, 'Area', vertexManager);
+    const pipeline = markPipeline(ctx, device, drawName, 'SolidFill', vertexManager);
     // blend needs its own pipeline, and markPipeline caches them by mode
     const pipelineFor = (blend: string) =>
       blend === 'normal'
         ? pipeline
-        : markPipeline(ctx, device, `${drawName} ${blend}`, 'Area', vertexManager, undefined, blend);
+        : markPipeline(ctx, device, `${drawName} ${blend}`, 'SolidFill', vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
     return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipeline };
   });

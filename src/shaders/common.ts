@@ -47,23 +47,7 @@ const SOURCE_COLOR: Record<string, string> = {
   lighten: 'vec4<f32>(c.rgb * c.a, c.a)',
 };
 
-/** `blendAdjust`, which every generated fragment entry point calls. */
-export function blendPrelude(blend: string): string {
-  return `fn blendAdjust(c: vec4<f32>) -> vec4<f32> {
-    return ${SOURCE_COLOR[blend] ?? SOURCE_COLOR.normal};
-}`;
-}
-
-/**
- * The fragment entry point every shader shares. `colorFn` returns the mark's
- * colour with straight alpha, and this drops the fragment when it covers
- * nothing and weights the rest for the blend mode.
- *
- * The discard is not an optimization. Marks grow their geometry past the shape
- * so an analytic edge is not clipped, and those empty fragments still change
- * the destination under a multiply or a min.
- */
-export function fragmentEntry(entryPoint: string, colorFn: string): string {
+function fragmentEntry(entryPoint: string, colorFn: string): string {
   return `@fragment
 fn ${entryPoint}(in: VertexOutput) -> @location(0) vec4<f32> {
     let c = ${colorFn}(in);
@@ -73,6 +57,60 @@ fn ${entryPoint}(in: VertexOutput) -> @location(0) vec4<f32> {
     return blendAdjust(c);
 }`;
 }
+
+/**
+ * Every shader ends this way: `blendAdjust` for the mode, then one fragment
+ * entry point per colour function. A colour function returns straight alpha and
+ * the entry point drops a fragment covering nothing before weighting the rest.
+ *
+ * The discard is not an optimization. Marks grow their geometry past the shape
+ * so an analytic edge is not clipped, and those empty fragments still change
+ * the destination under a multiply or a min.
+ */
+export function fragmentTail(blend: string, entries: Record<string, string> = DEFAULT_ENTRY): string {
+  const prelude = `fn blendAdjust(c: vec4<f32>) -> vec4<f32> {
+    return ${SOURCE_COLOR[blend] ?? SOURCE_COLOR.normal};
+}`;
+  return [prelude, ...Object.entries(entries).map(([name, fn]) => fragmentEntry(name, fn))].join('\n\n');
+}
+
+const DEFAULT_ENTRY = { main_fragment: 'fragmentColor' };
+
+/** A segment direction that survives a zero-length segment, and its normal. */
+export const SEGMENT_NORMAL = `fn safeDirection(d: vec2<f32>) -> vec2<f32> {
+    return select(vec2<f32>(1.0, 0.0), normalize(d), length(d) > 1e-9);
+}
+
+fn normalAt(d: vec2<f32>) -> vec2<f32> {
+    let dir = safeDirection(d);
+    return vec2<f32>(-dir.y, dir.x);
+}`;
+
+/**
+ * Fill and stroke each take their true share of the pixel, given the fraction
+ * inside each edge. Thresholding instead would hand the whole pixel to one of
+ * them, which drops the inner half of any stroke thin enough to straddle a
+ * pixel boundary.
+ */
+export const FILL_STROKE_SHARE = `fn fillStrokeShare(fill: vec4<f32>, stroke: vec4<f32>, inner: f32, outer: f32) -> vec4<f32> {
+    let fa = fill.a * inner;
+    let sa = stroke.a * max(outer - inner, 0.0);
+    let a = fa + sa;
+    return vec4<f32>((fill.rgb * fa + stroke.rgb * sa) / max(a, 1e-6), a);
+}`;
+
+/**
+ * Fraction of the pixel covered by an axis-aligned box, computed the way canvas
+ * does it rather than from MSAA samples. Two abutting rects then produce
+ * complementary coverage, so the seam is the faint one canvas leaves and not a
+ * whole missing sample. A deliberate gap between them is preserved exactly,
+ * because the geometry is untouched. lo/hi are in device pixels.
+ */
+export const BOX_COVERAGE = `fn boxCoverage(p: vec2<f32>, lo: vec2<f32>, hi: vec2<f32>) -> f32 {
+    let cx = clamp(min(p.x - lo.x, hi.x - p.x) + 0.5, 0.0, 1.0);
+    let cy = clamp(min(p.y - lo.y, hi.y - p.y) + 0.5, 0.0, 1.0);
+    return cx * cy;
+}`;
 
 /** Builds one shader source. `arg` names a shape, curve or other sub-variant. */
 export type ShaderBuilder = (blend: string, arg?: string) => string;

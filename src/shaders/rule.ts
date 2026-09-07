@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { BOX_COVERAGE, TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /**
  * Axis-aligned rules, drawn as one instanced quad with analytic coverage. MSAA
@@ -9,6 +9,8 @@ export const ruleShader = (blend: string): string => `
 ${uniformBlock('dpi')}
 
 ${TO_NDC}
+
+${BOX_COVERAGE}
 
 struct VertexInput {
     @location(0) position: vec2<f32>,
@@ -46,15 +48,9 @@ fn main_vertex(in: VertexInput) -> VertexOutput {
     return output;
 }
 
-/** Fraction of the pixel the rule covers, computed the way canvas does it. */
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
-    let p = in.pos.xy;
-    let cx = clamp(min(p.x - in.lo_dev.x, in.hi_dev.x - p.x) + 0.5, 0.0, 1.0);
-    let cy = clamp(min(p.y - in.lo_dev.y, in.hi_dev.y - p.y) + 0.5, 0.0, 1.0);
-    return vec4<f32>(in.stroke.rgb, in.stroke.a * cx * cy);
+    return vec4<f32>(in.stroke.rgb, in.stroke.a * boxCoverage(in.pos.xy, in.lo_dev, in.hi_dev));
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

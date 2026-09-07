@@ -54,9 +54,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const res = getResources(device, ctx, vb);
 
-  const uniformBuffer = res.bufferManager.createUniformBuffer(
-    Float32Array.from([...ctx._uniforms.resolution, vb.x1, vb.y1, ctx._uniforms.dpi || 1, 0, 0, 0]),
-  );
+  const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
 
   let run: SceneRule[] = [];

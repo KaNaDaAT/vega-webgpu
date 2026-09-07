@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { FILL_STROKE_SHARE, TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /**
  * `circle` is absent because it already has a dedicated analytic shader and
@@ -47,6 +47,8 @@ export const symbolSdfShader = (blend: string, shape?: string): string => {
 ${uniformBlock()}
 
 ${TO_NDC}
+
+${FILL_STROKE_SHARE}
 
 struct VertexInput {
   @location(0) position: vec2<f32>,
@@ -137,23 +139,16 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
 }
 
 /**
- * Fill and stroke each take their true share of the pixel, the same model the
- * rect shader uses. Triangulating the shape instead would leave its coverage to
- * MSAA, which can only express quarter steps.
+ * Triangulating the shape instead would leave its coverage to MSAA, which can
+ * only express quarter steps.
  */
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let half_sw = in.stroke_width * 0.5;
     let outer = clamp(0.5 - shapeDistance(in.local, in.size, half_sw), 0.0, 1.0);
     let inner = clamp(0.5 - shapeDistance(in.local, in.size, -half_sw), 0.0, 1.0);
-    let fa = in.fill.a * inner;
-    let sa = in.stroke.a * max(outer - inner, 0.0);
-    let a = fa + sa;
-    let rgb = (in.fill.rgb * fa + in.stroke.rgb * sa) / max(a, 1e-6);
-    return vec4<f32>(rgb, a);
+    return fillStrokeShare(in.fill, in.stroke, inner, outer);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;
 };

@@ -30,12 +30,12 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, dimensions, fill color, stroke color, stroke width, corner radii
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
-    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    const pipeline = markPipeline(ctx, device, drawName, 'Rect', vertexManager);
     const gradientPipeline = markPipeline(
       ctx,
       device,
       `${drawName}Gradient`,
-      drawName,
+      'Rect',
       vertexManager,
       'main_fragment_gradient',
     );
@@ -60,9 +60,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const res = getResources(device, ctx, vb);
 
-  const uniformBuffer = res.bufferManager.createUniformBuffer(
-    Float32Array.from([...ctx._uniforms.resolution, vb.x1, vb.y1, ctx._uniforms.dpi || 1, 0, 0, 0]),
-  );
+  const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
 
   // only materialise the gradient sampler and ramp cache if a gradient shows up
@@ -76,7 +74,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     let pipeline = res.blendPipelines.get(blend);
     if (!pipeline) {
-      pipeline = markPipeline(ctx, device, `${drawName} ${blend}`, drawName, res.vertexManager, undefined, blend);
+      pipeline = markPipeline(ctx, device, `${drawName} ${blend}`, 'Rect', res.vertexManager, undefined, blend);
       res.blendPipelines.set(blend, pipeline);
     }
     return pipeline;

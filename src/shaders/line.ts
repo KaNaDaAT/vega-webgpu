@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry } from './common.js';
+import { TO_NDC, fragmentTail } from './common.js';
 
 /**
  * Batched line segments, each instance carrying its own resolution and offset
@@ -67,7 +67,5 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(in.fill.rgb, in.fill.a * aax);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

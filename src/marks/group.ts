@@ -39,12 +39,12 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, dimensions, fill color, stroke color, stroke width, corner radii
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
-    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    const pipeline = markPipeline(ctx, device, drawName, 'Rect', vertexManager);
     const gradientPipeline = markPipeline(
       ctx,
       device,
       `${drawName}Gradient`,
-      drawName,
+      'Rect',
       vertexManager,
       'main_fragment_gradient',
     );
@@ -70,9 +70,7 @@ function draw(
 
   const res = getResources(device, ctx, vb);
 
-  const uniformBuffer = res.bufferManager.createUniformBuffer(
-    Float32Array.from([...ctx._uniforms.resolution, vb.x1, vb.y1, ctx._uniforms.dpi || 1, 0, 0, 0]),
-  );
+  const uniformBuffer = res.bufferManager.createUniformBuffer();
   const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
 
   // Group backgrounds share the rect instance layout and shader.

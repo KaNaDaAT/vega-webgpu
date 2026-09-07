@@ -1,10 +1,12 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { FILL_STROKE_SHARE, TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /** Analytic circles: one instanced quad per symbol, edge and stroke by distance. */
 export const symbolShader = (blend: string): string => `
 ${uniformBlock()}
 
 ${TO_NDC}
+
+${FILL_STROKE_SHARE}
 
 struct VertexInput {
   @location(0) position: vec2<f32>,
@@ -51,10 +53,9 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
 }
 
 /**
- * Fill and stroke each take their true share of the pixel, the same model the
- * rect and symbolSdf shaders use. Mixing fill towards the stroke colour instead
- * reads a strokeless symbol's transparent black as a colour, which darkens
- * every edge pixel and squares its alpha.
+ * Mixing fill towards the stroke colour instead reads a strokeless symbol's
+ * transparent black as a colour, which darkens every edge pixel and squares its
+ * alpha.
  */
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // distance from the symbol center, in pixels
@@ -62,14 +63,8 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let half_sw = in.stroke_width * 0.5;
     let outer = clamp(0.5 - (d - in.radius - half_sw), 0.0, 1.0);
     let inner = clamp(0.5 - (d - in.radius + half_sw), 0.0, 1.0);
-    let fa = in.fill.a * inner;
-    let sa = in.stroke_color.a * max(outer - inner, 0.0);
-    let a = fa + sa;
-    let rgb = (in.fill.rgb * fa + in.stroke_color.rgb * sa) / max(a, 1e-6);
-    return vec4<f32>(rgb, a);
+    return fillStrokeShare(in.fill, in.stroke_color, inner, outer);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

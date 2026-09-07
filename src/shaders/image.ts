@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /** One instanced quad per image, sampling the decoded bitmap. */
 export const imageShader = (blend: string): string => `
@@ -43,7 +43,5 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(rgb, color.a * in.opacity);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

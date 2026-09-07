@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
 import { GRADIENT_BLOCK } from './gradient.js';
 
 /**
@@ -40,7 +40,5 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(sample.rgb, sample.a * in.fill.a);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

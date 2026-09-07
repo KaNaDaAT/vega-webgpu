@@ -1,4 +1,4 @@
-import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /** Glyph quads sampling the text atlas rasterized by the 2D scratch canvas. */
 export const textShader = (blend: string): string => `
@@ -37,7 +37,5 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(rgb, c.a * uniforms.opacity);
 }
 
-${blendPrelude(blend)}
-
-${fragmentEntry('main_fragment', 'fragmentColor')}
+${fragmentTail(blend)}
 `;

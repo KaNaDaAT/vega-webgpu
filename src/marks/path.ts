@@ -40,12 +40,12 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     const vertexManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
     );
-    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    const pipeline = markPipeline(ctx, device, drawName, 'SolidFill', vertexManager);
     // blend needs its own pipeline, and markPipeline caches them by mode
     const pipelineFor = (blend: string) =>
       blend === 'normal'
         ? pipeline
-        : markPipeline(ctx, device, `${drawName} ${blend}`, drawName, vertexManager, undefined, blend);
+        : markPipeline(ctx, device, `${drawName} ${blend}`, 'SolidFill', vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
     return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipeline, cache: new Map() };
   });

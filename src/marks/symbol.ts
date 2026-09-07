@@ -79,7 +79,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       Float32Array.from([-1, -1, -1, 1, 1, -1, 1, -1, -1, 1, 1, 1]),
     );
     const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
-    const solidPipeline = markPipeline(ctx, device, `${drawName}Solid`, 'Shape', colorVertexManager);
+    const solidPipeline = markPipeline(ctx, device, `${drawName}Solid`, 'SolidFill', colorVertexManager);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', colorVertexManager);
     return {
       device,

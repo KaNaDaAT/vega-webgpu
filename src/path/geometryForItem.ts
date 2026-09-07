@@ -65,14 +65,6 @@ export default function geometryForItem(
   transform: ItemTransform = IDENTITY,
 ): ItemGeometry {
   const { angle, scaleX, scaleY } = transform;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const place = (x: number, y: number, out: Float32Array, i: number): void => {
-    const sx = x * scaleX;
-    const sy = y * scaleY;
-    out[i] = sx * cos - sy * sin + dx;
-    out[i + 1] = sx * sin + sy * cos + dy;
-  };
   const lineWidth = item.strokeWidth ?? 1;
   const lineCap = item.strokeCap ?? 'butt';
   const opacity = item.opacity ?? 1;
@@ -105,6 +97,12 @@ export default function geometryForItem(
       return entry;
     }
   }
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const rotateInto = (x: number, y: number, out: Float32Array, i: number): void => {
+    out[i] = x * cos - y * sin + dx;
+    out[i + 1] = x * sin + y * cos + dy;
+  };
   const fillVertexCount = fill ? fillTriangleCoords.length / 3 : 0;
 
   type StrokeMesh = ReturnType<ReturnType<typeof extrude>['build']>;
@@ -146,7 +144,7 @@ export default function geometryForItem(
 
   if (fill) {
     for (let i = 0; i < fillTriangleCoords.length; i += 3) {
-      place(fillTriangleCoords[i], fillTriangleCoords[i + 1], triangles, i);
+      rotateInto(fillTriangleCoords[i] * scaleX, fillTriangleCoords[i + 1] * scaleY, triangles, i);
       triangles[i + 2] = fillTriangleCoords[i + 2];
     }
   }
@@ -179,8 +177,8 @@ export default function geometryForItem(
         }
         for (const pointIndex of cell) {
           const p = positions[pointIndex];
-          strokeTriangles[i * 3] = p[0] * cos - p[1] * sin + dx;
-          strokeTriangles[i * 3 + 1] = p[0] * sin + p[1] * cos + dy;
+          // the contours were scaled before extrusion, so this only rotates
+          rotateInto(p[0], p[1], strokeTriangles, i * 3);
           strokeTriangles[i * 3 + 2] = z;
           i++;
         }
