@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 /** The diff has to follow whatever the two views do, including a resize. */
 test('the diff keeps up with a resize', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/test/?spec=bar&renderer=webgpu&version=dev&diff=1');
+  await page.goto('/test/?spec=bar&renderer=webgpu&version=dev&diff=1&offscreen=1');
   await page.waitForFunction(() => (document.querySelector('#diffSummary')?.textContent ?? '').length > 0, undefined, {
     timeout: 60_000,
   });
@@ -61,7 +61,7 @@ test('the diff keeps up with a zoom', async ({ page }) => {
       return m;
     };
   });
-  await page.goto('/test/?spec=bar&renderer=webgpu&version=dev&diff=1');
+  await page.goto('/test/?spec=bar&renderer=webgpu&version=dev&diff=1&offscreen=1');
   await page.waitForFunction(() => (document.querySelector('#diffSummary')?.textContent ?? '').length > 0, undefined, {
     timeout: 60_000,
   });

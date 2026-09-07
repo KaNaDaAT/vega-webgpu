@@ -279,6 +279,11 @@
             });
             views.push(view);
             view.__renderer = renderer;
+            // see test/index.js: a runner with no compositor cannot present a
+            // swapchain, so its tests ask for the offscreen target instead
+            if (params.get('offscreen') === '1' && view._renderer?.wgOptions) {
+              view._renderer.wgOptions.offscreen = true;
+            }
             await view.runAsync();
           } catch (err) {
             cap.textContent = `${renderer}: ${err}`;

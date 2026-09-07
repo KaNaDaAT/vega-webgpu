@@ -58,6 +58,27 @@ export const TILE_CHECK_DEFAULT = 0.35;
 export const CROSS_CHECK_DEFAULT = 0.008;
 
 /**
+ * The CI runner rasterizes on SwiftShader, and its numbers are not the numbers
+ * a real adapter gives. Windows SwiftShader passes the budgets below; the Linux
+ * build on the runner does not, on cases whose difference is antialiasing
+ * coverage rather than placement. Only the runner reads these, so the budget a
+ * developer sees stays as tight as it was.
+ */
+export const onCi = process.env.CI !== undefined;
+
+/** Per-spec budgets for the CI rasterizer, with the measured number in a note. */
+export const ciCrossCheckOverrides: Record<string, number> = {
+  // 1.263% there, 0.675% on a real adapter: the seam between abutting fills
+  'choropleth-stroked': 0.016,
+};
+
+/** Per-spec densest-tile budgets for the CI rasterizer. */
+export const ciTileOverrides: Record<string, number> = {
+  // 40.0% in one 32px square there, 23.3% on a real adapter
+  'map-fit-stroked': 0.45,
+};
+
+/**
  * Measured locally, then given roughly 2x headroom because CI renders on a
  * different font stack and shifts glyph antialiasing. Tighten each toward the
  * default as the underlying gap closes. `null` skips the comparison.

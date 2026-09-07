@@ -50,6 +50,10 @@ test('several webgpu views render side by side', async ({ page }) => {
         (vega.parse as (s: unknown) => unknown)(spec),
         { renderer: 'webgpu', container: el },
       );
+      const options = (view._renderer as { wgOptions?: { offscreen: boolean } })?.wgOptions;
+      if (options) {
+        options.offscreen = true;
+      }
       await (view.runAsync as () => Promise<unknown>)();
       return view;
     };
@@ -61,7 +65,9 @@ test('several webgpu views render side by side', async ({ page }) => {
     const shoot = async (view: Record<string, unknown>, name: string): Promise<Shot> => {
       const r = view._renderer as Record<string, unknown>;
       try {
-        const shot = (await (r.captureFrame as () => Promise<{ width: number; height: number; data: Uint8Array }>)()) as {
+        const shot = (await (
+          r.captureFrame as () => Promise<{ width: number; height: number; data: Uint8Array }>
+        )()) as {
           width: number;
           height: number;
           data: Uint8Array;

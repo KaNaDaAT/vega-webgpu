@@ -3,7 +3,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { diffPngs, png, renderInHarness, saveArtifact, type RendererName, type RenderResult } from './compare.js';
-import { CROSS_CHECK_DEFAULT, TILE_CHECK_DEFAULT, crossCheckOverrides, renderSpecs } from './specs.js';
+import {
+  CROSS_CHECK_DEFAULT,
+  TILE_CHECK_DEFAULT,
+  ciCrossCheckOverrides,
+  ciTileOverrides,
+  crossCheckOverrides,
+  onCi,
+  renderSpecs,
+} from './specs.js';
 import { specNames } from '../../scripts/specs-manifest.mjs';
 
 /**
@@ -48,7 +56,9 @@ test.describe('WebGPU vs canvas', () => {
       saveArtifact(specName, 'canvas', canvas.png);
       expect(canvas.rendererKind, `expected canvas to render, got '${canvas.rendererKind}'`).toBe('canvas');
 
-      const budget = Object.hasOwn(crossCheckOverrides, specName) ? crossCheckOverrides[specName] : CROSS_CHECK_DEFAULT;
+      const own = Object.hasOwn(crossCheckOverrides, specName) ? crossCheckOverrides[specName] : CROSS_CHECK_DEFAULT;
+      const budget = onCi && own !== null ? (ciCrossCheckOverrides[specName] ?? own) : own;
+      const tileBudget = onCi ? (ciTileOverrides[specName] ?? TILE_CHECK_DEFAULT) : TILE_CHECK_DEFAULT;
       if (budget === null) {
         return; // comparison intentionally skipped for this spec
       }
@@ -65,9 +75,9 @@ test.describe('WebGPU vs canvas', () => {
       expect(
         worstTile,
         `a 32px square at ${worstTileAt.join(',')} is ${(worstTile * 100).toFixed(1)}% different, ` +
-          `over the ${(TILE_CHECK_DEFAULT * 100).toFixed(0)}% allowed. The whole-image number below ` +
+          `over the ${(tileBudget * 100).toFixed(0)}% allowed. The whole-image number below ` +
           `is diluted by everything that matches`,
-      ).toBeLessThanOrEqual(TILE_CHECK_DEFAULT);
+      ).toBeLessThanOrEqual(tileBudget);
       expect(
         diffRatio,
         `webgpu vs canvas diff ${(diffRatio * 100).toFixed(3)}% exceeds ${(budget * 100).toFixed(1)}%. ` +

@@ -33,7 +33,14 @@ test('bound inputs are shared between the two views', async ({ page }) => {
     return { before, webgpu: w.view.signal('radius'), canvas: canvasView.signal('radius') };
   });
 
-  console.log('dom:', JSON.stringify(dom), 'mirrored:', JSON.stringify(mirrored), 'errs:', JSON.stringify(errs.slice(0, 3)));
+  console.log(
+    'dom:',
+    JSON.stringify(dom),
+    'mirrored:',
+    JSON.stringify(mirrored),
+    'errs:',
+    JSON.stringify(errs.slice(0, 3)),
+  );
   expect(dom.inHost, 'controls live in the shared host').toBeGreaterThan(3);
   expect(dom.elsewhere, 'and nowhere else').toBe(0);
   expect(mirrored.webgpu, 'the webgpu view took the new value').toBe(137);

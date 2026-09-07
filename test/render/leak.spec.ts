@@ -37,7 +37,11 @@ test('buffers are not leaked across renders and renderer swaps', async ({ page }
 
     const view = (
       window as unknown as {
-        view: { renderer: (t: string) => unknown; runAsync: () => Promise<unknown>; _renderer: Record<string, unknown> };
+        view: {
+          renderer: (t: string) => unknown;
+          runAsync: () => Promise<unknown>;
+          _renderer: Record<string, unknown>;
+        };
       }
     ).view;
 
@@ -87,6 +91,8 @@ test('buffers are not leaked across renders and renderer swaps', async ({ page }
   // that a hovered chart climbed into the gigabytes.
   const before = out.per10RendersBefore;
   const after = out.per10RendersAfter;
-  expect(before.destroyed / Math.max(before.buffers, 1), 'buffers made before a swap are released').toBeGreaterThan(0.8);
+  expect(before.destroyed / Math.max(before.buffers, 1), 'buffers made before a swap are released').toBeGreaterThan(
+    0.8,
+  );
   expect(after.destroyed / Math.max(after.buffers, 1), 'buffers made after a swap are released').toBeGreaterThan(0.8);
 });

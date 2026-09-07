@@ -5,9 +5,13 @@ test('an old build loads with the vega it was written for', async ({ page }) => 
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(String(e)));
   await page.goto('/releases/marks.html?build=1.2.0&view=canvas&mark=rect');
-  await page.waitForFunction(() => ((window as unknown as { __views?: unknown[] }).__views?.length ?? 0) >= 1, undefined, {
-    timeout: 60_000,
-  });
+  await page.waitForFunction(
+    () => ((window as unknown as { __views?: unknown[] }).__views?.length ?? 0) >= 1,
+    undefined,
+    {
+      timeout: 60_000,
+    },
+  );
   await page.waitForTimeout(800);
   const out = await page.evaluate(() => ({
     vega: (window as unknown as { vega: { version: string } }).vega.version,

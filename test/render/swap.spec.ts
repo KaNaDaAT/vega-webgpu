@@ -25,13 +25,21 @@ test('swapping renderers does not pile up devices', async ({ page }) => {
       d.lost.then(() => lost++);
       return d;
     };
-    const view = (
-      window as unknown as { view: { renderer: (t: string) => unknown; runAsync: () => Promise<unknown> } }
-    ).view;
+    const view = (window as unknown as { view: { renderer: (t: string) => unknown; runAsync: () => Promise<unknown> } })
+      .view;
+    // vega builds a fresh renderer on every swap back, and it starts from the
+    // defaults rather than the options the harness applied to the first one
+    const offscreen = () => {
+      const options = (view as unknown as { _renderer?: { wgOptions?: { offscreen: boolean } } })._renderer?.wgOptions;
+      if (options) {
+        options.offscreen = true;
+      }
+    };
     for (let i = 0; i < 4; i++) {
       view.renderer('canvas');
       await view.runAsync();
       view.renderer('webgpu');
+      offscreen();
       await view.runAsync();
     }
     await new Promise(r => setTimeout(r, 400));

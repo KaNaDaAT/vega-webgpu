@@ -150,6 +150,22 @@ function disposeAll() {
  * renderer. The webgpu one has its own, so both views follow a zoom and stay
  * the same size.
  */
+/**
+ * `offscreen=1` renders into a texture instead of the canvas swapchain.
+ * Acquiring the swapchain destroys the device on a runner with no compositor,
+ * so this is what lets CI drive this page at all. What is drawn is unchanged
+ * and still reachable through captureFrame, the canvas just stays blank.
+ */
+function applyOffscreen(v) {
+  if (new URLSearchParams(window.location.search).get('offscreen') !== '1') {
+    return;
+  }
+  const options = v?._renderer?.wgOptions;
+  if (options) {
+    options.offscreen = true;
+  }
+}
+
 async function buildView(spec, container, renderer, bindEl) {
   const v = new vega.View(vega.parse(spec), {
     logLevel: vega.Warn,
@@ -159,6 +175,7 @@ async function buildView(spec, container, renderer, bindEl) {
     hover: true,
     watchPixelRatio: true,
   });
+  applyOffscreen(v);
   await v.runAsync();
   return v;
 }
@@ -206,6 +223,7 @@ async function load(name) {
         watchPixelRatio: true,
       });
       configureWebGPU();
+      applyOffscreen(view);
       window.view = view;
       view.runAsync();
     } else {

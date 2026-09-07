@@ -45,7 +45,7 @@ test('the playground matches what its table claims', async ({ page }) => {
   test.setTimeout(300_000);
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('/releases/marks.html?build=dev&view=both&mark=symbol');
+  await page.goto('/releases/marks.html?build=dev&view=both&mark=symbol&offscreen=1');
   await page.waitForFunction(() => (window as unknown as { __views?: unknown[] }).__views?.length === 2, undefined, {
     timeout: 60_000,
   });

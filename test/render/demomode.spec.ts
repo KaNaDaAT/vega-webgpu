@@ -6,13 +6,17 @@ test('compare and diff checkboxes', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(String(e)));
 
-  await page.goto('/test/?spec=choropleth&renderer=webgpu&version=dev&compare=1');
+  await page.goto('/test/?spec=choropleth&renderer=webgpu&version=dev&compare=1&offscreen=1');
   await page.waitForFunction(() => document.querySelectorAll('#panels canvas').length === 2, undefined, {
     timeout: 60_000,
   });
   const compare = await page.evaluate(() => {
     const cs = [...document.querySelectorAll('#panels canvas')] as HTMLCanvasElement[];
-    return { count: cs.length, sizes: cs.map(c => `${c.width}x${c.height}`), panelsHidden: !!document.querySelector('#panels')?.hasAttribute('hidden') };
+    return {
+      count: cs.length,
+      sizes: cs.map(c => `${c.width}x${c.height}`),
+      panelsHidden: !!document.querySelector('#panels')?.hasAttribute('hidden'),
+    };
   });
 
   await page.goto('/test/?spec=choropleth&renderer=webgpu&version=dev&diff=1');

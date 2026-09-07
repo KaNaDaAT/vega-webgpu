@@ -11,11 +11,12 @@ import {
 import {
   MAX_CHANNEL_DELTA_DEFAULT,
   SCENE_CHECK_DEFAULT,
+  ciMaxChannelDeltaOverrides,
   maxChannelDeltaOverrides,
   renderScenes,
   sceneCheckOverrides,
 } from './scenes.js';
-import { TILE_CHECK_DEFAULT } from './specs.js';
+import { TILE_CHECK_DEFAULT, onCi } from './specs.js';
 
 function renderScene(page: Page, sceneName: string, renderer: RendererName): Promise<RenderResult> {
   const url = `/test/render/scene-harness.html?scene=${encodeURIComponent(sceneName)}&renderer=${renderer}`;
@@ -47,7 +48,8 @@ test.describe('scenes', () => {
         return; // comparison intentionally skipped for this fixture
       }
 
-      const deltaBudget = maxChannelDeltaOverrides[sceneName] ?? MAX_CHANNEL_DELTA_DEFAULT;
+      const ownDelta = maxChannelDeltaOverrides[sceneName] ?? MAX_CHANNEL_DELTA_DEFAULT;
+      const deltaBudget = onCi ? (ciMaxChannelDeltaOverrides[sceneName] ?? ownDelta) : ownDelta;
       const delta = maxChannelDelta(webgpu.png, canvas.png);
       expect(
         delta,
