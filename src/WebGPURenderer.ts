@@ -11,20 +11,6 @@ import {
   preferredColorFormat,
 } from './util/webgpu.js';
 
-import areaShader from './shaders/area.wgsl';
-import curveShader from './shaders/curve.wgsl';
-import gradientFillShader from './shaders/gradientFill.wgsl';
-import imageShader from './shaders/image.wgsl';
-import lineShader from './shaders/line.wgsl';
-import pathShader from './shaders/path.wgsl';
-import rectShader from './shaders/rect.wgsl';
-import ruleShader from './shaders/rule.wgsl';
-import shapeShader from './shaders/shape.wgsl';
-import slineShader from './shaders/sline.wgsl';
-import symbolShader from './shaders/symbol.wgsl';
-import symbolShapeShader from './shaders/symbolShape.wgsl';
-import textShader from './shaders/text.wgsl';
-
 const viewBounds = (origin: readonly [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
 
@@ -206,7 +192,6 @@ export default class WebGPURenderer extends Renderer {
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
         alphaMode: 'premultiplied',
       });
-      this._cacheShaders(device, ctx);
     }
     return { device, ctx };
   }
@@ -653,25 +638,5 @@ export default class WebGPURenderer extends Renderer {
     // The surface is configured alphaMode premultiplied, so a translucent
     // background has to be premultiplied here too or it composites too bright.
     return { r: bg.r * bg.a, g: bg.g * bg.a, b: bg.b * bg.a, a: bg.a };
-  }
-
-  private _cacheShaders(device: GPUDevice, ctx: GPUVegaCanvasContext): void {
-    ctx._shaderCache = {
-      Symbol: device.createShaderModule({ code: symbolShader, label: 'Symbol Shader' }),
-      SymbolShape: device.createShaderModule({ code: symbolShapeShader, label: 'Symbol Shape Shader' }),
-      Line: device.createShaderModule({ code: lineShader, label: 'Line Shader' }),
-      Rule: device.createShaderModule({ code: ruleShader, label: 'Rule Shader' }),
-      SLine: device.createShaderModule({ code: slineShader, label: 'SLine Shader' }),
-      Curve: device.createShaderModule({ code: curveShader, label: 'Curve Shader' }),
-      Path: device.createShaderModule({ code: pathShader, label: 'Path Shader' }),
-      Rect: device.createShaderModule({ code: rectShader, label: 'Rect Shader' }),
-      // Group backgrounds are rounded rectangles, so they reuse the rect shader.
-      Group: device.createShaderModule({ code: rectShader, label: 'Group Shader' }),
-      GradientFill: device.createShaderModule({ code: gradientFillShader, label: 'Gradient Fill Shader' }),
-      Image: device.createShaderModule({ code: imageShader, label: 'Image Shader' }),
-      Text: device.createShaderModule({ code: textShader, label: 'Text Shader' }),
-      Shape: device.createShaderModule({ code: shapeShader, label: 'Shape Shader' }),
-      Area: device.createShaderModule({ code: areaShader, label: 'Area Shader' }),
-    };
   }
 }

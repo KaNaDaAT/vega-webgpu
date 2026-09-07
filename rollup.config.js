@@ -2,7 +2,6 @@ import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
-import { string } from 'rollup-plugin-string';
 
 // Externals provided by the `vega` browser bundle when loaded via <script>.
 const vegaExternals = ['vega-scenegraph'];
@@ -13,7 +12,6 @@ const vegaGlobals = {
 const plugins = () => [
   commonjs(),
   resolve({ browser: true }),
-  string({ include: '**/*.wgsl' }),
   typescript({
     tsconfig: './tsconfig.json',
     noEmit: false,

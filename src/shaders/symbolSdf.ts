@@ -1,9 +1,52 @@
-struct Uniforms {
-  resolution: vec2<f32>,
-  offset: vec2<f32>,
+import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+
+/**
+ * `circle` is absent because it already has a dedicated analytic shader and
+ * routing it here measured neutral, 36/57 against 35/61 worst channel.
+ *
+ * `cross` is deliberately absent: it is a union of two boxes, and eroding that
+ * union for the inner stroke edge is not the union of the eroded boxes, which
+ * puts its reflex corners in the wrong place. It stays triangulated.
+ *
+ * Distance functions for the symbol shapes with a closed form, keyed by vega's
+ * shape name. Each is the body of `shapeDistance(p, s, inflate)` below, where
+ * `s` is sqrt(size), the scale d3-symbol works in.
+ *
+ * The constants come straight from d3's own paths at size 100 (s = 10):
+ * square `M-5,-5h10v10h-10Z`, diamond `M-5,0L0,-5L5,0L0,5Z`,
+ * cross `M-5,-2...` and triangle-up `M0,-4.33L-5,4.33L5,4.33Z`.
+ */
+const SHAPE_SDF: Record<string, string> = {
+  square: '    return sdBox(p, vec2<f32>(s * 0.5 + inflate, s * 0.5 + inflate));',
+  // vertices sit at s/2 on each axis, and moving both edges out by `inflate`
+  // raises the |x| + |y| threshold by inflate * sqrt(2)
+  diamond: '    return (abs(p.x) + abs(p.y) - (s * 0.5 + inflate * 1.41421356)) * 0.70710678;',
+  // every d3 triangle is equilateral, so its inradius is s / (2 * sqrt(3))
+  'triangle-up': `    return sdTriangleInflated(p, vec2<f32>(0.0, -0.433 * s), vec2<f32>(-0.5 * s, 0.433 * s), vec2<f32>(0.5 * s, 0.433 * s), 0.28868 * s, inflate);`,
+  'triangle-down': `    return sdTriangleInflated(p, vec2<f32>(0.0, 0.433 * s), vec2<f32>(0.5 * s, -0.433 * s), vec2<f32>(-0.5 * s, -0.433 * s), 0.28868 * s, inflate);`,
+  'triangle-right': `    return sdTriangleInflated(p, vec2<f32>(0.433 * s, 0.0), vec2<f32>(-0.433 * s, 0.5 * s), vec2<f32>(-0.433 * s, -0.5 * s), 0.28868 * s, inflate);`,
+  'triangle-left': `    return sdTriangleInflated(p, vec2<f32>(-0.433 * s, 0.0), vec2<f32>(0.433 * s, -0.5 * s), vec2<f32>(0.433 * s, 0.5 * s), 0.28868 * s, inflate);`,
+  triangle: `    return sdTriangleInflated(p, vec2<f32>(0.0, -0.5774 * s), vec2<f32>(-0.5 * s, 0.2887 * s), vec2<f32>(0.5 * s, 0.2887 * s), 0.28868 * s, inflate);`,
+};
+
+/** True when the shape has a distance function and can skip triangulation. */
+export function hasSdf(shape: string): boolean {
+  return Object.hasOwn(SHAPE_SDF, shape);
 }
 
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+/**
+ * One shader per shape rather than one shader switching on a shape id, so the
+ * fragment stays branchless.
+ */
+export const symbolSdfShader = (blend: string, shape?: string): string => {
+  const body = shape === undefined ? undefined : SHAPE_SDF[shape];
+  if (body === undefined) {
+    throw new Error(`[vega-webgpu] No distance function for symbol shape '${shape}'.`);
+  }
+  return `
+${uniformBlock()}
+
+${TO_NDC}
 
 struct VertexInput {
   @location(0) position: vec2<f32>,
@@ -57,7 +100,7 @@ fn sdBox(p: vec2<f32>, b: vec2<f32>) -> f32 {
 }
 
 /**
- * Triangle grown by `inflate` on every edge. Canvas joins a stroke with a
+ * Triangle grown outward by inflate on every edge. Canvas joins a stroke with a
  * miter, so the outer edge of a stroked polygon keeps its sharp corners.
  * Offsetting the distance instead would round them.
  */
@@ -67,27 +110,24 @@ fn sdTriangleInflated(p: vec2<f32>, a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, in
     return sdTriangle(p, g + (a - g) * k, g + (b - g) * k, g + (c - g) * k);
 }
 
-// The shape's own distance function, substituted per variant. `p` is in pixels
-// from the symbol centre with y down, `s` is sqrt(size), and `inflate` grows
-// every edge outward, which is what a miter join does.
+// The shape's own distance function, substituted per variant. p is in pixels
+// from the symbol centre with y down, s is sqrt(size), and inflate grows every
+// edge outward, which is what a miter join does.
 fn shapeDistance(p: vec2<f32>, s: f32, inflate: f32) -> f32 {
-//__SHAPE_SDF__
+${body}
 }
 
 @vertex
 fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
-    var output: VertexOutput;
     // Reach the outer stroke edge plus a pixel, so the falloff is never clipped.
     let extent = instance.size * 0.75 + instance.stroke_width * 0.5 + 1.0;
     let local = model.position * extent;
     let c = cos(instance.angle);
     let sn = sin(instance.angle);
     let rotated = vec2<f32>(local.x * c - local.y * sn, local.x * sn + local.y * c);
-    var pos = rotated + instance.center - uniforms.offset;
-    pos = pos / uniforms.resolution;
-    pos.y = 1.0 - pos.y;
-    pos = pos * 2.0 - 1.0;
-    output.pos = vec4<f32>(pos, 0.0, 1.0);
+
+    var output: VertexOutput;
+    output.pos = vec4<f32>(toNdc(rotated + instance.center - uniforms.offset, uniforms.resolution), 0.0, 1.0);
     output.local = local;
     output.fill = instance.fill_color;
     output.stroke = instance.stroke_color;
@@ -101,8 +141,7 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
  * rect shader uses. Triangulating the shape instead would leave its coverage to
  * MSAA, which can only express quarter steps.
  */
-@fragment
-fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let half_sw = in.stroke_width * 0.5;
     let outer = clamp(0.5 - shapeDistance(in.local, in.size, half_sw), 0.0, 1.0);
     let inner = clamp(0.5 - shapeDistance(in.local, in.size, -half_sw), 0.0, 1.0);
@@ -110,10 +149,11 @@ fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let sa = in.stroke.a * max(outer - inner, 0.0);
     let a = fa + sa;
     let rgb = (in.fill.rgb * fa + in.stroke.rgb * sa) / max(a, 1e-6);
-    // A fragment with no coverage must not reach the blend state: under a
-    // multiply or min it would still change the destination.
-    if a <= 0.0 {
-        discard;
-    }
     return vec4<f32>(rgb, a);
 }
+
+${blendPrelude(blend)}
+
+${fragmentEntry('main_fragment', 'fragmentColor')}
+`;
+};

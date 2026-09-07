@@ -1,9 +1,10 @@
-struct Uniforms {
-  resolution: vec2<f32>,
-  offset: vec2<f32>,
-}
+import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
 
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+/** Analytic circles: one instanced quad per symbol, edge and stroke by distance. */
+export const symbolShader = (blend: string): string => `
+${uniformBlock()}
+
+${TO_NDC}
 
 struct VertexInput {
   @location(0) position: vec2<f32>,
@@ -33,19 +34,14 @@ const aa = 0.75;
 const pad = 1.0;
 
 @vertex
-fn main_vertex(
-    model: VertexInput,
-    instance: InstanceInput
-) -> VertexOutput {
-    var output: VertexOutput;
+fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
     // The stroke straddles the fill radius, so the geometry must reach the
     // outer stroke edge (radius + stroke_width/2) plus AA padding.
     let geom_radius = instance.radius + instance.stroke_width * 0.5 + pad;
-    var pos = model.position * geom_radius + instance.center - uniforms.offset;
-    pos = pos / uniforms.resolution;
-    pos.y = 1.0 - pos.y;
-    pos = pos * 2.0 - 1.0;
-    output.pos = vec4<f32>(pos, 0.0, 1.0);
+    let p = model.position * geom_radius + instance.center - uniforms.offset;
+
+    var output: VertexOutput;
+    output.pos = vec4<f32>(toNdc(p, uniforms.resolution), 0.0, 1.0);
     output.uv = model.position * 0.5 + vec2<f32>(0.5, 0.5);
     output.fill = instance.fill_color;
     output.stroke_color = instance.stroke_color;
@@ -55,22 +51,19 @@ fn main_vertex(
     return output;
 }
 
-@fragment
-fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // distance from the symbol center, in pixels
     let d = distance(in.uv, vec2<f32>(0.5, 0.5)) * 2.0 * in.geom_radius;
     let half_sw = in.stroke_width * 0.5;
     let outer = in.radius + half_sw;
     let inner = in.radius - half_sw;
-    // coverage fades at the outer edge, stroke replaces fill outside `inner`
     let coverage = 1.0 - smoothstep(outer - aa, outer + aa, d);
     let strokeMix = smoothstep(inner - aa, inner + aa, d);
     let col = mix(in.fill, in.stroke_color, strokeMix);
-    let a = col.a * coverage;
-    // A fragment with no coverage must not reach the blend state: under a
-    // multiply or min it would still change the destination.
-    if a <= 0.0 {
-        discard;
-    }
-    return vec4<f32>(col.rgb, a);
+    return vec4<f32>(col.rgb, col.a * coverage);
 }
+
+${blendPrelude(blend)}
+
+${fragmentEntry('main_fragment', 'fragmentColor')}
+`;

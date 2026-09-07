@@ -1,11 +1,13 @@
-struct Uniforms {
-  resolution: vec2<f32>,
-  offset: vec2<f32>,
-}
+import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
 
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+/** One instanced quad per image, sampling the decoded bitmap. */
+export const imageShader = (blend: string): string => `
+${uniformBlock()}
+
 @group(1) @binding(0) var imageSampler: sampler;
 @group(1) @binding(1) var imageTexture: texture_2d<f32>;
+
+${TO_NDC}
 
 struct VertexInput {
   @location(0) position: vec2<f32>, // unit quad, 0..1
@@ -25,22 +27,23 @@ struct VertexOutput {
 
 @vertex
 fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
+    let p = model.position * instance.size + instance.origin - uniforms.offset;
     var output: VertexOutput;
-    var pos = model.position * instance.size + instance.origin - uniforms.offset;
-    pos = pos / uniforms.resolution;
-    pos.y = 1.0 - pos.y;
-    pos = pos * 2.0 - 1.0;
-    output.pos = vec4<f32>(pos, 0.0, 1.0);
+    output.pos = vec4<f32>(toNdc(p, uniforms.resolution), 0.0, 1.0);
     output.uv = model.position;
     output.opacity = instance.opacity;
     return output;
 }
 
-@fragment
-fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // the texture is premultiplied so filtering stays correct, and the blend
     // state expects straight alpha, so divide it back out
     let color = textureSample(imageTexture, imageSampler, in.uv);
     let rgb = color.rgb / max(color.a, 1e-6);
     return vec4<f32>(rgb, color.a * in.opacity);
 }
+
+${blendPrelude(blend)}
+
+${fragmentEntry('main_fragment', 'fragmentColor')}
+`;

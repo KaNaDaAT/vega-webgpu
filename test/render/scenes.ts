@@ -56,9 +56,8 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   blend: 5,
   // these need the destination in the shader, so they draw unblended on purpose
   'blend-unsupported': 255,
-  // Blending itself is right on every mark here. What is left is the edge: a
-  // shape carrying analytic coverage in its alpha cannot also weight its colour
-  // by that alpha with one set of blend factors, so an antialiased edge under
-  // multiply is off. The line's is its join.
+  // Not the blend. The arc and path get their edge coverage from MSAA quarter
+  // steps and the line's join is shorter than canvas's, both by the same amount
+  // with no blend set.
   'blend-marks': 145,
 };

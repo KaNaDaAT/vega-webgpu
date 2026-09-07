@@ -1,11 +1,15 @@
-struct Uniforms {
-  resolution: vec2<f32>,
-  offset: vec2<f32>,
-}
+import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
 
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+/**
+ * Uniform cubic B-splines evaluated on the GPU, one instance per span. This is
+ * the curve d3's basis and bundle draw.
+ */
+export const curveShader = (blend: string): string => `
+${uniformBlock()}
 
-// One instance per B-spline span. `kind` 0 is a curved span over p0..p3, 1 is a
+${TO_NDC}
+
+// One instance per B-spline span. kind 0 is a curved span over p0..p3, 1 is a
 // straight run from p0 to p1, which is how d3's basis opens and closes a line.
 struct InstanceInput {
   @location(0) p0: vec2<f32>,
@@ -101,27 +105,21 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
         default: { point = b + nb * half; across = half; }
     }
 
-    var pos = (point - uniforms.offset) / uniforms.resolution;
-    pos.y = 1.0 - pos.y;
-    pos = pos * 2.0 - 1.0;
-
     var out: VertexOutput;
-    out.pos = vec4<f32>(pos, 0.0, 1.0);
+    out.pos = vec4<f32>(toNdc(point - uniforms.offset, uniforms.resolution), 0.0, 1.0);
     out.color = instance.color;
     out.across = across;
     out.half_width = instance.stroke_width * 0.5;
     return out;
 }
 
-@fragment
-fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // coverage across the stroke, the way canvas antialiases an edge
     let coverage = clamp(in.half_width - abs(in.across) + 0.5, 0.0, 1.0);
-    let a = in.color.a * coverage;
-    // A fragment with no coverage must not reach the blend state: under a
-    // multiply or min it would still change the destination.
-    if a <= 0.0 {
-        discard;
-    }
-    return vec4<f32>(in.color.rgb, a);
+    return vec4<f32>(in.color.rgb, in.color.a * coverage);
 }
+
+${blendPrelude(blend)}
+
+${fragmentEntry('main_fragment', 'fragmentColor')}
+`;

@@ -6,7 +6,8 @@ import { symbol as symbolShapeGeometry } from '../path/shapes.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
-import { hasSdf, symbolSdfShaderKey } from '../util/symbolSdf.js';
+import { symbolSdfKey } from '../shaders/index.js';
+import { hasSdf } from '../shaders/symbolSdf.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -403,8 +404,15 @@ function sdfPipeline(
   const cacheKey = `${shape}!${blend}`;
   let pipeline = res.sdfPipelines.get(cacheKey);
   if (!pipeline) {
-    const key = symbolSdfShaderKey(ctx, device, shape);
-    pipeline = markPipeline(ctx, device, `${drawName}Sdf ${shape}`, key, res.sdfVertexManager, undefined, blend);
+    pipeline = markPipeline(
+      ctx,
+      device,
+      `${drawName}Sdf ${shape}`,
+      symbolSdfKey(shape),
+      res.sdfVertexManager,
+      undefined,
+      blend,
+    );
     res.sdfPipelines.set(cacheKey, pipeline);
   }
   return pipeline;

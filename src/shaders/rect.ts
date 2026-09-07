@@ -1,10 +1,18 @@
-struct Uniforms {
-  resolution: vec2<f32>,
-  offset: vec2<f32>,
-  dpi: f32,
-};
+import { TO_NDC, blendPrelude, fragmentEntry, uniformBlock } from './common.js';
+import { GRADIENT_BLOCK } from './gradient.js';
 
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+/**
+ * Rects and group backgrounds: one instanced quad each, with coverage computed
+ * analytically so two abutting rects leave the faint seam canvas leaves rather
+ * than a whole missing MSAA sample. Also carries the gradient-filled variant,
+ * which shares the geometry and differs only in where the fill comes from.
+ */
+export const rectShader = (blend: string): string => `
+${uniformBlock('dpi')}
+
+${GRADIENT_BLOCK}
+
+${TO_NDC}
 
 struct VertexInput {
   @location(0) position: vec2<f32>,
@@ -33,11 +41,7 @@ struct VertexOutput {
 }
 
 @vertex
-fn main_vertex(
-    model: VertexInput,
-    instance: InstanceInput
-) -> VertexOutput {
-    var output: VertexOutput;
+fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
     let d = max(uniforms.dpi, 0.001);
     let sw = vec2<f32>(instance.strokewidth, instance.strokewidth);
     let size = instance.scale + sw;
@@ -50,11 +54,8 @@ fn main_vertex(
     let pad = vec2<f32>(1.0, 1.0) / d;
     let p = mix(lo - pad, hi + pad, model.position);
 
-    var ndc = p / uniforms.resolution;
-    ndc.y = 1.0 - ndc.y;
-    ndc = ndc * 2.0 - 1.0;
-    output.pos = vec4<f32>(ndc, 0.0, 1.0);
-
+    var output: VertexOutput;
+    output.pos = vec4<f32>(toNdc(p, uniforms.resolution), 0.0, 1.0);
     // uv is relative to the true rect, so it runs slightly outside 0..1 in the pad
     let uv = (p - lo) / max(size, vec2<f32>(1e-6, 1e-6));
     output.uv = vec2<f32>(uv.x, 1.0 - uv.y);
@@ -83,7 +84,7 @@ fn sdRoundedRect(p: vec2<f32>, b: vec2<f32>, radii: vec4<f32>) -> f32 {
 }
 
 // Blends fill and stroke along the rounded edge. The stroke straddles the
-// nominal edge like canvas strokes do. `aa` is the antialiasing width.
+// nominal edge like canvas strokes do. aa is the antialiasing width.
 fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     let p = (in.uv - vec2<f32>(0.5, 0.5)) * (in.scale + vec2<f32>(in.strokewidth, in.strokewidth));
     let d = sdRoundedRect(p, in.scale * 0.5, in.corner_radii);
@@ -131,66 +132,28 @@ fn maxRadius(radii: vec4<f32>) -> f32 {
     return max(max(radii.x, radii.y), max(radii.z, radii.w));
 }
 
-@fragment
-fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    var col: vec4<f32>;
-    if maxRadius(in.corner_radii) <= 0.0 {
-        col = straightRectColor(in, in.fill);
-    } else {
-        col = roundedRectColor(in, in.fill);
-    }
-    // The quad is grown a pixel past the rect, and those fragments carry no
-    // colour. Under a min or max blend they would still darken or lighten the
-    // destination, so drop them rather than blend nothing.
-    if col.a <= 0.0 {
-        discard;
-    }
-    return col;
-}
-
-// Gradient-filled rects: the fill is sampled from a baked stop ramp.
-// coords = (x1, y1, x2, y2) normalized to the rect (y down),
-// misc = (kind, r1, r2, unused). kind: 1 = linear, 2 = radial.
-struct GradientParams {
-  coords: vec4<f32>,
-  bounds: vec4<f32>,
-  misc: vec4<f32>,
-}
-
-@group(1) @binding(0) var stopSampler: sampler;
-@group(1) @binding(1) var stopRamp: texture_2d<f32>;
-@group(1) @binding(2) var<uniform> gradient: GradientParams;
-
-// p is normalized to the rect, wh is the rect size in pixels.
-// Linear gradients evaluate in normalized space (matching vega's canvas
-// renderer). Radial gradients are circular in pixel space with radii
-// scaled by max(w, h).
-fn gradientT(p: vec2<f32>, wh: vec2<f32>) -> f32 {
-    if gradient.misc.x < 1.5 {
-        let a = gradient.coords.xy;
-        let b = gradient.coords.zw;
-        let ab = b - a;
-        let len2 = max(dot(ab, ab), 1e-6);
-        return clamp(dot(p - a, ab) / len2, 0.0, 1.0);
-    }
-    // radial: concentric-circle approximation around (x2, y2)
-    let m = max(wh.x, wh.y);
-    let c = gradient.coords.zw * wh;
-    let r1 = gradient.misc.y * m;
-    let r2 = gradient.misc.z * m;
-    return clamp((distance(p * wh, c) - r1) / max(r2 - r1, 1e-6), 0.0, 1.0);
-}
-
-@fragment
-fn main_fragment_gradient(in: VertexOutput) -> @location(0) vec4<f32> {
-    // un-flip: gradient coordinates run top-down like canvas coordinates
-    let p = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-    let t = gradientT(p, in.scale);
-    let sample = textureSample(stopRamp, stopSampler, vec2<f32>(t, 0.5));
-    let fill = vec4<f32>(sample.rgb, sample.a * in.fill.a);
-
+fn rectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     if maxRadius(in.corner_radii) <= 0.0 {
         return straightRectColor(in, fill);
     }
     return roundedRectColor(in, fill);
 }
+
+fn fragmentColor(in: VertexOutput) -> vec4<f32> {
+    return rectColor(in, in.fill);
+}
+
+fn gradientColor(in: VertexOutput) -> vec4<f32> {
+    // un-flip: gradient coordinates run top-down like canvas coordinates
+    let p = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+    let t = gradientT(p, in.scale);
+    let sample = textureSample(stopRamp, stopSampler, vec2<f32>(t, 0.5));
+    return rectColor(in, vec4<f32>(sample.rgb, sample.a * in.fill.a));
+}
+
+${blendPrelude(blend)}
+
+${fragmentEntry('main_fragment', 'fragmentColor')}
+
+${fragmentEntry('main_fragment_gradient', 'gradientColor')}
+`;

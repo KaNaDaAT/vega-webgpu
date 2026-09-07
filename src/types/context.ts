@@ -75,6 +75,7 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   /** Active MSAA sample count; mark pipelines must be created with it. */
   _sampleCount: number;
 
+  /** Compiled shader sources, keyed by builder name, sub-variant and blend mode. */
   _shaderCache: Record<string, GPUShaderModule>;
   /**
    * Compiled pipelines, keyed by everything that defines one. Creating them is

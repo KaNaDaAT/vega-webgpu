@@ -3,6 +3,7 @@ import type { BufferManager } from '../util/bufferManager.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import type { VertexBufferManager } from '../util/vertexManager.js';
 import { blendState } from '../util/blend.js';
+import { shaderModule } from '../shaders/index.js';
 import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { ItemGeometry } from '../types/geometry.js';
@@ -178,7 +179,7 @@ export function markPipeline(
   const pipeline = createRenderPipeline(
     label,
     device,
-    ctx._shaderCache[shaderKey],
+    shaderModule(ctx, device, shaderKey, blend),
     preferredColorFormat(),
     ctx._sampleCount,
     buffers,
