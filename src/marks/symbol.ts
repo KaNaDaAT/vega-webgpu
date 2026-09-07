@@ -5,6 +5,7 @@ import geometryForItem from '../path/geometryForItem.js';
 import { symbol as symbolShapeGeometry } from '../path/shapes.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { Color, isGradient } from '../util/color.js';
+import { hasSdf, symbolSdfShaderKey } from '../util/symbolSdf.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -42,6 +43,9 @@ interface SymbolResources {
   // Triangulated shapes, instanced per (shape, size).
   shapePipeline: GPURenderPipeline;
   shapeCache: Map<string, ShapeGeometry>;
+  sdfVertexManager: VertexBufferManager;
+  sdfPipelines: Map<string, GPURenderPipeline>;
+  quadGeometry: GPUBuffer;
   // Per-vertex-colored triangles for gradient-filled symbols (rare, e.g. a
   // legend swatch): one non-instanced draw per item.
   colorVertexManager: VertexBufferManager;
@@ -64,6 +68,14 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     );
     const shapePipeline = markPipeline(ctx, device, `${drawName}Shape`, 'SymbolShape', shapeVertexManager);
     const circleGeometry = bufferManager.createGeometryBuffer(createCircleGeometry());
+    const sdfVertexManager = new VertexBufferManager(
+      ['float32x2'], // unit quad position
+      // center, size, fill color, stroke color, stroke width, angle
+      ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32', 'float32'],
+    );
+    const quadGeometry = bufferManager.createGeometryBuffer(
+      Float32Array.from([-1, -1, -1, 1, 1, -1, 1, -1, -1, 1, 1, 1]),
+    );
     const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
     const solidPipeline = markPipeline(ctx, device, `${drawName}Solid`, 'Shape', colorVertexManager);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', colorVertexManager);
@@ -75,6 +87,9 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       circleGeometry,
       shapePipeline,
       shapeCache: new Map(),
+      sdfVertexManager,
+      sdfPipelines: new Map(),
+      quadGeometry,
       colorVertexManager,
       solidPipeline,
       gradientPipeline,
@@ -111,6 +126,17 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         bindGroups: [circleBindGroup],
         clip,
       });
+    } else if (runKind.startsWith('sdf|')) {
+      const shape = runKind.slice(4);
+      const pipeline = sdfPipeline(device, ctx, res, shape);
+      const instanceBuffer = res.bufferManager.createInstanceBuffer(createSdfAttributes(run));
+      ctx._renderQueue.enqueue({
+        pipeline,
+        drawCounts: [6, run.length],
+        vertexBuffers: [res.quadGeometry, instanceBuffer],
+        bindGroups: [createUniformBindGroup(`${drawName}Sdf`, device, pipeline, uniformBuffer)],
+        clip,
+      });
     } else {
       shapeBindGroup ??= createUniformBindGroup(`${drawName}Shape`, device, res.shapePipeline, uniformBuffer);
       drawShapeGroup(device, ctx, res, shapeBindGroup, runKind, run, clip);
@@ -127,8 +153,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       continue;
     }
     const shape = item.shape || 'circle';
+    // Shapes with a distance function are one instanced quad each, so a run can
+    // hold any mix of sizes, stroke widths and angles.
     const kind =
-      shape === 'circle' ? 'circle' : `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`;
+      shape === 'circle'
+        ? 'circle'
+        : hasSdf(shape)
+          ? `sdf|${shape}`
+          : `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`;
     if (kind !== runKind) {
       flushRun();
       runKind = kind;
@@ -307,6 +339,58 @@ function stripZ(triangles: Float32Array, count: number): Float32Array {
     out[i * 2 + 1] = triangles[i * 3 + 1];
   }
   return out;
+}
+
+/** Instance data for the analytic shapes: one quad each, no triangulation. */
+function createSdfAttributes(items: SceneItem[]): Float32Array {
+  const result = new Float32Array(items.length * 14);
+  let index = -1;
+  for (let i = 0, len = items.length; i < len; i++) {
+    const {
+      x = 0,
+      y = 0,
+      size = 64,
+      fill,
+      stroke,
+      strokeWidth = 1,
+      opacity = 1,
+      fillOpacity = 1,
+      strokeOpacity = 1,
+      angle = 0,
+    } = items[i] as SceneSymbolExt;
+    const col = Color.from2(fill, opacity, fillOpacity);
+    const scol = Color.from2(stroke, opacity, strokeOpacity);
+    result[++index] = x;
+    result[++index] = y;
+    result[++index] = Math.sqrt(size);
+    result[++index] = col[0];
+    result[++index] = col[1];
+    result[++index] = col[2];
+    result[++index] = col[3];
+    result[++index] = scol[0];
+    result[++index] = scol[1];
+    result[++index] = scol[2];
+    result[++index] = scol[3];
+    result[++index] = stroke ? strokeWidth : 0;
+    result[++index] = (angle * Math.PI) / 180;
+  }
+  return result;
+}
+
+/** Pipeline for one analytic shape, compiled on first use. */
+function sdfPipeline(
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  res: SymbolResources,
+  shape: string,
+): GPURenderPipeline {
+  let pipeline = res.sdfPipelines.get(shape);
+  if (!pipeline) {
+    const key = symbolSdfShaderKey(ctx, device, shape);
+    pipeline = markPipeline(ctx, device, `${drawName}Sdf ${shape}`, key, res.sdfVertexManager);
+    res.sdfPipelines.set(shape, pipeline);
+  }
+  return pipeline;
 }
 
 function createCircleAttributes(items: SceneItem[]): Float32Array {

@@ -1,7 +1,7 @@
 {
- "description": "Symbol shapes that are still triangulated: circle has its own analytic shader, cross erodes wrongly as a union of boxes, arrow and wedge have no distance function yet.",
+ "description": "Symbol shapes with a distance function, drawn as one instanced quad each.",
  "width": 280,
- "height": 140,
+ "height": 260,
  "origin": [
   0,
   0
@@ -22,7 +22,7 @@
       "clip": false,
       "items": [
        {
-        "shape": "circle",
+        "shape": "square",
         "size": 100,
         "x": 40,
         "y": 40,
@@ -31,7 +31,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "circle",
+        "shape": "square",
         "size": 400,
         "x": 40,
         "y": 95,
@@ -40,7 +40,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "cross",
+        "shape": "diamond",
         "size": 100,
         "x": 100,
         "y": 40,
@@ -49,7 +49,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "cross",
+        "shape": "diamond",
         "size": 400,
         "x": 100,
         "y": 95,
@@ -58,7 +58,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "arrow",
+        "shape": "triangle-up",
         "size": 100,
         "x": 160,
         "y": 40,
@@ -67,7 +67,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "arrow",
+        "shape": "triangle-up",
         "size": 400,
         "x": 160,
         "y": 95,
@@ -76,7 +76,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "wedge",
+        "shape": "triangle-down",
         "size": 100,
         "x": 220,
         "y": 40,
@@ -85,7 +85,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "wedge",
+        "shape": "triangle-down",
         "size": 400,
         "x": 220,
         "y": 95,
@@ -94,7 +94,7 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "stroke",
+        "shape": "triangle-left",
         "size": 100,
         "x": 40,
         "y": 160,
@@ -103,9 +103,45 @@
         "strokeWidth": 1.5
        },
        {
-        "shape": "stroke",
+        "shape": "triangle-left",
         "size": 400,
         "x": 40,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-right",
+        "size": 100,
+        "x": 100,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle-right",
+        "size": 400,
+        "x": 100,
+        "y": 215,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle",
+        "size": 100,
+        "x": 160,
+        "y": 160,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "triangle",
+        "size": 400,
+        "x": 160,
         "y": 215,
         "fill": "#4c78a8",
         "stroke": "#333",

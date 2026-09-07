@@ -40,8 +40,11 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   'rect-subpixel': 2,
   'rule-subpixel': 2,
   'text-layout': 2,
-  // Non-circular symbols are triangulated, so an edge lands up to an
-  // antialiasing level away from canvas.
+  // Shapes with a distance function are drawn analytically, so they track
+  // canvas the way rects and rules do.
+  'symbol-analytic': 25,
+  // circle has its own shader, and cross, arrow and wedge are triangulated and
+  // get their coverage from MSAA, which only expresses quarter steps.
   'symbol-shapes': 80,
   'symbol-custom': 80,
 };
