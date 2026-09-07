@@ -70,6 +70,9 @@ function draw(
   }
 
   const res = getResources(device, ctx, vb);
+  // Held borders draw after their children, by which point the visit has put
+  // the clip back to what it was, so both passes take the same one.
+  const parentClip = ctx._clip;
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
@@ -95,13 +98,19 @@ function draw(
   };
 
   const dashed: Float32Array[] = [];
+  // A group asking for strokeForeground has its border held back and enqueued
+  // after its own children, which is where vega draws it.
+  const held = new Map<SceneGroupExt, { rect: SceneGroupExt; dash: Float32Array | null }>();
   for (const item of items as SceneGroupExt[]) {
     const edged = withStrokeOffset(item);
     const border = dashedBorderInstances(edged);
-    if (border) {
+    const fore = item.strokeForeground === true && item.stroke != null;
+    if (fore) {
+      held.set(item, { rect: { ...edged, fill: undefined }, dash: border });
+    } else if (border) {
       dashed.push(border);
     }
-    const drawn = border ? { ...edged, stroke: undefined } : edged;
+    const drawn = border || fore ? { ...edged, stroke: undefined } : edged;
     const fill = drawn.fill;
     if (!isGradient(fill)) {
       run.push(drawn);
@@ -165,6 +174,27 @@ function draw(
     }
     ctx._tx -= gx;
     ctx._ty -= gy;
+
+    const fore = held.get(group);
+    if (fore) {
+      if (fore.dash) {
+        ctx._renderQueue.enqueue({
+          pipeline: res.dashPipeline,
+          drawCounts: [6, fore.dash.length / SEGMENT_STRIDE],
+          vertexBuffers: [res.bufferManager.createInstanceBuffer(fore.dash)],
+          bindGroups: [createUniformBindGroup(`${drawName}Dash`, device, res.dashPipeline, uniformBuffer)],
+          clip: parentClip,
+        });
+      } else {
+        ctx._renderQueue.enqueue({
+          pipeline: res.pipeline,
+          drawCounts: [6, 1],
+          vertexBuffers: [res.geometryBuffer, res.bufferManager.createInstanceBuffer(rectAttributes([fore.rect]))],
+          bindGroups: [uniformBindGroup],
+          clip: parentClip,
+        });
+      }
+    }
   });
 }
 

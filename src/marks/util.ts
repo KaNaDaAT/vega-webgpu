@@ -282,6 +282,10 @@ export function segmentCount(runs: Point[][]): number {
  * Writes runs as segment instances into `data` at `offset`, returning where it
  * stopped. Field by field rather than through a temporary array, since a
  * choropleth's borders run to hundreds of thousands of segments a frame.
+ *
+ * `caps` applies to a run's two outer ends. Every interior vertex is rounded
+ * regardless, since two butt ends meeting at an angle leave the outside of the
+ * corner unpainted.
  */
 export function writeSegments(
   data: Float32Array,
@@ -294,6 +298,7 @@ export function writeSegments(
   const [r, g, b, a] = color;
   let i = offset;
   for (const run of runs) {
+    const last = run.length - 2;
     for (let s = 0; s < run.length - 1; s++) {
       const p = run[s];
       const q = run[s + 1];
@@ -306,8 +311,8 @@ export function writeSegments(
       data[i + 6] = b;
       data[i + 7] = a;
       data[i + 8] = width;
-      data[i + 9] = caps[0];
-      data[i + 10] = caps[1];
+      data[i + 9] = s === 0 ? caps[0] : 0;
+      data[i + 10] = s === last ? caps[1] : 1;
       i += SEGMENT_STRIDE;
     }
   }

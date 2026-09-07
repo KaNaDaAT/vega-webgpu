@@ -69,6 +69,8 @@ export type SceneGroupExt = SceneRectExt & {
   clip?: boolean;
   /** Overrides the half pixel nudge vega gives a hairline group border. */
   strokeOffset?: number;
+  /** Draws the group's border over its children rather than under them. */
+  strokeForeground?: boolean;
   items?: GPUVegaScene[];
 };
 

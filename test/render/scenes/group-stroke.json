@@ -1,0 +1,279 @@
+{
+ "description": "Group borders: strokeForeground over and under the children, a dashed foreground border, and strokeOffset against the half pixel nudge vega gives a hairline.",
+ "width": 440,
+ "height": 248,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "group",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 20,
+        "width": 120,
+        "height": 90,
+        "fill": "#eef3f8",
+        "stroke": "#333",
+        "strokeWidth": 6,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 12,
+            "y": -8,
+            "width": 20,
+            "height": 76,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 40,
+            "y": 14,
+            "width": 20,
+            "height": 66,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 68,
+            "y": -4,
+            "width": 20,
+            "height": 58,
+            "fill": "#e45756"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 160,
+        "y": 20,
+        "width": 120,
+        "height": 90,
+        "fill": "#eef3f8",
+        "stroke": "#333",
+        "strokeWidth": 6,
+        "strokeForeground": true,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 12,
+            "y": -8,
+            "width": 20,
+            "height": 76,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 40,
+            "y": 14,
+            "width": 20,
+            "height": 66,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 68,
+            "y": -4,
+            "width": 20,
+            "height": 58,
+            "fill": "#e45756"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 300,
+        "y": 20,
+        "width": 120,
+        "height": 90,
+        "fill": "#eef3f8",
+        "stroke": "#333",
+        "strokeWidth": 3,
+        "strokeDash": [
+         8,
+         4
+        ],
+        "strokeForeground": true,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 12,
+            "y": -8,
+            "width": 20,
+            "height": 76,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 40,
+            "y": 14,
+            "width": 20,
+            "height": 66,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 68,
+            "y": -4,
+            "width": 20,
+            "height": 58,
+            "fill": "#e45756"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 20,
+        "y": 134,
+        "width": 120,
+        "height": 90,
+        "fill": "#eef3f8",
+        "stroke": "#333",
+        "strokeWidth": 1,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 12,
+            "y": -8,
+            "width": 20,
+            "height": 76,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 40,
+            "y": 14,
+            "width": 20,
+            "height": 66,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 68,
+            "y": -4,
+            "width": 20,
+            "height": 58,
+            "fill": "#e45756"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 160,
+        "y": 134,
+        "width": 120,
+        "height": 90,
+        "fill": "#eef3f8",
+        "stroke": "#333",
+        "strokeWidth": 1,
+        "strokeOffset": 0,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 12,
+            "y": -8,
+            "width": 20,
+            "height": 76,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 40,
+            "y": 14,
+            "width": 20,
+            "height": 66,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 68,
+            "y": -4,
+            "width": 20,
+            "height": 58,
+            "fill": "#e45756"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 300,
+        "y": 134,
+        "width": 120,
+        "height": 90,
+        "fill": "#eef3f8",
+        "stroke": "#333",
+        "strokeWidth": 4,
+        "strokeOffset": 3,
+        "strokeForeground": true,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 12,
+            "y": -8,
+            "width": 20,
+            "height": 76,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 40,
+            "y": 14,
+            "width": 20,
+            "height": 66,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 68,
+            "y": -4,
+            "width": 20,
+            "height": 58,
+            "fill": "#e45756"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
