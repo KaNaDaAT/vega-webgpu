@@ -106,6 +106,7 @@ async function load(name) {
       .renderer(selectedRenderer)
       .hover();
     configureWebGPU();
+    window.view = view;
 
     view.runAsync();
     console.log('INIT', name);

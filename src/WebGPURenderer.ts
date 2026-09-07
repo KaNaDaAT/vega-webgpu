@@ -83,6 +83,8 @@ export default class WebGPURenderer extends Renderer {
   // already-settled in-flight one.
   private _pendingPromise: Promise<void> | null = null;
   private _resolvePending: (() => void) | null = null;
+  private _dpr: { query: MediaQueryList; onChange: () => void } | null = null;
+  private _scaleFactor: number | undefined;
 
   constructor(loader?: unknown) {
     super(loader);
@@ -137,6 +139,8 @@ export default class WebGPURenderer extends Renderer {
 
   override resize(width: number, height: number, origin: readonly number[], scaleFactor?: number): this {
     super.resize(width, height, origin, scaleFactor);
+    this._scaleFactor = scaleFactor;
+    this._watchPixelRatio();
 
     const o: [number, number] = [this._origin[0], this._origin[1]];
     if (this._canvas && this._ctx && this._pickCanvas && this._pickContext) {
@@ -157,6 +161,35 @@ export default class WebGPURenderer extends Renderer {
 
   override canvas(): HTMLCanvasElement | null {
     return this._canvas;
+  }
+
+  /**
+   * Redraws when the device pixel ratio changes, which browser zoom does
+   * without changing the view's width or height, so nothing else asks for it.
+   * A matchMedia query only fires for the ratio it was built with, so each
+   * change registers the next one.
+   */
+  private _watchPixelRatio(): void {
+    if (this._scaleFactor != null || typeof window === 'undefined' || !window.matchMedia) {
+      return;
+    }
+    const ratio = window.devicePixelRatio || 1;
+    if (this._dpr) {
+      if (this._dpr.query.media === `(resolution: ${ratio}dppx)`) {
+        return;
+      }
+      this._dpr.query.removeEventListener('change', this._dpr.onChange);
+    }
+    const query = window.matchMedia(`(resolution: ${ratio}dppx)`);
+    const onChange = () => {
+      if (this._finalized) {
+        return;
+      }
+      this.resize(this._width, this._height, this._origin);
+      this.frame();
+    };
+    query.addEventListener('change', onChange);
+    this._dpr = { query, onChange };
   }
 
   context(): GPUVegaCanvasContext | null {
@@ -311,6 +344,10 @@ export default class WebGPURenderer extends Renderer {
    */
   finalize(): void {
     this._finalized = true;
+    if (this._dpr) {
+      this._dpr.query.removeEventListener('change', this._dpr.onChange);
+      this._dpr = null;
+    }
     if (this._settleTimer !== null) {
       clearTimeout(this._settleTimer);
       this._settleTimer = null;
