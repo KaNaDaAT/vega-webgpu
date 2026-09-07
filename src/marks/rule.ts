@@ -3,6 +3,7 @@ import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneItem, SceneRule } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -56,26 +57,35 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer(
     Float32Array.from([...ctx._uniforms.resolution, vb.x1, vb.y1, ctx._uniforms.dpi || 1, 0, 0, 0]),
   );
-  const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
   const clip = markClip(ctx, scene);
 
   let run: SceneRule[] = [];
+  let runBlend = 'normal';
   const flushRun = () => {
     if (run.length === 0) {
       return;
     }
+    const pipeline =
+      runBlend === 'normal'
+        ? res.pipeline
+        : markPipeline(ctx, device, `${drawName} ${runBlend}`, drawName, res.vertexManager, undefined, runBlend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(run));
     ctx._renderQueue.enqueue({
-      pipeline: res.pipeline,
+      pipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [uniformBindGroup],
+      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
       clip,
     });
     run = [];
   };
 
   for (const item of items) {
+    const blend = blendKey(item.blend);
+    if (blend !== runBlend && run.length > 0) {
+      flushRun();
+    }
+    runBlend = blend;
     if (!isDiagonal(item)) {
       run.push(item);
       continue;

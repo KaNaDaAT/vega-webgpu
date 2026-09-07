@@ -110,5 +110,10 @@ fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let sa = in.stroke.a * max(outer - inner, 0.0);
     let a = fa + sa;
     let rgb = (in.fill.rgb * fa + in.stroke.rgb * sa) / max(a, 1e-6);
+    // A fragment with no coverage must not reach the blend state: under a
+    // multiply or min it would still change the destination.
+    if a <= 0.0 {
+        discard;
+    }
     return vec4<f32>(rgb, a);
 }

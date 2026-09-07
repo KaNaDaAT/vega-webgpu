@@ -56,5 +56,10 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
 
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    // A fragment with no coverage must not reach the blend state: under a
+    // multiply or min it would still change the destination.
+    if in.fill.a <= 0.0 {
+        discard;
+    }
     return in.fill;
 }

@@ -4,6 +4,7 @@ import type { SceneShapeItem } from '../types/scene.js';
 import { shape } from '../path/shapes.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
@@ -39,6 +40,7 @@ interface ShapeResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
+  pipelineFor: (blend: string) => GPURenderPipeline;
   gradientPipeline: GPURenderPipeline;
   cache: Map<unknown, ShapeCacheEntry>;
 }
@@ -51,8 +53,13 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       [],
     );
     const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    // blend needs its own pipeline, and markPipeline caches them by mode
+    const pipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? pipeline
+        : markPipeline(ctx, device, `${drawName} ${blend}`, drawName, vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, cache: new Map() };
+    return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipeline, cache: new Map() };
   });
 }
 
@@ -72,20 +79,28 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // Solid fills and strokes share one pipeline and are accumulated in paint
   // order into a single buffer/draw. Gradient fills interrupt the batch.
   const batch = new GeometryBatch();
+  // one batch draws with one pipeline, so a change of blend closes it
+  let batchBlend = 'normal';
   const flushBatch = () => {
     const data = batch.flush();
     if (data) {
+      const pipeline = res.pipelineFor(batchBlend);
       ctx._renderQueue.enqueue({
-        pipeline: res.pipeline,
+        pipeline,
         drawCounts: [data.length / vertexLength],
         vertexBuffers: [res.bufferManager.createGeometryBuffer(data)],
-        bindGroups: [createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer)],
+        bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
         clip,
       });
     }
   };
 
   for (const item of items) {
+    const blend = blendKey(item.blend);
+    if (blend !== batchBlend) {
+      flushBatch();
+      batchBlend = blend;
+    }
     const bounds = item.bounds;
     const gradient = isGradient(item.fill) && bounds ? item.fill : null;
     const [fillData, strokeData] = createGeometryData(ctx, res, item, gradient !== null, useCache);

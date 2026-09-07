@@ -4,6 +4,7 @@ import type { SceneAreaItem } from '../types/scene.js';
 import { area } from '../path/shapes.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
@@ -25,6 +26,7 @@ interface AreaResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
+  pipelineFor: (blend: string) => GPURenderPipeline;
   gradientPipeline: GPURenderPipeline;
 }
 
@@ -36,8 +38,13 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       [],
     );
     const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    // blend needs its own pipeline, and markPipeline caches them by mode
+    const pipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? pipeline
+        : markPipeline(ctx, device, `${drawName} ${blend}`, drawName, vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipeline };
+    return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipeline };
   });
 }
 
@@ -51,6 +58,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   // An area mark renders all its items as one shape.
   const item = items[0];
+  const pipeline = res.pipelineFor(blendKey(item.blend));
   const bounds = scene.bounds ?? item.bounds;
   const gradient = isGradient(item.fill) && bounds ? item.fill : null;
   const fill = gradient
@@ -81,10 +89,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       });
     } else {
       ctx._renderQueue.enqueue({
-        pipeline: res.pipeline,
+        pipeline,
         drawCounts: [fillData.length / vertexLength],
         vertexBuffers: [res.bufferManager.createGeometryBuffer(fillData)],
-        bindGroups: [createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer)],
+        bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
         clip,
       });
     }
@@ -92,10 +100,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   if (strokeData.length > 0) {
     ctx._renderQueue.enqueue({
-      pipeline: res.pipeline,
+      pipeline,
       drawCounts: [strokeData.length / vertexLength],
       vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
-      bindGroups: [createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer)],
+      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
       clip,
     });
   }

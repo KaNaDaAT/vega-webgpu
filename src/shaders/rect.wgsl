@@ -133,10 +133,19 @@ fn maxRadius(radii: vec4<f32>) -> f32 {
 
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    var col: vec4<f32>;
     if maxRadius(in.corner_radii) <= 0.0 {
-        return straightRectColor(in, in.fill);
+        col = straightRectColor(in, in.fill);
+    } else {
+        col = roundedRectColor(in, in.fill);
     }
-    return roundedRectColor(in, in.fill);
+    // The quad is grown a pixel past the rect, and those fragments carry no
+    // colour. Under a min or max blend they would still darken or lighten the
+    // destination, so drop them rather than blend nothing.
+    if col.a <= 0.0 {
+        discard;
+    }
+    return col;
 }
 
 // Gradient-filled rects: the fill is sampled from a baked stop ramp.

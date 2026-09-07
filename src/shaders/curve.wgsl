@@ -117,5 +117,11 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // coverage across the stroke, the way canvas antialiases an edge
     let coverage = clamp(in.half_width - abs(in.across) + 0.5, 0.0, 1.0);
-    return vec4<f32>(in.color.rgb, in.color.a * coverage);
+    let a = in.color.a * coverage;
+    // A fragment with no coverage must not reach the blend state: under a
+    // multiply or min it would still change the destination.
+    if a <= 0.0 {
+        discard;
+    }
+    return vec4<f32>(in.color.rgb, a);
 }

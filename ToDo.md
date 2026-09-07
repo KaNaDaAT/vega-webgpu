@@ -30,8 +30,17 @@ Tracking the gap to a production-grade, canvas-matching WebGPU renderer. Items a
 - [x] **Symbol geometry is already cached** per (shape, size, strokeWidth) with least-recently-used eviction, and instanced: 0.02 to 0.22 ms a frame in the benchmark. Only gradient-filled symbols bypass it.
 - [x] **Symbol shapes**: all shapes (square, cross, diamond, triangle-\*, arrow, wedge, stroke, custom SVG) plus `angle` rotation now render. Circles keep the analytic shader. Other shapes are triangulated once per (shape, size) and instanced. `symbol-shapes` 6.8% to 0.03%, `symbol-angle` 14.3% to 0.001%.
 - [x] **Gradient on symbols**: gradient-filled symbols (e.g. a legend swatch) now render via the gradient pipeline (triangulated, per item). The `gradient` spec's radial-gradient circle went 4.6% to 0.007%.
-- [ ] **Trail marks** are not implemented.
-- [ ] **Blend modes** (`blend`) are ignored.
+- [x] **Trail marks are implemented**, so all twelve of vega's mark types now render. A trail is one filled ribbon whose width follows each point's `size`, sharing the area shader.
+
+  The shared trail path generator took its width from `item.width || item.height`, where vega's own accessor is `item.size || 1`. That drew every trail as a one pixel line rather than a ribbon, and it was only visible because the fixture was compared against canvas. Covered by the `trail` fixture at 0.016%.
+- [x] **Blend modes**, for the four WebGPU can express. vega's `blend` is canvas's `globalCompositeOperation`, and WebGPU blends with fixed function state rather than a programmable one, so multiply, screen, darken and lighten fall out of its factors and operations. All four reproduce canvas exactly, worst channel 1, in the `blend` fixture.
+
+  A pipeline is built per blend mode and cached, and a run of rects starts a new draw when the mode changes. The rect shader discards fragments with no coverage: the quad is grown a pixel past the rect, and under a min or max blend those empty fragments would still darken the destination, which is what put a fringe around a `darken` rect.
+- [ ] **The other blend modes need the destination inside the shader**, which WebGPU cannot provide without a copy: overlay, difference, color-dodge, color-burn, hard-light, soft-light, exclusion, hue, saturation, color and luminosity. They warn once and draw normally. The `blend-unsupported` fixture pins that. Doing them properly means rendering blended marks to their own target and compositing, which is worth it only if specs actually use them.
+- [x] **Every mark honours blend**, not just rect. rect, rule and area reproduce canvas exactly (worst channel 1); symbol, arc, path and line blend correctly but keep an edge error, covered by the `blend-marks` fixture.
+
+  Every shader now discards a fragment with no coverage. Marks grow their geometry past the shape so an analytic edge is not clipped, and those empty fragments would otherwise still reach the blend state: under a multiply they brighten the destination and under a min they darken it. That alone took rule from 65 to 1.
+- [ ] **An antialiased edge under a blend is still off** on marks that carry their coverage in alpha (symbol 88, path 71, arc 53, line 141 worst channel). One set of blend factors cannot both multiply by the destination and weight the source by its own alpha. The fix is a shader variant per mode that pre-weights the colour, the same substitution the symbol distance functions use, so `multiply` would emit `mix(vec3(1), rgb, a)` and pair with a `dst`/`zero` factor.
 
 ## Performance
 

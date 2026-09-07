@@ -9,6 +9,7 @@ import rule from './rule.js';
 import shape from './shape.js';
 import symbol from './symbol.js';
 import text from './text.js';
+import trail from './trail.js';
 import type { MarkModule } from './util.js';
 
 const marks: Record<string, MarkModule> = {
@@ -23,6 +24,7 @@ const marks: Record<string, MarkModule> = {
   shape,
   symbol,
   text,
+  trail,
 };
 
 export default marks;

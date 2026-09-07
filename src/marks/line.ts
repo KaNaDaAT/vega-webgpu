@@ -2,6 +2,7 @@ import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneLinePoint } from '../types/scene.js';
 import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -324,10 +325,15 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   if (ctx._renderer.wgOptions.renderBatch === true) {
     // One instanced draw per line mark.
+    const blend = blendKey(points[0]?.blend);
+    const instancedPipeline =
+      blend === 'normal'
+        ? res.instancedPipeline
+        : markPipeline(ctx, device, `S${drawName} ${blend}`, 'SLine', res.instancedVertexManager, undefined, blend);
     const uniformBindGroup = createUniformBindGroup(
       `S${drawName}`,
       device,
-      res.instancedPipeline,
+      instancedPipeline,
       res.bufferManager.sharedUniformBuffer(),
     );
     if (items.length < 2) {
@@ -336,7 +342,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(points));
 
     ctx._renderQueue.enqueue({
-      pipeline: res.instancedPipeline,
+      pipeline: instancedPipeline,
       drawCounts: [6, items.length - 1],
       vertexBuffers: [instanceBuffer],
       bindGroups: [uniformBindGroup],

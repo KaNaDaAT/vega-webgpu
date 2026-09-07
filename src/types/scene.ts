@@ -40,6 +40,8 @@ export interface FillStyle {
  * renderer maintains its own definitions.)
  */
 export interface SceneItem {
+  /** vega's `blend`, which canvas applies as globalCompositeOperation. */
+  blend?: string | null;
   mark?: GPUVegaScene;
   bounds?: Bounds;
   datum?: { id?: string | number };

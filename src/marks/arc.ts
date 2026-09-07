@@ -4,6 +4,7 @@ import type { SceneArcItem } from '../types/scene.js';
 import { arc } from '../path/shapes.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
@@ -27,6 +28,7 @@ interface ArcResources {
   vertexManager: VertexBufferManager;
   /** Arc geometry is translated to world space and shares the path shader. */
   pipeline: GPURenderPipeline;
+  pipelineFor: (blend: string) => GPURenderPipeline;
   gradientPipeline: GPURenderPipeline;
 }
 
@@ -38,8 +40,13 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       [],
     );
     const pipeline = markPipeline(ctx, device, drawName, 'Path', vertexManager);
+    // blend needs its own pipeline, and markPipeline caches them by mode
+    const pipelineFor = (blend: string) =>
+      blend === 'normal'
+        ? pipeline
+        : markPipeline(ctx, device, `${drawName} ${blend}`, 'Path', vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipeline };
+    return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipeline };
   });
 }
 
@@ -57,20 +64,28 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // Solid fills and strokes share one pipeline and are accumulated in paint
   // order into a single buffer/draw. Gradient fills interrupt the batch.
   const batch = new GeometryBatch();
+  // one batch draws with one pipeline, so a change of blend closes it
+  let batchBlend = 'normal';
   const flushBatch = () => {
     const data = batch.flush();
     if (data) {
+      const pipeline = res.pipelineFor(batchBlend);
       ctx._renderQueue.enqueue({
-        pipeline: res.pipeline,
+        pipeline,
         drawCounts: [data.length / vertexLength],
         vertexBuffers: [res.bufferManager.createGeometryBuffer(data)],
-        bindGroups: [createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer)],
+        bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
         clip,
       });
     }
   };
 
   for (const item of items) {
+    const blend = blendKey(item.blend);
+    if (blend !== batchBlend) {
+      flushBatch();
+      batchBlend = blend;
+    }
     const bounds = item.bounds;
     const gradient = isGradient(item.fill) && bounds ? item.fill : null;
     const fill = gradient

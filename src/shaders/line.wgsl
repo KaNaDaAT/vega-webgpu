@@ -70,5 +70,11 @@ fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let sy = abs(in.uv.y - 0.5) * 2.0;
     let aax: f32 = 1.0 - smoothstep(1.0 - in.smooth_width, 1.0, sx);
     // let aay: f32 = 1.0 - smoothstep(1.0 - in.smooth_length, 1.0, sy);
-    return vec4<f32>(in.fill.rgb, in.fill.a * aax);
+    let a = in.fill.a * aax;
+    // A fragment with no coverage must not reach the blend state: under a
+    // multiply or min it would still change the destination.
+    if a <= 0.0 {
+        discard;
+    }
+    return vec4<f32>(in.fill.rgb, a);
 }

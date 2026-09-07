@@ -37,6 +37,7 @@ export function createRenderPipeline(
   buffers: GPUVertexBufferLayout[],
   layout?: GPUPipelineLayout,
   fragmentEntryPoint = 'main_fragment',
+  blend?: GPUBlendState,
 ): GPURenderPipeline {
   return device.createRenderPipeline({
     label: `${name} Render Pipeline`,
@@ -52,7 +53,7 @@ export function createRenderPipeline(
       targets: [
         {
           format,
-          blend: {
+          blend: blend ?? {
             alpha: {
               srcFactor: 'one',
               dstFactor: 'one-minus-src-alpha',

@@ -66,5 +66,11 @@ fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let coverage = 1.0 - smoothstep(outer - aa, outer + aa, d);
     let strokeMix = smoothstep(inner - aa, inner + aa, d);
     let col = mix(in.fill, in.stroke_color, strokeMix);
-    return vec4<f32>(col.rgb, col.a * coverage);
+    let a = col.a * coverage;
+    // A fragment with no coverage must not reach the blend state: under a
+    // multiply or min it would still change the destination.
+    if a <= 0.0 {
+        discard;
+    }
+    return vec4<f32>(col.rgb, a);
 }

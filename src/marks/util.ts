@@ -2,6 +2,7 @@ import type { Bounds } from 'vega-scenegraph';
 import type { BufferManager } from '../util/bufferManager.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import type { VertexBufferManager } from '../util/vertexManager.js';
+import { blendState } from '../util/blend.js';
 import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { ItemGeometry } from '../types/geometry.js';
@@ -166,9 +167,10 @@ export function markPipeline(
   shaderKey: string,
   vertexManager: VertexBufferManager,
   fragmentEntryPoint?: string,
+  blend = 'normal',
 ): GPURenderPipeline {
   const buffers = vertexManager.getBuffers();
-  const key = `${shaderKey}|${fragmentEntryPoint ?? ''}|${ctx._sampleCount}|${JSON.stringify(buffers)}`;
+  const key = `${shaderKey}|${fragmentEntryPoint ?? ''}|${ctx._sampleCount}|${blend}|${JSON.stringify(buffers)}`;
   const cached = ctx._pipelineCache[key];
   if (cached) {
     return cached;
@@ -182,6 +184,7 @@ export function markPipeline(
     buffers,
     undefined,
     fragmentEntryPoint,
+    blendState(blend),
   );
   ctx._pipelineCache[key] = pipeline;
   return pipeline;

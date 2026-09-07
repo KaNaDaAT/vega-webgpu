@@ -55,5 +55,11 @@ fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let p = in.pos.xy;
     let cx = clamp(min(p.x - in.lo_dev.x, in.hi_dev.x - p.x) + 0.5, 0.0, 1.0);
     let cy = clamp(min(p.y - in.lo_dev.y, in.hi_dev.y - p.y) + 0.5, 0.0, 1.0);
-    return vec4<f32>(in.stroke.rgb, in.stroke.a * cx * cy);
+    let a = in.stroke.a * cx * cy;
+    // A fragment with no coverage must not reach the blend state: under a
+    // multiply or min it would still change the destination.
+    if a <= 0.0 {
+        discard;
+    }
+    return vec4<f32>(in.stroke.rgb, a);
 }

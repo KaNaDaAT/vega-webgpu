@@ -25,7 +25,10 @@ export const renderScenes: string[] = readdirSync(scenesDir)
 export const SCENE_CHECK_DEFAULT = 0.002;
 
 /** Per-fixture budgets. `null` skips the comparison. */
-export const sceneCheckOverrides: Record<string, number | null> = {};
+export const sceneCheckOverrides: Record<string, number | null> = {
+  // drawn unblended on purpose, so the pixel count is not meaningful
+  'blend-unsupported': null,
+};
 
 /**
  * Largest single channel difference allowed per fixture. The pixel count only
@@ -47,4 +50,15 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   // get their coverage from MSAA, which only expresses quarter steps.
   'symbol-shapes': 80,
   'symbol-custom': 80,
+  // a triangulated ribbon, so its edge gets its coverage from MSAA
+  trail: 90,
+  // fixed function blending reproduces these exactly
+  blend: 5,
+  // these need the destination in the shader, so they draw unblended on purpose
+  'blend-unsupported': 255,
+  // Blending itself is right on every mark here. What is left is the edge: a
+  // shape carrying analytic coverage in its alpha cannot also weight its colour
+  // by that alpha with one set of blend factors, so an antialiased edge under
+  // multiply is off. The line's is its join.
+  'blend-marks': 145,
 };

@@ -17,7 +17,8 @@ const x = (item: AreaPoint) => item.x || 0;
 const y = (item: AreaPoint) => item.y || 0;
 const xw = (item: AreaPoint) => (item.x || 0) + (item.width || 0);
 const yh = (item: AreaPoint) => (item.y || 0) + (item.height || 0);
-const wh = (item: AreaPoint) => item.width || item.height || 1;
+// vega's own trail accessor, which is `size` and not the item's extent
+const ts = (item: AreaPoint) => item.size || 1;
 const cr = (item: SceneArcItem) => item.cornerRadius || 0;
 const pa = (item: SceneArcItem) => item.padAngle || 0;
 const def = (item: AreaPoint) => item.defined !== false;
@@ -25,7 +26,7 @@ const def = (item: AreaPoint) => item.defined !== false;
 const arcShape = d3_arc<SceneArcItem>().cornerRadius(cr).padAngle(pa);
 const areavShape = d3_area<AreaPoint>().x(x).y1(y).y0(yh).defined(def);
 const areahShape = d3_area<AreaPoint>().y(y).x1(x).x0(xw).defined(def);
-const trailShape = pathTrail<AreaPoint>().x(x).y(y).defined(def).size(wh);
+const trailShape = pathTrail<AreaPoint>().x(x).y(y).defined(def).size(ts);
 const lineShape = d3_line<AreaPoint>().x(x).y(y).defined(def);
 
 export function arc(context: GPUVegaCanvasContext, item: SceneArcItem): PathGeometry {
@@ -42,6 +43,14 @@ export function area(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeo
           .curve(pathCurves(interp, item.orient, item.tension))
           .context(null)(items);
   return geometryForPath(context, path ?? '', 0.1);
+}
+
+/**
+ * Path geometry for a trail mark: one filled ribbon whose width follows each
+ * point's `size`, which is what vega's own trail mark draws.
+ */
+export function trail(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeometry {
+  return geometryForPath(context, trailShape.context(null)(items) ?? '', 0.1);
 }
 
 /**

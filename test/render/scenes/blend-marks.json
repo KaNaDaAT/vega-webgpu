@@ -1,0 +1,255 @@
+{
+ "description": "Blend on marks other than rect: symbol, arc, path, area, line and rule, all multiply over a two-tone backdrop.",
+ "width": 290,
+ "height": 200,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rect",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 40,
+        "y": 10,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 40,
+        "y": 45,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 130,
+        "y": 10,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 130,
+        "y": 45,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 220,
+        "y": 10,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 220,
+        "y": 45,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 40,
+        "y": 110,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 40,
+        "y": 145,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 130,
+        "y": 110,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 130,
+        "y": 145,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 220,
+        "y": 110,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 220,
+        "y": 145,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       }
+      ]
+     },
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 75,
+        "y": 45,
+        "size": 900,
+        "shape": "circle",
+        "fill": "#d1495b",
+        "blend": "multiply"
+       },
+       {
+        "x": 58,
+        "y": 45,
+        "size": 500,
+        "shape": "square",
+        "fill": "#d1495b",
+        "blend": "multiply"
+       }
+      ]
+     },
+     {
+      "marktype": "arc",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 165,
+        "y": 45,
+        "startAngle": 0,
+        "endAngle": 4.2,
+        "innerRadius": 0,
+        "outerRadius": 30,
+        "fill": "#d1495b",
+        "blend": "multiply"
+       }
+      ]
+     },
+     {
+      "marktype": "path",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 230,
+        "y": 20,
+        "path": "M0,0L50,0L50,45L0,45Z",
+        "fill": "#d1495b",
+        "blend": "multiply"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 48,
+        "y": 130,
+        "y2": 170,
+        "fill": "#d1495b",
+        "blend": "multiply"
+       },
+       {
+        "x": 75,
+        "y": 120,
+        "y2": 170,
+        "fill": "#d1495b",
+        "blend": "multiply"
+       },
+       {
+        "x": 100,
+        "y": 140,
+        "y2": 170,
+        "fill": "#d1495b",
+        "blend": "multiply"
+       }
+      ]
+     },
+     {
+      "marktype": "line",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 138,
+        "y": 125,
+        "stroke": "#d1495b",
+        "strokeWidth": 10,
+        "blend": "multiply"
+       },
+       {
+        "x": 165,
+        "y": 160,
+        "stroke": "#d1495b",
+        "strokeWidth": 10,
+        "blend": "multiply"
+       },
+       {
+        "x": 192,
+        "y": 125,
+        "stroke": "#d1495b",
+        "strokeWidth": 10,
+        "blend": "multiply"
+       }
+      ]
+     },
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 225,
+        "y": 130,
+        "x2": 285,
+        "y2": 130,
+        "stroke": "#d1495b",
+        "strokeWidth": 12,
+        "blend": "multiply"
+       },
+       {
+        "x": 225,
+        "y": 158,
+        "x2": 285,
+        "y2": 158,
+        "stroke": "#d1495b",
+        "strokeWidth": 12,
+        "blend": "multiply"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

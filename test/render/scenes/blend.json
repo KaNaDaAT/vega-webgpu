@@ -1,0 +1,118 @@
+{
+ "description": "Blend modes that map onto WebGPU blend state, over a two-tone backdrop.",
+ "width": 290,
+ "height": 200,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rect",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 40,
+        "y": 10,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 40,
+        "y": 45,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 60,
+        "y": 25,
+        "width": 45,
+        "height": 40,
+        "fill": "#d1495b",
+        "blend": "multiply"
+       },
+       {
+        "x": 130,
+        "y": 10,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 130,
+        "y": 45,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 150,
+        "y": 25,
+        "width": 45,
+        "height": 40,
+        "fill": "#d1495b",
+        "blend": "screen"
+       },
+       {
+        "x": 220,
+        "y": 10,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 220,
+        "y": 45,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 240,
+        "y": 25,
+        "width": 45,
+        "height": 40,
+        "fill": "#d1495b",
+        "blend": "darken"
+       },
+       {
+        "x": 40,
+        "y": 110,
+        "width": 70,
+        "height": 35,
+        "fill": "#3b6fb6"
+       },
+       {
+        "x": 40,
+        "y": 145,
+        "width": 70,
+        "height": 35,
+        "fill": "#e8c547"
+       },
+       {
+        "x": 60,
+        "y": 125,
+        "width": 45,
+        "height": 40,
+        "fill": "#d1495b",
+        "blend": "lighten"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -3,6 +3,7 @@ import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneItem, SceneRectExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
@@ -18,6 +19,7 @@ interface RectResources {
   pipeline: GPURenderPipeline;
   gradientPipeline: GPURenderPipeline;
   geometryBuffer: GPUBuffer;
+  blendPipelines: Map<string, GPURenderPipeline>;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RectResources {
@@ -38,7 +40,15 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       'main_fragment_gradient',
     );
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, geometryBuffer };
+    return {
+      device,
+      bufferManager,
+      vertexManager,
+      pipeline,
+      gradientPipeline,
+      geometryBuffer,
+      blendPipelines: new Map(),
+    };
   });
 }
 
@@ -59,16 +69,29 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   let gres: ReturnType<typeof getGradientResources> | null = null;
   const gradientResources = () => (gres ??= getGradientResources(device, ctx));
   let run: SceneItem[] = [];
+  let runBlend = 'normal';
+  const pipelineFor = (blend: string) => {
+    if (blend === 'normal') {
+      return res.pipeline;
+    }
+    let pipeline = res.blendPipelines.get(blend);
+    if (!pipeline) {
+      pipeline = markPipeline(ctx, device, `${drawName} ${blend}`, drawName, res.vertexManager, undefined, blend);
+      res.blendPipelines.set(blend, pipeline);
+    }
+    return pipeline;
+  };
   const flushRun = () => {
     if (run.length === 0) {
       return;
     }
+    const pipeline = pipelineFor(runBlend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(run));
     ctx._renderQueue.enqueue({
-      pipeline: res.pipeline,
+      pipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer)],
+      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
       clip,
     });
     run = [];
@@ -76,11 +99,18 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   for (const item of items) {
     const fill = (item as SceneRectExt).fill;
+    const blend = blendKey((item as SceneRectExt).blend);
     if (!isGradient(fill)) {
+      // a run shares one pipeline, so a change of blend starts a new one
+      if (blend !== runBlend && run.length > 0) {
+        flushRun();
+      }
+      runBlend = blend;
       run.push(item);
       continue;
     }
     flushRun();
+    runBlend = blend;
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item as SceneRectExt], true));
     ctx._renderQueue.enqueue({
       pipeline: res.gradientPipeline,

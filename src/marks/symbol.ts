@@ -4,6 +4,7 @@ import type { SceneGradient, SceneItem, SceneSymbolExt } from '../types/scene.js
 import geometryForItem from '../path/geometryForItem.js';
 import { symbol as symbolShapeGeometry } from '../path/shapes.js';
 import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { hasSdf, symbolSdfShaderKey } from '../util/symbolSdf.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
@@ -116,19 +117,32 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (run.length === 0 || runKind === null) {
       return;
     }
-    if (runKind === 'circle') {
-      circleBindGroup ??= createUniformBindGroup(drawName, device, res.circlePipeline, uniformBuffer);
+    const [kindPart, runBlend = 'normal'] = runKind.split('!');
+    if (kindPart === 'circle') {
+      const circlePipeline =
+        runBlend === 'normal'
+          ? res.circlePipeline
+          : markPipeline(
+              ctx,
+              device,
+              `${drawName} ${runBlend}`,
+              drawName,
+              res.circleVertexManager,
+              undefined,
+              runBlend,
+            );
+      circleBindGroup ??= createUniformBindGroup(drawName, device, circlePipeline, uniformBuffer);
       const instanceBuffer = res.bufferManager.createInstanceBuffer(createCircleAttributes(run));
       ctx._renderQueue.enqueue({
-        pipeline: res.circlePipeline,
+        pipeline: circlePipeline,
         drawCounts: [segments * 3, run.length],
         vertexBuffers: [res.circleGeometry, instanceBuffer],
         bindGroups: [circleBindGroup],
         clip,
       });
-    } else if (runKind.startsWith('sdf|')) {
-      const shape = runKind.slice(4);
-      const pipeline = sdfPipeline(device, ctx, res, shape);
+    } else if (kindPart.startsWith('sdf|')) {
+      const shape = kindPart.slice(4);
+      const pipeline = sdfPipeline(device, ctx, res, shape, runBlend);
       const instanceBuffer = res.bufferManager.createInstanceBuffer(createSdfAttributes(run));
       ctx._renderQueue.enqueue({
         pipeline,
@@ -139,7 +153,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       });
     } else {
       shapeBindGroup ??= createUniformBindGroup(`${drawName}Shape`, device, res.shapePipeline, uniformBuffer);
-      drawShapeGroup(device, ctx, res, shapeBindGroup, runKind, run, clip);
+      drawShapeGroup(device, ctx, res, shapeBindGroup, kindPart, run, clip);
     }
     run = [];
     runKind = null;
@@ -155,12 +169,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const shape = item.shape || 'circle';
     // Shapes with a distance function are one instanced quad each, so a run can
     // hold any mix of sizes, stroke widths and angles.
+    const blend = blendKey(item.blend);
     const kind =
-      shape === 'circle'
+      (shape === 'circle'
         ? 'circle'
         : hasSdf(shape)
           ? `sdf|${shape}`
-          : `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`;
+          : `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`) + `!${blend}`;
     if (kind !== runKind) {
       flushRun();
       runKind = kind;
@@ -383,12 +398,14 @@ function sdfPipeline(
   ctx: GPUVegaCanvasContext,
   res: SymbolResources,
   shape: string,
+  blend = 'normal',
 ): GPURenderPipeline {
-  let pipeline = res.sdfPipelines.get(shape);
+  const cacheKey = `${shape}!${blend}`;
+  let pipeline = res.sdfPipelines.get(cacheKey);
   if (!pipeline) {
     const key = symbolSdfShaderKey(ctx, device, shape);
-    pipeline = markPipeline(ctx, device, `${drawName}Sdf ${shape}`, key, res.sdfVertexManager);
-    res.sdfPipelines.set(shape, pipeline);
+    pipeline = markPipeline(ctx, device, `${drawName}Sdf ${shape}`, key, res.sdfVertexManager, undefined, blend);
+    res.sdfPipelines.set(cacheKey, pipeline);
   }
   return pipeline;
 }
