@@ -15,6 +15,7 @@ import {
   renderScenes,
   sceneCheckOverrides,
 } from './scenes.js';
+import { TILE_CHECK_DEFAULT } from './specs.js';
 
 function renderScene(page: Page, sceneName: string, renderer: RendererName): Promise<RenderResult> {
   const url = `/test/render/scene-harness.html?scene=${encodeURIComponent(sceneName)}&renderer=${renderer}`;
@@ -54,12 +55,21 @@ test.describe('scenes', () => {
           `The pixel count below can miss this, since a coverage change stays under its colour threshold`,
       ).toBeLessThanOrEqual(deltaBudget);
 
-      const { diffRatio, diff } = diffPngs(webgpu.png, canvas.png, sceneName);
+      const { diffRatio, worstTile, worstTileAt, diff } = diffPngs(webgpu.png, canvas.png, sceneName);
       await testInfo.attach(`${sceneName}-diff (${(diffRatio * 100).toFixed(2)}%)`, png(diff));
       saveArtifact(`scene-${sceneName}`, 'diff', diff);
       if (process.env.CROSS_REPORT) {
-        console.log(`DIFF scene:${sceneName} ${(diffRatio * 100).toFixed(3)}%`);
+        console.log(
+          `DIFF scene:${sceneName} ${(diffRatio * 100).toFixed(3)}% TILE ${(worstTile * 100).toFixed(1)}% ` +
+            `at ${worstTileAt.join(',')}`,
+        );
       }
+      expect(
+        worstTile,
+        `a 32px square at ${worstTileAt.join(',')} is ${(worstTile * 100).toFixed(1)}% different, ` +
+          `over the ${(TILE_CHECK_DEFAULT * 100).toFixed(0)}% allowed. The whole-image number below ` +
+          `is diluted by everything that matches`,
+      ).toBeLessThanOrEqual(TILE_CHECK_DEFAULT);
       expect(
         diffRatio,
         `webgpu vs canvas diff ${(diffRatio * 100).toFixed(3)}% exceeds ${(budget * 100).toFixed(1)}%. ` +

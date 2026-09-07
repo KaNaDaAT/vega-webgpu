@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { diffPngs, png, renderInHarness, saveArtifact, type RendererName, type RenderResult } from './compare.js';
-import { CROSS_CHECK_DEFAULT, crossCheckOverrides, renderSpecs } from './specs.js';
+import { CROSS_CHECK_DEFAULT, TILE_CHECK_DEFAULT, crossCheckOverrides, renderSpecs } from './specs.js';
 import { specNames } from '../../scripts/specs-manifest.mjs';
 
 /**
@@ -53,12 +53,21 @@ test.describe('WebGPU vs canvas', () => {
         return; // comparison intentionally skipped for this spec
       }
 
-      const { diffRatio, diff } = diffPngs(webgpu.png, canvas.png, specName);
+      const { diffRatio, worstTile, worstTileAt, diff } = diffPngs(webgpu.png, canvas.png, specName);
       await testInfo.attach(`${specName}-diff (${(diffRatio * 100).toFixed(2)}%)`, png(diff));
       saveArtifact(specName, 'diff', diff);
       if (process.env.CROSS_REPORT) {
-        console.log(`DIFF ${specName} ${(diffRatio * 100).toFixed(3)}%`);
+        console.log(
+          `DIFF ${specName} ${(diffRatio * 100).toFixed(3)}% TILE ${(worstTile * 100).toFixed(1)}% ` +
+            `at ${worstTileAt.join(',')}`,
+        );
       }
+      expect(
+        worstTile,
+        `a 32px square at ${worstTileAt.join(',')} is ${(worstTile * 100).toFixed(1)}% different, ` +
+          `over the ${(TILE_CHECK_DEFAULT * 100).toFixed(0)}% allowed. The whole-image number below ` +
+          `is diluted by everything that matches`,
+      ).toBeLessThanOrEqual(TILE_CHECK_DEFAULT);
       expect(
         diffRatio,
         `webgpu vs canvas diff ${(diffRatio * 100).toFixed(3)}% exceeds ${(budget * 100).toFixed(1)}%. ` +

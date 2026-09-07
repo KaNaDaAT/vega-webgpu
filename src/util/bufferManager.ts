@@ -64,34 +64,6 @@ export class BufferManager {
     return this.createBuffer(`${this.bufferName} Geometry Buffer`, data, usage);
   }
 
-  /**
-   * A buffer kept between frames for data rewritten every frame. Minting one
-   * per frame costs more than the copy once the data is large, and writeBuffer
-   * is ordered on the queue, so the rewrite lands after the previous frame's
-   * draws have read it. Grows geometrically and never shrinks.
-   */
-  persistentBuffer(key: string, data: Float32Array, usage: GPUBufferUsageFlags, rewrite = true): GPUBuffer {
-    const size = (data.byteLength + 3) & ~3;
-    let held = this.persistent.get(key);
-    if (held && !rewrite && held.size >= size) {
-      return held.buffer;
-    }
-    if (!held || held.size < size) {
-      let capacity = Math.max(size, 4096);
-      if (held) {
-        capacity = Math.max(capacity, held.size * 2);
-      }
-      held = {
-        buffer: this.device.createBuffer({ label: `${this.bufferName} ${key}`, size: capacity, usage }),
-        size: capacity,
-      };
-      this.persistent.set(key, held);
-    }
-    const bytes = new Uint8Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
-    this.device.queue.writeBuffer(held.buffer, 0, bytes, 0, bytes.byteLength);
-    return held.buffer;
-  }
-
   createInstanceBuffer(
     data: Uint16Array | Uint32Array | Float32Array,
     usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -105,8 +77,6 @@ export class BufferManager {
    * which exhausts that allocation on a memory-constrained runner: every
    * create then throws "size (32) is too large for the implementation".
    */
-  private readonly persistent = new Map<string, { buffer: GPUBuffer; size: number }>();
-
   createBuffer(name: string, data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags): GPUBuffer {
     const size = (data.byteLength + 3) & ~3;
     const buffer = this.device.createBuffer({ label: name, size, usage });

@@ -59,8 +59,12 @@ interface ShapeResources {
   segmentPipeline: GPURenderPipeline;
   /** Reused between frames so an outline never reallocates. */
   outlines: OutlineBuffer;
-  /** Floats the outline held last frame, so an unchanged one is not re-uploaded. */
-  outlineLength: number;
+  /**
+   * Per scene, because resources are shared by every mark of a type while the
+   * render queue runs their draws at the end of the frame. One buffer between
+   * them would leave every draw reading whichever mark wrote last.
+   */
+  outlineState: WeakMap<GPUVegaScene, OutlineState>;
   cache: Map<unknown, ShapeCacheEntry>;
 }
 
@@ -90,7 +94,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       segmentVertexManager,
       segmentPipeline,
       outlines: new OutlineBuffer(),
-      outlineLength: -1,
+      outlineState: new WeakMap(),
       cache: new Map(),
     };
   });
@@ -187,21 +191,16 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
   flushBatch();
 
-  const heldOutline = outlinesHeld && outlines.length === res.outlineLength;
-  res.outlineLength = outlines.length;
+  const state = res.outlineState.get(scene) ?? { buffer: null, capacity: 0, length: -1 };
+  res.outlineState.set(scene, state);
+  const heldOutline = outlinesHeld && outlines.length === state.length && state.buffer !== null;
+  state.length = outlines.length;
 
   if (outlines.length > 0) {
     ctx._renderQueue.enqueue({
       pipeline: res.segmentPipeline,
       drawCounts: [6, outlines.length / SEGMENT_STRIDE],
-      vertexBuffers: [
-        res.bufferManager.persistentBuffer(
-          'Outline',
-          outlines.data.subarray(0, outlines.length),
-          GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-          !heldOutline,
-        ),
-      ],
+      vertexBuffers: [outlineBuffer(device, state, outlines, heldOutline)],
       bindGroups: [createUniformBindGroup(`${drawName}Stroke`, device, res.segmentPipeline, uniformBuffer)],
       clip,
     });
@@ -223,6 +222,43 @@ function pushOutline(out: OutlineBuffer, item: SceneShapeItem, lines: Point[][])
     return;
   }
   out.length = writeSegments(out.reserve(needed), out.length, lines, color, width, CONTOUR_CAPS);
+}
+
+interface OutlineState {
+  buffer: GPUBuffer | null;
+  capacity: number;
+  length: number;
+}
+
+/**
+ * The scene's own outline buffer, rewritten only when the outline changed.
+ * writeBuffer is ordered on the queue, so a rewrite lands after the previous
+ * frame's draws have read it.
+ */
+function outlineBuffer(
+  device: GPUDevice,
+  state: OutlineState,
+  outlines: OutlineBuffer,
+  held: boolean,
+): GPUBuffer {
+  const bytes = new Uint8Array(outlines.data.buffer, 0, outlines.length * 4);
+  if (state.buffer && held) {
+    return state.buffer;
+  }
+  if (!state.buffer || state.capacity < bytes.byteLength) {
+    let capacity = Math.max(bytes.byteLength, 4096);
+    if (state.buffer) {
+      capacity = Math.max(capacity, state.capacity * 2);
+    }
+    state.buffer = device.createBuffer({
+      label: `${drawName} Outline`,
+      size: capacity,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
+    state.capacity = capacity;
+  }
+  device.queue.writeBuffer(state.buffer, 0, bytes, 0, bytes.byteLength);
+  return state.buffer;
 }
 
 /**

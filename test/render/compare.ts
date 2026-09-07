@@ -94,7 +94,14 @@ function flatten(img: PNG): PNG {
   return img;
 }
 
-export function diffPngs(a: Buffer, b: Buffer, name: string): { diffRatio: number; diff: Buffer } {
+/** Side of the square the worst-region measure is taken over, in pixels. */
+export const TILE = 32;
+
+export function diffPngs(
+  a: Buffer,
+  b: Buffer,
+  name: string,
+): { diffRatio: number; worstTile: number; worstTileAt: [number, number]; diff: Buffer } {
   const imgA = flatten(PNG.sync.read(a));
   const imgB = flatten(PNG.sync.read(b));
   if (imgA.width !== imgB.width || imgA.height !== imgB.height) {
@@ -109,7 +116,48 @@ export function diffPngs(a: Buffer, b: Buffer, name: string): { diffRatio: numbe
     // the suite and reported specs as 0.000% with visible marks out of place.
     includeAA: true,
   });
-  return { diffRatio: diffCount / (imgA.width * imgA.height), diff: PNG.sync.write(diff) };
+  const { ratio, at } = worstRegion(diff, imgA.width, imgA.height);
+  return {
+    diffRatio: diffCount / (imgA.width * imgA.height),
+    worstTile: ratio,
+    worstTileAt: at,
+    diff: PNG.sync.write(diff),
+  };
+}
+
+/**
+ * Densest TILE by TILE square of the difference, as a fraction of that square.
+ *
+ * A whole-image percentage is diluted by however much empty space a spec
+ * happens to have, so a small region that is badly wrong reads the same as a
+ * faint haze over everything. This says how concentrated the difference is, and
+ * where to look.
+ */
+function worstRegion(diff: PNG, width: number, height: number): { ratio: number; at: [number, number] } {
+  let ratio = 0;
+  let at: [number, number] = [0, 0];
+  for (let ty = 0; ty < height; ty += TILE) {
+    for (let tx = 0; tx < width; tx += TILE) {
+      const w = Math.min(TILE, width - tx);
+      const h = Math.min(TILE, height - ty);
+      let n = 0;
+      for (let y = ty; y < ty + h; y++) {
+        for (let x = tx; x < tx + w; x++) {
+          // pixelmatch paints a difference red, leaving matched pixels grey
+          const i = (y * width + x) * 4;
+          if (diff.data[i] > 200 && diff.data[i + 1] < 100) {
+            n++;
+          }
+        }
+      }
+      const r = n / (w * h);
+      if (r > ratio) {
+        ratio = r;
+        at = [tx, ty];
+      }
+    }
+  }
+  return { ratio, at };
 }
 
 /**

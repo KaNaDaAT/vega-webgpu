@@ -46,6 +46,15 @@ export const renderSpecs: string[] = readdirSync(specsDir)
  * below with the reason, which keeps the exceptions visible instead of
  * blanket-loose.
  */
+/**
+ * Densest 32px square of difference a spec may have, as a fraction of that
+ * square. The whole-image percentage is diluted by however much of a spec is
+ * empty or flat, so a small region that is badly wrong reads like a faint haze
+ * over everything. The worst observed is 23%, so this only catches a gross
+ * localized failure the percentage would hide, and needs no per-spec list.
+ */
+export const TILE_CHECK_DEFAULT = 0.35;
+
 export const CROSS_CHECK_DEFAULT = 0.008;
 
 /**

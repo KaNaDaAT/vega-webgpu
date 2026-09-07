@@ -149,6 +149,18 @@ push a view that already fits back over the cap.
 
 ## Development
 
+Two numbers are reported per spec. The whole-image differing-pixel percentage
+is diluted by however much of a chart is empty or flat, so a small region that
+is badly wrong reads much like a faint haze over everything. The second number
+is the densest 32px square of difference and where it is, which across the
+corpus runs a median of 30x the whole-image figure and up to 633x:
+
+```
+DIFF map-fit 0.436% TILE 23.3% at 544,288
+```
+
+
+
 The demo page fills its spec picker from `test/specs-valid.json`, which is
 generated from `test/specs-valid/` by `npm run manifest` (and by `npm run
 build`). Drop a `.vg.json` in and rebuild rather than editing the list. To keep
