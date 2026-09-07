@@ -155,7 +155,7 @@ push a view that already fits back over the cap.
 
 Known gaps and planned work are in [ToDo.md](ToDo.md). The same material, plus a
 per-mark feature table and a broad roadmap, is on the
-[project page](https://kanadaat.github.io/vega-webgpu/releases/).
+[project page](https://kanadaat.github.io/vega-webgpu/).
 
 ## Development
 

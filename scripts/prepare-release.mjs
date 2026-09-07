@@ -119,7 +119,11 @@ const byVersionDesc = (a, b) => {
   return 0;
 };
 
-const versions = Object.keys(releases).sort(byVersionDesc);
+// releases.json can carry notes for a version before its build is hosted, and
+// a row linking at a folder that is not there yet would only 404. The release
+// run copies the bundle first, so by then the version shows up on its own.
+const hosted = v => existsSync(join(releasesDir, v.replaceAll('.', '_'), 'vega-webgpu-renderer.js'));
+const versions = Object.keys(releases).filter(hosted).sort(byVersionDesc);
 writeFileSync(
   join(releasesDir, 'versions.js'),
   `const vegaWebGPURendererVersions = [${versions.map(v => `'${v}'`).join(', ')}];\n`,
@@ -129,17 +133,18 @@ writeFileSync(
 // The page is hand written, so only the marked regions are generated.
 const rows = versions
   .map(v => {
-    const href = `./${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
+    const href = `./releases/${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
     const e = entry(v);
     return `              <tr>
-                <td><a href="./${v.replaceAll('.', '_')}/">${v}</a></td>
+                <td><a href="./releases/${v.replaceAll('.', '_')}/">${v}</a></td>
                 <td>${notesHtml(e.summary ?? '')}${e.vega === 5 ? ' <em>(needs Vega 5)</em>' : ''}</td>
                 <td><a href="${href}">js</a> <a href="${href.replace('.js', '.min.js')}">min</a></td>
               </tr>`;
   })
   .join('\n');
 
-const indexPath = join(releasesDir, 'index.html');
+// the project page is the site's front page, so it sits at the repo root
+const indexPath = join(root, 'index.html');
 let page = readFileSync(indexPath, 'utf8');
 page = splice(
   page,
@@ -168,6 +173,10 @@ for (const v of versions) {
     .filter(Boolean)
     .join('\n\n');
   const vegaMajor = e.vega ?? (Number(v.split('.')[0]) >= 2 ? 6 : 5);
+  // the 1.x releases predate the esm output, so the button would 404
+  const esm = existsSync(join(releasesDir, dir, 'vega-webgpu-renderer.module.js'))
+    ? '<a class="btn" href="./vega-webgpu-renderer.module.js">ESM build</a>'
+    : '';
   const sub = `<!doctype html>
 <html lang="en">
   <head>
@@ -179,13 +188,13 @@ for (const v of versions) {
   <body>
     <header class="slim">
       <div class="wrap">
-        <p class="eyebrow"><a href="../">vega-webgpu-renderer</a></p>
+        <p class="eyebrow"><a href="../../">vega-webgpu-renderer</a></p>
         <h1>Version ${v}</h1>
         <p class="lede">${notesHtml(e.summary ?? '')}</p>
         <p class="actions">
           <a class="btn primary" href="./vega-webgpu-renderer.js">vega-webgpu-renderer.js</a>
           <a class="btn" href="./vega-webgpu-renderer.min.js">vega-webgpu-renderer.min.js</a>
-          <a class="btn" href="./vega-webgpu-renderer.module.js">ESM build</a>
+          ${esm}
           <a class="btn" href="../marks.html?build=${v}">Try it</a>
         </p>
       </div>
@@ -210,8 +219,8 @@ ${body || '        <p class="note">Nothing further was recorded for this release
     <footer>
       <div class="wrap">
         <p>
-          <a href="../">Project page</a>
-          <a href="../#versions">All versions</a>
+          <a href="../../">Project page</a>
+          <a href="../../#versions">All versions</a>
           <a href="../marks.html?build=${v}">Mark playground</a>
           <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
           <a href="../impressum.html">Impressum</a>

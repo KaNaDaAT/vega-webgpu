@@ -43,5 +43,38 @@
     "fixes": [
       "Path offsets were applied incorrectly"
     ]
+  },
+  "2.0.0": {
+    "vega": 6,
+    "summary": "Built for Vega 6. Every mark type is drawn, most edges are antialiased analytically rather than by MSAA, and text goes through a glyph atlas.",
+    "features": [
+      "Trail marks, so all twelve of vega mark types render",
+      "Blend modes: multiply, screen, darken and lighten, on nine of the twelve marks",
+      "Gradient fills on arc, area, group, path, rect, shape, symbol, text and trail",
+      "Gradient strokes on arc, area, path, shape, text and trail",
+      "Line dashes on line marks and group borders",
+      "strokeForeground, so a group border can draw over its children",
+      "sampleCount, to pick 4x MSAA or none",
+      "redrawOnZoom, to follow browser zoom or hold the ratio the canvas was first sized at",
+      "The canvas fits itself to the GPU maximum texture size instead of failing"
+    ],
+    "performance": [
+      "Text draws from a single glyph atlas: a rotating radial tree went from 328 ms a frame to 8.5",
+      "Cubic curves are evaluated on the GPU rather than flattened on the cpu",
+      "Item geometry, pipelines and uniform buffers are cached between frames",
+      "A frame no longer drains the GPU before the next one starts",
+      "A frame frees the buffers its draws used",
+      "About 14x faster than the canvas renderer at three hundred thousand points"
+    ],
+    "fixes": [
+      "Rules, segments, rects, circles and the symbol shapes with a closed form take analytic edge coverage, so an abutting edge no longer leaves a seam",
+      "Glyphs land on the sub-pixel phase canvas puts them on",
+      "A group border takes vega half pixel stroke offset",
+      "A path stops flattening its curves into facets",
+      "A path that will not tessellate falls back instead of vanishing",
+      "A NaN coordinate lands at the origin, the way vega reads it",
+      "Swapping renderers, or taking over an element, releases the GPU device that was held",
+      "renderBatch and simpleLine are gone: the line mark batches unconditionally"
+    ]
   }
 }

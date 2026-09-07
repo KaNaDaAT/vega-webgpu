@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="./index.css" />
+    <link rel="stylesheet" href="./releases/index.css" />
     <title>vega-webgpu-renderer</title>
     <meta name="description" content="A WebGPU renderer for Vega. Drop-in alongside the canvas and svg renderers." />
   </head>
@@ -17,8 +17,8 @@
           spec is unchanged.
         </p>
         <p class="actions">
-          <a class="btn primary" href="../test/">Live demo</a>
-          <a class="btn" href="./marks.html">Mark playground</a>
+          <a class="btn primary" href="./test/">Live demo</a>
+          <a class="btn" href="./releases/marks.html">Mark playground</a>
           <a class="btn" href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
           <span class="btn off" aria-disabled="true">npm, not published yet</span>
         </p>
@@ -221,8 +221,8 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
           </table>
         </div>
         <p>
-          Every mark name is a link into the <a href="./marks.html">playground</a>, where you can tick these properties
-          on and off and watch canvas and WebGPU draw the same spec side by side.
+          Every mark name is a link into the <a href="./releases/marks.html">playground</a>, where you can tick these
+          properties on and off and watch canvas and WebGPU draw the same spec side by side.
         </p>
         <p>
           Where a gradient is not supported the mark draws a flat colour from the gradient's first stop. Where
@@ -368,24 +368,24 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
             <tbody>
               <!-- versions:start -->
               <tr>
-                <td><a href="./1_2_0/">1.2.0</a></td>
+                <td><a href="./releases/1_2_0/">1.2.0</a></td>
                 <td>Performance work on lines, clipping support and a path offset fix. <em>(needs Vega 5)</em></td>
-                <td><a href="./1_2_0/vega-webgpu-renderer.js">js</a> <a href="./1_2_0/vega-webgpu-renderer.min.js">min</a></td>
+                <td><a href="./releases/1_2_0/vega-webgpu-renderer.js">js</a> <a href="./releases/1_2_0/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <tr>
-                <td><a href="./1_1_1/">1.1.1</a></td>
+                <td><a href="./releases/1_1_1/">1.1.1</a></td>
                 <td>Performance work on paths, plus the renderLock option. <em>(needs Vega 5)</em></td>
-                <td><a href="./1_1_1/vega-webgpu-renderer.js">js</a> <a href="./1_1_1/vega-webgpu-renderer.min.js">min</a></td>
+                <td><a href="./releases/1_1_1/vega-webgpu-renderer.js">js</a> <a href="./releases/1_1_1/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <tr>
-                <td><a href="./1_1_0/">1.1.0</a></td>
+                <td><a href="./releases/1_1_0/">1.1.0</a></td>
                 <td>Overall improvements to performance, types and structure. <em>(needs Vega 5)</em></td>
-                <td><a href="./1_1_0/vega-webgpu-renderer.js">js</a> <a href="./1_1_0/vega-webgpu-renderer.min.js">min</a></td>
+                <td><a href="./releases/1_1_0/vega-webgpu-renderer.js">js</a> <a href="./releases/1_1_0/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <tr>
-                <td><a href="./1_0_0/">1.0.0</a></td>
+                <td><a href="./releases/1_0_0/">1.0.0</a></td>
                 <td>First WebGPU implementation. <em>(needs Vega 5)</em></td>
-                <td><a href="./1_0_0/vega-webgpu-renderer.js">js</a> <a href="./1_0_0/vega-webgpu-renderer.min.js">min</a></td>
+                <td><a href="./releases/1_0_0/vega-webgpu-renderer.js">js</a> <a href="./releases/1_0_0/vega-webgpu-renderer.min.js">min</a></td>
               </tr>
               <!-- versions:end -->
             </tbody>
@@ -399,11 +399,11 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
       <div class="wrap">
         <p>
           <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
-          <a href="./marks.html">Mark playground</a>
-          <a href="../test/">Live demo</a>
+          <a href="./releases/marks.html">Mark playground</a>
+          <a href="./test/">Live demo</a>
           <a href="https://vega.github.io/vega/">Vega</a>
           <a href="https://github.com/KaNaDaAT/vega-webgpu/blob/main/ToDo.md">Full roadmap</a>
-          <a href="./impressum.html">Impressum</a>
+          <a href="./releases/impressum.html">Impressum</a>
         </p>
         <p class="madewith">
           Built to show the work and to be useful, with the help of
@@ -417,14 +417,14 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
     </footer>
 
     <script type="module">
-      import { SUPPORT, MARKS, FEATURES, CELL_TEXT, CELL_CLASS } from './marks.js';
+      import { SUPPORT, MARKS, FEATURES, CELL_TEXT, CELL_CLASS } from './releases/marks.js';
 
       const body = document.getElementById('matrix');
       for (const mark of MARKS) {
         const row = document.createElement('tr');
         const name = document.createElement('td');
         const link = document.createElement('a');
-        link.href = `./marks.html?mark=${mark}`;
+        link.href = `./releases/marks.html?mark=${mark}`;
         link.textContent = mark;
         link.title = `Try ${mark} in the playground`;
         name.append(link);
