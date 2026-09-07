@@ -36,7 +36,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x2', 'float32'], // origin, size, opacity
     );
     const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
     const smoothSampler = device.createSampler({
       label: 'Image Sampler (smooth)',
       magFilter: 'linear',

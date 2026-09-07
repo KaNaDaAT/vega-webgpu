@@ -4,8 +4,20 @@ import contours from 'svg-path-contours';
 import triangulate from 'triangulate-contours';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { PathGeometry } from '../types/geometry.js';
+import type { Point } from '../util/dash.js';
 
 const EMPTY: PathGeometry = { lines: [], triangles: [], closed: false, z: 0 };
+
+let warnedTessellation = false;
+
+/** Triangulates contours, or null when tess2 cannot. */
+function tessellate(lines: Point[][]): ReturnType<typeof triangulate> | null {
+  try {
+    return triangulate(lines, { windingRule: WINDING_NONZERO });
+  } catch {
+    return null;
+  }
+}
 
 // tess2's WINDING_NONZERO. canvas fills nonzero, and triangulate-contours asks
 // for even-odd, which leaves the middle of a self-intersecting path hollow.
@@ -34,14 +46,24 @@ export default function geometryForPath(
   }
 
   // get a list of polylines/contours from svg contents
-  const lines = contours(parse(path)).map(contour => simplify(contour, threshold));
+  const flat = contours(parse(path));
+  let lines = flat.map(contour => simplify(contour, threshold));
 
-  // triangulation can fail in some corner cases
-  let tri: ReturnType<typeof triangulate>;
-  try {
-    tri = triangulate(lines, { windingRule: WINDING_NONZERO });
-  } catch {
+  // Simplifying can nudge a contour into a self intersection, which tess2
+  // reaches an undefined identifier on and throws. Dropping the shape there
+  // loses it silently, and a county went missing off the choropleth that way,
+  // so fall back to the contour as traced.
+  let tri = tessellate(lines);
+  if (tri === null) {
+    lines = flat;
+    tri = tessellate(lines);
+  }
+  if (tri === null) {
     tri = { positions: [], cells: [] };
+    if (!warnedTessellation) {
+      warnedTessellation = true;
+      console.warn('[vega-webgpu] A path could not be tessellated and is not drawn.');
+    }
   }
 
   const z = context._randomZ ? 0.25 * (Math.random() - 0.5) : 0;

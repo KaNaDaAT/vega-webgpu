@@ -34,7 +34,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     // line shader instead.
     const diagonalVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
     const diagonalPipeline = markPipeline(ctx, device, `${drawName}Diagonal`, 'SLine', diagonalVertexManager);
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
     return { device, bufferManager, vertexManager, pipeline, diagonalPipeline, geometryBuffer };
   });
 }

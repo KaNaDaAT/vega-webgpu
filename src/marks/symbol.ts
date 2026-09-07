@@ -68,7 +68,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x4', 'float32'], // instance center, color, angle
     );
     const shapePipeline = markPipeline(ctx, device, `${drawName}Shape`, 'SymbolShape', shapeVertexManager);
-    const circleGeometry = bufferManager.createGeometryBuffer(createCircleGeometry());
+    const circleGeometry = bufferManager.createGeometryBuffer(createCircleGeometry(), undefined, true);
     const sdfVertexManager = new VertexBufferManager(
       ['float32x2'], // unit quad position
       // center, size, fill color, stroke color, stroke width, angle
@@ -76,6 +76,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     );
     const quadGeometry = bufferManager.createGeometryBuffer(
       Float32Array.from([-1, -1, -1, 1, 1, -1, 1, -1, -1, 1, 1, 1]),
+      undefined,
+      true,
     );
     const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
     const solidPipeline = markPipeline(ctx, device, `${drawName}Solid`, 'SolidFill', colorVertexManager);

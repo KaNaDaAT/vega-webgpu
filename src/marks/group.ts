@@ -51,7 +51,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     );
     const dashVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
     const dashPipeline = markPipeline(ctx, device, `${drawName}Dash`, 'SLine', dashVertexManager);
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
     return { device, bufferManager, vertexManager, pipeline, gradientPipeline, dashPipeline, geometryBuffer };
   });
 }

@@ -5,6 +5,7 @@ import { Color } from './util/color.js';
 import { GpuTimer } from './util/gpuTimer.js';
 import { RenderQueue } from './util/renderQueue.js';
 import resize, { pixelRatio } from './util/resize.js';
+import { bufferPool } from './util/bufferManager.js';
 import {
   createRenderPassDescriptor,
   defaultSampleCount,
@@ -27,6 +28,16 @@ const MAX_DEVICE_RECOVERIES = 3;
 const MIN_TEXTURE_DIM = 8192;
 /** Quiet time before a settling frame redraws at full quality. */
 const SETTLE_DELAY_MS = 150;
+
+/**
+ * The renderer currently drawing into an element.
+ *
+ * vega swaps renderers by dropping the old one and building a new one, without
+ * telling the old one to let go, so its device and everything on it would stay
+ * alive for as long as the page did. Taking over an element releases whoever
+ * held it before.
+ */
+const holders = new WeakMap<HTMLElement, WebGPURenderer>();
 
 interface PendingRender {
   scene: GPUVegaScene;
@@ -108,6 +119,16 @@ export default class WebGPURenderer extends Renderer {
     scaleFactor?: number,
     opt?: unknown,
   ): this {
+    // re-initializing this renderer, or taking the element off another one
+    this._releaseGpu();
+    if (el) {
+      const held = holders.get(el);
+      if (held && held !== this) {
+        held.finalize();
+      }
+      holders.set(el, this);
+    }
+
     this._canvas = document.createElement('canvas');
     this._pickCanvas = document.createElement('canvas');
     this._pickContext = this._pickCanvas.getContext('2d');
@@ -413,9 +434,8 @@ export default class WebGPURenderer extends Renderer {
    * creates and discards views leaks a device each time. Nothing recreates one
    * after this, so call it when the view is going away for good.
    */
-  finalize(): void {
-    this._finalized = true;
-    this._unwatchPixelRatio();
+  /** Drops the device and the timer, without marking the renderer finished. */
+  private _releaseGpu(): void {
     if (this._settleTimer !== null) {
       clearTimeout(this._settleTimer);
       this._settleTimer = null;
@@ -424,6 +444,12 @@ export default class WebGPURenderer extends Renderer {
     this._gpuTimer?.destroy();
     this._dropDevice();
     device?.destroy();
+  }
+
+  finalize(): void {
+    this._finalized = true;
+    this._unwatchPixelRatio();
+    this._releaseGpu();
   }
 
   /**
@@ -671,6 +697,13 @@ export default class WebGPURenderer extends Renderer {
 
   private _finishFrame(): void {
     this._isRendering = false;
+
+    // The frame is submitted, so the buffers its draws used can go. An
+    // implementation keeps a destroyed buffer alive until the commands
+    // referencing it have run.
+    if (this._device) {
+      bufferPool(this._device).release();
+    }
 
     if (this._pendingDestroy.length > 0) {
       for (const resource of this._pendingDestroy) {

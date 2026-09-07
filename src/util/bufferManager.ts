@@ -1,6 +1,49 @@
 // A scene has few distinct group offsets, so this collapses to a handful.
 const MAX_UNIFORM_CACHE = 128;
 
+/**
+ * Buffers a frame's draws create, released once the frame is submitted.
+ *
+ * A mark mints a buffer per draw and WebGPU frees none of them on its own, so
+ * a hovered chart was creating hundreds a frame and holding every one, which
+ * reached tens of gigabytes. Destroying is safe after submit: an implementation
+ * keeps a buffer alive until the commands referencing it have run.
+ */
+class FrameBuffers {
+  private current: GPUBuffer[] = [];
+  private previous: GPUBuffer[] = [];
+
+  hold(buffer: GPUBuffer): GPUBuffer {
+    this.current.push(buffer);
+    return buffer;
+  }
+
+  /**
+   * Frees the frame before last. A capture and an image that finishes loading
+   * both submit again around a frame, so a buffer is only let go once a later
+   * frame has been through as well.
+   */
+  release(): void {
+    for (const buffer of this.previous) {
+      buffer.destroy();
+    }
+    this.previous = this.current;
+    this.current = [];
+  }
+}
+
+const pools = new WeakMap<GPUDevice, FrameBuffers>();
+
+/** The frame's buffers for a device, which die with it. */
+export function bufferPool(device: GPUDevice): FrameBuffers {
+  let pool = pools.get(device);
+  if (!pool) {
+    pool = new FrameBuffers();
+    pools.set(device, pool);
+  }
+  return pool;
+}
+
 export class BufferManager {
   private device: GPUDevice;
   private uniformCache = new Map<string, GPUBuffer>();
@@ -41,10 +84,12 @@ export class BufferManager {
     const key = values.join(',');
     let buffer = this.uniformCache.get(key);
     if (!buffer) {
+      // cached across frames by value, so it cannot come from the frame pool
       buffer = this.createBuffer(
         `${this.bufferName} Uniform`,
         values,
         GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        true,
       );
       if (this.uniformCache.size >= MAX_UNIFORM_CACHE) {
         const oldest = this.uniformCache.keys().next().value;
@@ -60,8 +105,9 @@ export class BufferManager {
   createGeometryBuffer(
     data: Float32Array,
     usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    lasting = false,
   ): GPUBuffer {
-    return this.createBuffer(`${this.bufferName} Geometry Buffer`, data, usage);
+    return this.createBuffer(`${this.bufferName} Geometry Buffer`, data, usage, lasting);
   }
 
   createInstanceBuffer(
@@ -77,9 +123,21 @@ export class BufferManager {
    * which exhausts that allocation on a memory-constrained runner: every
    * create then throws "size (32) is too large for the implementation".
    */
-  createBuffer(name: string, data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags): GPUBuffer {
+  /**
+   * `lasting` keeps the buffer out of the frame pool, for the few that are held
+   * across frames rather than rebuilt.
+   */
+  createBuffer(
+    name: string,
+    data: Uint16Array | Uint32Array | Float32Array,
+    usage: GPUBufferUsageFlags,
+    lasting = false,
+  ): GPUBuffer {
     const size = (data.byteLength + 3) & ~3;
     const buffer = this.device.createBuffer({ label: name, size, usage });
+    if (!lasting) {
+      bufferPool(this.device).hold(buffer);
+    }
     const bytes = new Uint8Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
     // writeBuffer copies whole words, so an unaligned tail needs padding
     let src = bytes;

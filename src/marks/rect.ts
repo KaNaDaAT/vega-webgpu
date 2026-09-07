@@ -39,7 +39,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       vertexManager,
       'main_fragment_gradient',
     );
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
     return {
       device,
       bufferManager,

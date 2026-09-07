@@ -120,9 +120,13 @@ function getSlot(
 }
 
 /**
- * Places a label, preferring the rasterization with the rotation baked in and
- * falling back to an upright one the quad turns when this draw is not
- * rasterizing rotations.
+ * Places a label, with the rotation rasterized in, or upright with the quad
+ * turning it when this draw is not rasterizing rotations.
+ *
+ * A draw commits to one or the other for every label it has. Taking the
+ * rasterized one just because it happened to still be in the atlas mixed the
+ * two, and since the atlas recycles, a label swapped between them from frame to
+ * frame and visibly shifted.
  */
 function place(
   ctx: GPUVegaCanvasContext,
@@ -135,10 +139,6 @@ function place(
   if (turn === NO_TURN || exact) {
     const slot = getSlot(ctx, res, item, vb, NO_TURN, true);
     return slot && { slot, turn: NO_TURN };
-  }
-  const cached = getSlot(ctx, res, item, vb, NO_TURN, false);
-  if (cached) {
-    return { slot: cached, turn: NO_TURN };
   }
   const slot = getSlot(ctx, res, upright(item), vb, turn, true);
   return slot && { slot, turn };
@@ -219,16 +219,21 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       continue;
     }
 
-    const metrics = glyphMetrics(ctx, item, vb, NO_TURN);
+    // A label the atlas cannot hold takes the same decision as the rest of the
+    // draw, or it would be the one label that does not move with the others.
+    const spun = turn !== NO_TURN && !exact;
+    const raster = spun ? upright(item) : item;
+    const metrics = glyphMetrics(ctx, raster, vb, spun ? turn : NO_TURN);
     if (!metrics) {
       continue;
     }
-    const tex = rasterizeText(device, res.scratch, res.scratchCtx, dpi, item, metrics);
+    const tex = rasterizeText(device, res.scratch, res.scratchCtx, dpi, raster, metrics);
     ctx._renderer?.deferDestroy(tex.texture);
     const [x1, y1, x2, y2] = labelRect(vb, dpi, item, metrics);
+    const [cos, sin] = spun ? turn : NO_TURN;
     oversized.push({
       texture: tex.texture,
-      data: Float32Array.from([x1, y1, x2, y2, 0, 0, 1, 1, ax, ay, 1, 0, opacity]),
+      data: Float32Array.from([x1, y1, x2, y2, 0, 0, 1, 1, ax, ay, cos, sin, opacity]),
     });
   }
 
