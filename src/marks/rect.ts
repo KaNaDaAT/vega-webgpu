@@ -129,10 +129,6 @@ export function rectAttributes(items: SceneItem[], whiteGradientFill = false): F
   return Float32Array.from(
     items.flatMap(rect => {
       const {
-        x = 0,
-        y = 0,
-        width = 0,
-        height = 0,
         opacity = 1,
         fill,
         fillOpacity = 1,
@@ -145,6 +141,11 @@ export function rectAttributes(items: SceneItem[], whiteGradientFill = false): F
         cornerRadiusTopRight,
         cornerRadiusTopLeft,
       } = rect as SceneRectExt;
+      const item = rect as SceneRectExt;
+      const x = item.x || 0;
+      const y = item.y || 0;
+      const width = item.width || 0;
+      const height = item.height || 0;
       const col =
         whiteGradientFill && isGradient(fill)
           ? whiteCarrier(opacity, fillOpacity)

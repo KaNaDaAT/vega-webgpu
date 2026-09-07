@@ -293,7 +293,7 @@ function instanceData(
       continue;
     }
     const c = color(item);
-    rows.push(item.x ?? 0, item.y ?? 0, c[0], c[1], c[2], c[3], (item.angle ?? 0) * DEG_TO_RAD);
+    rows.push(item.x || 0, item.y || 0, c[0], c[1], c[2], c[3], (item.angle || 0) * DEG_TO_RAD);
     count++;
   }
   return { data: Float32Array.from(rows), count };
@@ -362,23 +362,13 @@ function createSdfAttributes(items: SceneItem[]): Float32Array {
   const result = new Float32Array(items.length * 14);
   let index = -1;
   for (let i = 0, len = items.length; i < len; i++) {
-    const {
-      x = 0,
-      y = 0,
-      size = 64,
-      fill,
-      stroke,
-      strokeWidth = 1,
-      opacity = 1,
-      fillOpacity = 1,
-      strokeOpacity = 1,
-      angle = 0,
-    } = items[i] as SceneSymbolExt;
+    const item = items[i] as SceneSymbolExt;
+    const { fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = item;
     const col = Color.from2(fill, opacity, fillOpacity);
     const scol = Color.from2(stroke, opacity, strokeOpacity);
-    result[++index] = x;
-    result[++index] = y;
-    result[++index] = Math.sqrt(size);
+    result[++index] = item.x || 0;
+    result[++index] = item.y || 0;
+    result[++index] = Math.sqrt(item.size ?? 64);
     result[++index] = col[0];
     result[++index] = col[1];
     result[++index] = col[2];
@@ -388,7 +378,7 @@ function createSdfAttributes(items: SceneItem[]): Float32Array {
     result[++index] = scol[2];
     result[++index] = scol[3];
     result[++index] = stroke ? strokeWidth : 0;
-    result[++index] = (angle * Math.PI) / 180;
+    result[++index] = ((item.angle || 0) * Math.PI) / 180;
   }
   return result;
 }
@@ -422,23 +412,14 @@ function createCircleAttributes(items: SceneItem[]): Float32Array {
   const result = new Float32Array(items.length * 12);
   let index = -1;
   for (let i = 0, len = items.length; i < len; i++) {
-    const {
-      x = 0,
-      y = 0,
-      size = 64,
-      fill,
-      stroke,
-      strokeWidth = 1,
-      opacity = 1,
-      fillOpacity = 1,
-      strokeOpacity = 1,
-    } = items[i] as SceneSymbolExt;
+    const item = items[i] as SceneSymbolExt;
+    const { fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = item;
     const col = Color.from2(fill, opacity, fillOpacity);
     const scol = Color.from2(stroke, opacity, strokeOpacity);
-    const rad = Math.sqrt(size) / 2;
+    const rad = Math.sqrt(item.size ?? 64) / 2;
 
-    result[++index] = x;
-    result[++index] = y;
+    result[++index] = item.x || 0;
+    result[++index] = item.y || 0;
     result[++index] = rad;
     result[++index] = col[0];
     result[++index] = col[1];

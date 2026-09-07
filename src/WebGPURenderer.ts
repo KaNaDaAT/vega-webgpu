@@ -14,10 +14,6 @@ import {
 const viewBounds = (origin: readonly [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
 
-// Fallback deadline for finishing a frame when requestAnimationFrame does not
-// fire. Longer than a 60Hz frame so rAF wins in a normal page.
-const FRAME_TIMEOUT_MS = 34;
-
 // Upper bound on a frame capture, so a stalled readback reports instead of
 // hanging its caller.
 const CAPTURE_TIMEOUT_MS = 10_000;
@@ -30,8 +26,6 @@ interface PendingRender {
 
 export default class WebGPURenderer extends Renderer {
   wgOptions: GPUVegaOptions = {
-    renderBatch: true,
-    simpleLine: true,
     debugLog: false,
     cacheShapes: true,
     renderLock: true,
@@ -371,22 +365,10 @@ export default class WebGPURenderer extends Renderer {
       this._readback(device, target).then(capture.resolve, capture.reject);
     }
 
-    // rAF is the normal path, but it does not fire in a hidden tab nor on a
-    // headless runner with no compositor, and a frame that never finishes
-    // leaves _isRendering set and wedges every later render. Race it against a
-    // timer and finish on whichever arrives first.
-    let finished = false;
-    const finish = () => {
-      if (finished) {
-        return;
-      }
-      finished = true;
-      this._endFrame(t1, t2);
-    };
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(finish);
-    }
-    setTimeout(finish, FRAME_TIMEOUT_MS);
+    // The work is on the GPU, so the lock goes now. Waiting for the next
+    // animation frame to release it deferred any render arriving inside that
+    // window, which is a dragged slider rendering a frame behind.
+    this._endFrame(t1, t2);
   }
 
   private _endFrame(t1: number, t2: number): void {
@@ -394,7 +376,7 @@ export default class WebGPURenderer extends Renderer {
       const t3 = performance.now();
       console.log(
         `Render Time (${this._renderCount++}): ${(t3 - t1).toFixed(3)}ms ` +
-          `(Draw: ${(t2 - t1).toFixed(3)}ms, WebGPU: ${(t3 - t2).toFixed(3)}ms)`,
+          `(Draw: ${(t2 - t1).toFixed(3)}ms, Encode: ${(t3 - t2).toFixed(3)}ms)`,
       );
     }
     this._finishFrame();

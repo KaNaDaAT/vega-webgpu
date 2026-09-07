@@ -1,9 +1,10 @@
 import { SEGMENT_NORMAL, TO_NDC, fragmentTail, uniformBlock } from './common.js';
 
 /**
- * One quad per line segment instance, with the coverage of a butt capped
- * segment computed analytically. Dashes, dashed rect borders and diagonal rules
- * all come through here.
+ * One quad per line segment instance, with the coverage of the segment computed
+ * analytically. `caps` rounds an end, which is both a round stroke cap and the
+ * round join at an interior vertex of a polyline. Dashes, dashed rect borders,
+ * diagonal rules and line segments all come through here.
  */
 export const slineShader = (blend: string): string => `
 ${uniformBlock('dpi')}
@@ -17,6 +18,7 @@ struct VertexInput {
     @location(1) end: vec2<f32>,
     @location(2) color: vec4<f32>,
     @location(3) stroke_width: f32,
+    @location(4) caps: vec2<f32>,
 }
 
 struct VertexOutput {
@@ -26,6 +28,7 @@ struct VertexOutput {
     @location(1) a_dev: vec2<f32>,
     @location(2) b_dev: vec2<f32>,
     @location(3) half_dev: f32,
+    @location(4) caps: vec2<f32>,
 }
 
 @vertex
@@ -36,13 +39,16 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
     let normal = normalAt(delta);
 
     // Grow the quad by one device pixel so the falloff is not clipped, which
-    // leaves every pixel the segment touches fully rasterized.
+    // leaves every pixel the segment touches fully rasterized. A round end
+    // reaches half the stroke width further.
     let pad = 1.0 / d;
-    let side = normal * (in.stroke_width * 0.5 + pad);
-    let ahead = direction * pad;
+    let half = in.stroke_width * 0.5;
+    let side = normal * (half + pad);
+    let behind = direction * (pad + select(0.0, half, in.caps.x > 0.5));
+    let ahead = direction * (pad + select(0.0, half, in.caps.y > 0.5));
 
-    let p1 = in.start - side - ahead;
-    let p2 = in.start + side - ahead;
+    let p1 = in.start - side - behind;
+    let p2 = in.start + side - behind;
     let p3 = in.end - side + ahead;
     let p4 = in.end + side + ahead;
 
@@ -54,14 +60,15 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
     out.fill = in.color;
     out.a_dev = (in.start - uniforms.offset) * d;
     out.b_dev = (in.end - uniforms.offset) * d;
-    out.half_dev = in.stroke_width * 0.5 * d;
+    out.half_dev = half * d;
+    out.caps = in.caps;
     return out;
 }
 
 /**
- * Coverage across the stroke times coverage along it, the separable box model
- * rect and rule use. MSAA can only express quarter steps, which reads as a
- * stepped diagonal where canvas draws a smooth one.
+ * Distance to the segment, cut flat at each butt end. MSAA can only express
+ * quarter steps, which reads as a stepped diagonal where canvas draws a smooth
+ * one.
  */
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let ab = in.b_dev - in.a_dev;
@@ -69,10 +76,10 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let e = safeDirection(ab);
     let v = in.pos.xy - in.a_dev;
     let along = dot(v, e);
-    let perp = abs(v.y * e.x - v.x * e.y);
-    let across = clamp(in.half_dev - perp + 0.5, 0.0, 1.0);
-    let ends = clamp(min(along, len - along) + 0.5, 0.0, 1.0);
-    return vec4<f32>(in.fill.rgb, in.fill.a * across * ends);
+    let cover = clamp(in.half_dev - length(v - e * clamp(along, 0.0, len)) + 0.5, 0.0, 1.0);
+    let behind = select(clamp(along + 0.5, 0.0, 1.0), 1.0, in.caps.x > 0.5);
+    let ahead = select(clamp(len - along + 0.5, 0.0, 1.0), 1.0, in.caps.y > 0.5);
+    return vec4<f32>(in.fill.rgb, in.fill.a * cover * behind * ahead);
 }
 
 ${fragmentTail(blend)}

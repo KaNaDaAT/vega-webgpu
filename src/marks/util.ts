@@ -194,11 +194,16 @@ export function markPipeline(
 
 /**
  * Vertex layout of a single line segment instance, shared by every mark that
- * falls back to the SLine shader: dashes, dashed borders and diagonal rules.
+ * draws through the SLine shader: line segments, dashes, dashed borders and
+ * diagonal rules. `caps` rounds an end, which covers both a round stroke cap
+ * and the round join at an interior vertex.
  */
-export const SEGMENT_LAYOUT: GPUVertexFormat[] = ['float32x2', 'float32x2', 'float32x4', 'float32'];
+export const SEGMENT_LAYOUT: GPUVertexFormat[] = ['float32x2', 'float32x2', 'float32x4', 'float32', 'float32x2'];
 
-/** Packs one segment as start, end, colour, width. */
+/** Floats per segment instance: start, end, colour, width, caps. */
+export const SEGMENT_STRIDE = 11;
+
+/** Packs one segment as start, end, colour, width, caps. */
 export function segmentInstance(
   x1: number,
   y1: number,
@@ -206,12 +211,20 @@ export function segmentInstance(
   y2: number,
   color: RGBA,
   width: number,
+  caps: readonly [number, number] = BUTT,
 ): Float32Array {
-  return Float32Array.from([x1, y1, x2, y2, ...color, width]);
+  return Float32Array.from([x1, y1, x2, y2, ...color, width, caps[0], caps[1]]);
 }
 
+const BUTT = [0, 0] as const;
+
 /** Packs every segment of every polyline, or null when there is nothing to draw. */
-export function segmentInstances(runs: Point[][], color: RGBA, width: number): Float32Array | null {
+export function segmentInstances(
+  runs: Point[][],
+  color: RGBA,
+  width: number,
+  caps: readonly [number, number] = BUTT,
+): Float32Array | null {
   const count = runs.reduce((n, r) => n + Math.max(0, r.length - 1), 0);
   if (count === 0) {
     return null;
@@ -220,15 +233,12 @@ export function segmentInstances(runs: Point[][], color: RGBA, width: number): F
   let i = 0;
   for (const run of runs) {
     for (let s = 0; s < run.length - 1; s++) {
-      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], ...color, width], i);
+      data.set([run[s][0], run[s][1], run[s + 1][0], run[s + 1][1], ...color, width, caps[0], caps[1]], i);
       i += SEGMENT_STRIDE;
     }
   }
   return data;
 }
-
-/** Floats per segment instance: start, end, colour, width. */
-export const SEGMENT_STRIDE = 9;
 
 /**
  * Rect and group strokes are drawn analytically in the fragment shader, which
@@ -241,10 +251,10 @@ export function dashedBorderInstances(item: SceneRectExt): Float32Array | null {
   if (!pattern?.length || !item.stroke) {
     return null;
   }
-  const x = item.x ?? 0;
-  const y = item.y ?? 0;
-  const w = item.width ?? 0;
-  const h = item.height ?? 0;
+  const x = item.x || 0;
+  const y = item.y || 0;
+  const w = item.width || 0;
+  const h = item.height || 0;
   if (w <= 0 || h <= 0) {
     return null;
   }

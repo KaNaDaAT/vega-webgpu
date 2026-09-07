@@ -3,7 +3,6 @@ import type { ShaderBuilder } from './common.js';
 import { curveShader } from './curve.js';
 import { gradientFillShader } from './gradientFill.js';
 import { imageShader } from './image.js';
-import { lineShader } from './line.js';
 import { rectShader } from './rect.js';
 import { ruleShader } from './rule.js';
 import { slineShader } from './sline.js';
@@ -18,7 +17,6 @@ const BUILDERS = {
   Curve: curveShader,
   GradientFill: gradientFillShader,
   Image: imageShader,
-  Line: lineShader,
   Rect: rectShader,
   Rule: ruleShader,
   SLine: slineShader,

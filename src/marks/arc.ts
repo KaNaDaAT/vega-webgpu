@@ -95,7 +95,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
     const shapeGeom = arc(ctx, item);
     // arc paths are generated around the origin, so bake the item center in
-    const geometry = geometryForItem(ctx, item, shapeGeom, false, item.x ?? 0, item.y ?? 0);
+    const geometry = geometryForItem(ctx, item, shapeGeom, false, item.x || 0, item.y || 0);
     const [fillData, strokeData] = geometryVertexData(geometry, fill, stroke);
 
     if (fillData.length > 0 && gradient && bounds) {

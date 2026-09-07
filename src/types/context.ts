@@ -15,10 +15,6 @@ export interface RenderUniforms {
 
 /** Renderer options adjustable via `view._renderer.wgOptions`. */
 export interface GPUVegaOptions {
-  /** Render marks in batches where possible (e.g. many lines at once). */
-  renderBatch: boolean;
-  /** @deprecated since 1.2.0, superseded by renderBatch. */
-  simpleLine: boolean;
   /** Cache triangulated shape geometry between frames (experimental). */
   cacheShapes: boolean;
   /** Log per-frame render timings to the console. */

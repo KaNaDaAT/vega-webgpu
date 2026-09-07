@@ -1,0 +1,129 @@
+{
+ "description": "NaN coordinates on marks vega coerces to zero. Its own accessor is item.x || 0, which the earthquakes-globe legend relies on.",
+ "width": 200,
+ "height": 180,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rect",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 20,
+        "width": 40,
+        "height": 30,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": "__NaN__",
+        "y": 20,
+        "width": 40,
+        "height": 30,
+        "fill": "#72b7b2"
+       },
+       {
+        "x": 120,
+        "y": "__NaN__",
+        "width": 40,
+        "height": 30,
+        "fill": "#e45756"
+       }
+      ]
+     },
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 40,
+        "y": 90,
+        "size": 400,
+        "shape": "circle",
+        "fill": "#4c78a8"
+       },
+       {
+        "x": "__NaN__",
+        "y": "__NaN__",
+        "size": 400,
+        "shape": "circle",
+        "fill": "#72b7b2",
+        "fillOpacity": 0,
+        "stroke": "#e45756",
+        "strokeWidth": 3
+       },
+       {
+        "x": 120,
+        "y": "__NaN__",
+        "size": 300,
+        "shape": "square",
+        "fill": "#f58518"
+       }
+      ]
+     },
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 130,
+        "x2": 90,
+        "y2": 130,
+        "stroke": "#4c78a8",
+        "strokeWidth": 3
+       },
+       {
+        "x": "__NaN__",
+        "y": 145,
+        "x2": 90,
+        "y2": 145,
+        "stroke": "#72b7b2",
+        "strokeWidth": 3
+       }
+      ]
+     },
+     {
+      "marktype": "text",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 120,
+        "y": 130,
+        "text": "ok",
+        "fill": "#333",
+        "fontSize": 14
+       },
+       {
+        "x": "__NaN__",
+        "y": 160,
+        "text": "nan",
+        "fill": "#333",
+        "fontSize": 14
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

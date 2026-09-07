@@ -121,16 +121,12 @@ function configureWebGPU() {
 
   if (matchesVersion(selectedVersion, '1.0.x', false)) {
     view._renderer.debugLog = false;
-    view._renderer.simpleLine = true;
   }
   if (matchesVersion(selectedVersion, '1+.1+.x')) {
     view._renderer.wgOptions.debugLog = true;
   }
   if (matchesVersion(selectedVersion, '1+.1+.1+')) {
     view._renderer.wgOptions.renderLock = true;
-  }
-  if (matchesVersion(selectedVersion, '1+.2+.x')) {
-    view._renderer.wgOptions.renderBatch = true;
   }
 }
 

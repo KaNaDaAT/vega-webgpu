@@ -22,22 +22,13 @@ import {
 } from './util.js';
 
 const drawName = 'Line';
-// Round joins are drawn as filled circles at interior vertices.
-const JOIN_SEGMENTS = 24;
 
 interface LineResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  /** Per-instance resolution/offset; batches across marks with different offsets. */
-  batchVertexManager: VertexBufferManager;
-  /** Resolution/offset from the uniform buffer; one instanced draw per mark. */
-  instancedVertexManager: VertexBufferManager;
-  batchPipeline: GPURenderPipeline;
-  instancedPipeline: GPURenderPipeline;
-  /** Round-join pipeline (reuses the antialiased symbol-circle shader). */
-  joinPipeline: GPURenderPipeline;
-  joinVertexManager: VertexBufferManager;
-  joinGeometryBuffer: GPUBuffer;
+  segmentVertexManager: VertexBufferManager;
+  segmentPipeline: GPURenderPipeline;
+  segmentBindGroup: { group: GPUBindGroup; buffer: GPUBuffer } | null;
   curveVertexManager: VertexBufferManager;
   curvePipeline: GPURenderPipeline;
   /** basis and bezier share this layout and differ only in the shader. */
@@ -59,20 +50,8 @@ type CurveKind = keyof typeof CURVES;
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
   return getMarkResources(ctx, 'line', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-    const batchVertexManager = new VertexBufferManager(
-      [],
-      ['float32x2', 'float32x2', 'float32x4', 'float32', 'float32x2', 'float32x2'], // start, end, color, width, res, offset
-    );
-    const instancedVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const batchPipeline = markPipeline(ctx, device, drawName, 'Line', batchVertexManager);
-    const instancedPipeline = markPipeline(ctx, device, `S${drawName}`, 'SLine', instancedVertexManager);
-    const joinVertexManager = new VertexBufferManager(
-      ['float32x2'], // position (unit circle)
-      // center, radius, fill color, stroke color, stroke width (symbol layout)
-      ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'],
-    );
-    const joinPipeline = markPipeline(ctx, device, `${drawName}Join`, 'Symbol', joinVertexManager);
-    const joinGeometryBuffer = bufferManager.createGeometryBuffer(createJoinGeometry());
+    const segmentVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
+    const segmentPipeline = markPipeline(ctx, device, drawName, 'SLine', segmentVertexManager);
     const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
     const spanVertexManager = new VertexBufferManager(
       [],
@@ -87,13 +66,9 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       spanBindGroups: new Map(),
       device,
       bufferManager,
-      batchVertexManager,
-      instancedVertexManager,
-      batchPipeline,
-      instancedPipeline,
-      joinPipeline,
-      joinVertexManager,
-      joinGeometryBuffer,
+      segmentVertexManager,
+      segmentPipeline,
+      segmentBindGroup: null,
     };
   });
 }
@@ -105,6 +80,36 @@ function hasRoundCap(points: SceneLinePoint[]): boolean {
 function dashPattern(points: SceneLinePoint[]): number[] | undefined {
   const dash = points[0]?.strokeDash;
   return Array.isArray(dash) && dash.length > 0 ? dash : undefined;
+}
+
+/**
+ * Queues segment instances into the shared batch. The batch only merges draws
+ * whose bind groups are the same object, so it is held rather than rebuilt.
+ */
+function queueSegments(
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  res: LineResources,
+  rows: Float32Array,
+  clip: ReturnType<typeof markClip>,
+  blend = 'normal',
+): void {
+  const pipeline =
+    blend === 'normal'
+      ? res.segmentPipeline
+      : markPipeline(ctx, device, `${drawName} ${blend}`, 'SLine', res.segmentVertexManager, undefined, blend);
+  const buffer = res.bufferManager.sharedUniformBuffer();
+  if (res.segmentBindGroup === null || res.segmentBindGroup.buffer !== buffer) {
+    res.segmentBindGroup = { group: createUniformBindGroup(drawName, device, pipeline, buffer), buffer };
+  }
+  ctx._renderQueue.setupBatch({
+    device,
+    vertexManager: res.segmentVertexManager,
+    pipeline,
+    clip,
+    bindGroups: [res.segmentBindGroup.group],
+  });
+  ctx._renderQueue.queueBatchInstance(Array.from(rows));
 }
 
 /** True when the points can be drawn as they are, with no curve and no gaps. */
@@ -165,7 +170,7 @@ function drawDashed(
   const offset = first.strokeDashOffset ?? 0;
 
   const polylines: Point[][] = isPolyline(points)
-    ? [points.map(p => [p.x ?? 0, p.y ?? 0] as Point)]
+    ? [points.map(p => [p.x || 0, p.y || 0] as Point)]
     : lineGeometry(ctx, points).lines.map(line => line.map(p => [p[0], p[1]] as Point));
 
   const runs = polylines.flatMap(line => dashPolyline(line, pattern, offset));
@@ -176,15 +181,7 @@ function drawDashed(
     return;
   }
 
-  ctx._renderQueue.enqueue({
-    pipeline: res.instancedPipeline,
-    drawCounts: [6, data.length / SEGMENT_STRIDE],
-    vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
-    bindGroups: [
-      createUniformBindGroup(`S${drawName}`, device, res.instancedPipeline, res.bufferManager.sharedUniformBuffer()),
-    ],
-    clip,
-  });
+  queueSegments(device, ctx, res, data, clip, blendKey(first.blend));
 }
 
 /**
@@ -202,13 +199,13 @@ function basisInstances(points: SceneLinePoint[]): number[] {
   const beta = first.interpolate === 'bundle' ? (first.tension ?? 0.85) : 1;
   const xs = new Float64Array(n);
   const ys = new Float64Array(n);
-  const x0 = points[0].x ?? 0;
-  const y0 = points[0].y ?? 0;
-  const dx = (points[n - 1].x ?? 0) - x0;
-  const dy = (points[n - 1].y ?? 0) - y0;
+  const x0 = points[0].x || 0;
+  const y0 = points[0].y || 0;
+  const dx = (points[n - 1].x || 0) - x0;
+  const dy = (points[n - 1].y || 0) - y0;
   for (let i = 0; i < n; i++) {
-    const px = points[i].x ?? 0;
-    const py = points[i].y ?? 0;
+    const px = points[i].x || 0;
+    const py = points[i].y || 0;
     if (beta === 1) {
       xs[i] = px;
       ys[i] = py;
@@ -387,150 +384,41 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     return;
   }
 
-  if (ctx._renderer.wgOptions.renderBatch === true) {
-    // One instanced draw per line mark.
-    const blend = blendKey(points[0]?.blend);
-    const instancedPipeline =
-      blend === 'normal'
-        ? res.instancedPipeline
-        : markPipeline(ctx, device, `S${drawName} ${blend}`, 'SLine', res.instancedVertexManager, undefined, blend);
-    const uniformBindGroup = createUniformBindGroup(
-      `S${drawName}`,
-      device,
-      instancedPipeline,
-      res.bufferManager.sharedUniformBuffer(),
-    );
-    if (items.length < 2) {
-      return; // a single point has no segment to draw
-    }
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(points));
-
-    ctx._renderQueue.enqueue({
-      pipeline: instancedPipeline,
-      drawCounts: [6, items.length - 1],
-      vertexBuffers: [instanceBuffer],
-      bindGroups: [uniformBindGroup],
-      clip,
-    });
-  } else {
-    // Accumulate segments of consecutive line marks into one draw call
-    // (e.g. parallel coordinates). Resolution and offset travel per instance.
-    ctx._renderQueue.setupBatch({
-      device,
-      vertexManager: res.batchVertexManager,
-      pipeline: res.batchPipeline,
-      clip,
-      bindGroups: [],
-    });
-    const resolution = res.bufferManager.getResolution();
-    const offset = res.bufferManager.getOffset();
-    const first = points[0];
-    const col = Color.from2(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
-    const strokeWidth = first.strokeWidth ?? 1;
-    for (let i = 0; i < points.length - 1; i++) {
-      const { x = 0, y = 0 } = points[i];
-      const x2 = points[i + 1].x ?? 0;
-      const y2 = points[i + 1].y ?? 0;
-
-      ctx._renderQueue.queueBatchInstance([
-        x,
-        y,
-        x2,
-        y2,
-        col[0],
-        col[1],
-        col[2],
-        col[3],
-        strokeWidth,
-        resolution[0],
-        resolution[1],
-        offset[0],
-        offset[1],
-      ]);
-    }
+  if (points.length < 2) {
+    return; // a single point has no segment to draw
   }
-
-  // Round joins fill the gap at each interior vertex where two segment quads
-  // meet at an angle, and a round cap puts the same disc on the two ends.
-  const round = hasRoundCap(points);
-  const first = round ? 0 : 1;
-  const last = round ? points.length - 1 : points.length - 2;
-  if (last >= first) {
-    const joinData = createJoinAttributes(points, first, last);
-    if (joinData.length > 0) {
-      const joinUniformBindGroup = createUniformBindGroup(
-        `${drawName}Join`,
-        device,
-        res.joinPipeline,
-        res.bufferManager.sharedUniformBuffer(),
-      );
-      ctx._renderQueue.enqueue({
-        pipeline: res.joinPipeline,
-        drawCounts: [JOIN_SEGMENTS * 3, last - first + 1],
-        vertexBuffers: [res.joinGeometryBuffer, res.bufferManager.createInstanceBuffer(joinData)],
-        bindGroups: [joinUniformBindGroup],
-        clip,
-      });
-    }
-  }
+  queueSegments(device, ctx, res, createAttributes(points), clip, blendKey(points[0]?.blend));
 }
 
-/** Symbol-shader instance data for a filled circle at each vertex in the range. */
-function createJoinAttributes(points: SceneLinePoint[], first: number, last: number): Float32Array {
-  const result = new Float32Array((last - first + 1) * 12);
-  let index = 0;
-  for (let i = first; i <= last; i++) {
-    const { x = 0, y = 0, stroke, strokeOpacity = 1, strokeWidth = 1, opacity = 1 } = points[i];
-    const col = Color.from2(stroke, opacity, strokeOpacity);
-    result[index] = x;
-    result[index + 1] = y;
-    result[index + 2] = strokeWidth / 2; // radius
-    result[index + 3] = col[0];
-    result[index + 4] = col[1];
-    result[index + 5] = col[2];
-    result[index + 6] = col[3];
-    // transparent stroke, zero stroke width -> a plain filled circle
-    result[index + 11] = 0;
-    index += 12;
-  }
-  return result;
-}
-
-/** Unit-circle triangle fan matching the symbol geometry (scaled in-shader). */
-function createJoinGeometry(): Float32Array {
-  return new Float32Array(
-    Array.from({ length: JOIN_SEGMENTS }, (_, i) => {
-      const j = (i + 1) % JOIN_SEGMENTS;
-      const ang1 = ((Math.PI * 2.0) / JOIN_SEGMENTS) * i;
-      const ang2 = ((Math.PI * 2.0) / JOIN_SEGMENTS) * j;
-      return [Math.cos(ang1), Math.sin(ang1), 0, 0, Math.cos(ang2), Math.sin(ang2)];
-    }).flat(),
-  );
-}
-
+/**
+ * Segments of one polyline. Only the earlier segment of an interior vertex
+ * rounds its end: that half disc is the round join, and rounding the later
+ * segment's start too would blend the same disc twice. A round stroke cap
+ * rounds the two outer ends as well.
+ */
 function createAttributes(points: SceneLinePoint[]): Float32Array {
-  const result = new Float32Array((points.length - 1) * 9);
+  const result = new Float32Array((points.length - 1) * SEGMENT_STRIDE);
   // A line mark carries one stroke, which is the first item's; canvas strokes
   // the whole path with it. Resolving the colour per segment showed up as the
   // largest single cost on a spec with many short lines.
   const first = points[0];
   const col = Color.from2(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
   const strokeWidth = first.strokeWidth ?? 1;
-  for (let i = 0; i < points.length - 1; i++) {
-    const { x = 0, y = 0 } = points[i];
-    const x2 = points[i + 1].x ?? 0;
-    const y2 = points[i + 1].y ?? 0;
-
-    const index = i * 9;
-    result[index] = x;
-    result[index + 1] = y;
-    result[index + 2] = x2;
-    result[index + 3] = y2;
+  const round = hasRoundCap(points) ? 1 : 0;
+  const last = points.length - 2;
+  for (let i = 0; i <= last; i++) {
+    const index = i * SEGMENT_STRIDE;
+    result[index] = points[i].x || 0;
+    result[index + 1] = points[i].y || 0;
+    result[index + 2] = points[i + 1].x || 0;
+    result[index + 3] = points[i + 1].y || 0;
     result[index + 4] = col[0];
     result[index + 5] = col[1];
     result[index + 6] = col[2];
     result[index + 7] = col[3];
     result[index + 8] = strokeWidth;
+    result[index + 9] = i === 0 ? round : 0;
+    result[index + 10] = i < last ? 1 : round;
   }
   return result;
 }

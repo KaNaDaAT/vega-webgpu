@@ -23,7 +23,9 @@ const HOSTILE = join(dirname(fileURLToPath(import.meta.url)), 'scenes-hostile');
  * "survived and drew something sane".
  */
 const MAX_COVERAGE: Record<string, number> = {
-  'nan-coords': 0.05,
+  // a NaN coordinate now lands at the origin, the way vega's own item.x || 0
+  // reads it, so these marks draw rather than vanish
+  'nan-coords': 0.1,
   'degenerate-sizes': 0.05,
   'empty-and-missing': 0.01,
   'single-point-shapes': 0.01,

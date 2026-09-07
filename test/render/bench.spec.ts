@@ -64,12 +64,11 @@ test('frame cost, webgpu vs canvas', async ({ page }) => {
   const rows: string[] = [];
   for (const spec of SPECS) {
     const wg = await bench(page, spec, 'webgpu');
-    const acc = await bench(page, spec, 'webgpu', '&renderBatch=0');
     const cv = await bench(page, spec, 'canvas');
     const ratio = wg.cpu > 0 ? cv.cpu / wg.cpu : 0;
     const verdict = ratio >= 1 ? `${ratio.toFixed(1)}x faster` : `${(1 / ratio).toFixed(1)}x slower`;
     rows.push(
-      `${spec.padEnd(20)} cpu ${wg.cpu.toFixed(2).padStart(6)}  accumulated ${acc.cpu.toFixed(2).padStart(6)}   canvas ${cv.cpu.toFixed(2).padStart(6)}   ${verdict}`,
+      `${spec.padEnd(20)} cpu ${wg.cpu.toFixed(2).padStart(6)}   canvas ${cv.cpu.toFixed(2).padStart(6)}   ${verdict}`,
     );
   }
   console.log(['', '=== steady state, main thread ===', ...rows, '=== end ===', ''].join('\n'));

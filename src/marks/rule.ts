@@ -104,9 +104,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     items.flatMap(item => {
-      const { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item as SceneRule;
-      const ex = x2 ?? x;
-      const ey = y2 ?? y;
+      const { x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item as SceneRule;
+      const x = item.x || 0;
+      const y = item.y || 0;
+      const ex = x2 == null ? x : x2 || 0;
+      const ey = y2 == null ? y : y2 || 0;
       const ax = Math.abs(ex - x);
       const ay = Math.abs(ey - y);
       const col = Color.from(stroke, opacity, strokeOpacity);
@@ -120,9 +122,11 @@ function createAttributes(items: SceneItem[]): Float32Array {
 }
 
 function createDiagonalAttributes(item: SceneRule): Float32Array {
-  const { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
+  const { x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
+  const x = item.x || 0;
+  const y = item.y || 0;
   const col = Color.from2(stroke, opacity, strokeOpacity);
-  return segmentInstance(x, y, x2 ?? x, y2 ?? y, col, strokeWidth);
+  return segmentInstance(x, y, x2 == null ? x : x2 || 0, y2 == null ? y : y2 || 0, col, strokeWidth);
 }
 
 export default {
