@@ -61,6 +61,24 @@ writeFileSync(releasesJsonPath, `${JSON.stringify(releases, null, 2)}\n`);
 const escapeHtml = s =>
   String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+/** Release notes are escaped, then the two tags the existing notes use are let back through. */
+const notesHtml = s =>
+  escapeHtml(s)
+    .replace(/&lt;br\s*\/?&gt;/g, '<br />')
+    .replace(/&lt;(\/?)code&gt;/g, '<$1code>');
+
+/** Replaces what sits between `<!-- name:start -->` and `<!-- name:end -->`. */
+const splice = (text, path, name, body) => {
+  const open = `<!-- ${name}:start -->`;
+  const close = `<!-- ${name}:end -->`;
+  const a = text.indexOf(open);
+  const b = text.indexOf(close);
+  if (a < 0 || b < 0 || b < a) {
+    throw new Error(`${path} is missing the ${open} ... ${close} markers`);
+  }
+  return text.slice(0, a + open.length) + body + text.slice(b);
+};
+
 // Number() on a prerelease segment like 'rc1' is NaN, which compares equal and
 // leaves 2.0.0-rc1 and 2.0.0-rc2 in arbitrary order. Compare those as strings.
 const byVersionDesc = (a, b) => {
@@ -91,39 +109,29 @@ writeFileSync(
   `const vegaWebGPURendererVersions = [${versions.map(v => `'${v}'`).join(', ')}];\n`,
 );
 
-// 4. regenerate index.html
+// 4. splice the version rows and the date into releases/index.html
+// The page is hand written, so only the marked regions are generated.
 const rows = versions
   .map(v => {
     const href = `./${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
-    return `        <tr>\n          <td><a href="${href}">${v}</a></td>\n          <td>${escapeHtml(releases[v])}</td>\n        </tr>`;
+    return `              <tr>
+                <td><a href="${href}">${v}</a></td>
+                <td>${notesHtml(releases[v])}</td>
+              </tr>`;
   })
   .join('\n');
 
-writeFileSync(
-  join(releasesDir, 'index.html'),
-  `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="./index.css" />
-    <title>vega-webgpu-renderer Releases</title>
-  </head>
-  <body>
-    <table>
-      <thead>
-        <tr>
-          <th>Version</th>
-          <th>Changes</th>
-        </tr>
-      </thead>
-      <tbody>
+const indexPath = join(releasesDir, 'index.html');
+let page = readFileSync(indexPath, 'utf8');
+page = splice(
+  page,
+  indexPath,
+  'versions',
+  `
 ${rows}
-      </tbody>
-    </table>
-  </body>
-</html>
-`,
+              `,
 );
+page = splice(page, indexPath, 'updated', new Date().toISOString().slice(0, 10));
+writeFileSync(indexPath, page);
 
 console.log(`Prepared release ${version} in ${folder}`);

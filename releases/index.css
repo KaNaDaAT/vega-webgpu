@@ -1,52 +1,338 @@
-/* styles.css */
+:root {
+  --bg: #ffffff;
+  --panel: #f7f8fa;
+  --ink: #1b1f24;
+  --muted: #5b6673;
+  --line: #e2e6eb;
+  --accent: #2f6fd0;
+  --accent-ink: #ffffff;
+  --code-bg: #f2f4f7;
+  --yes: #1f7a4d;
+  --partial: #8a6100;
+  --no: #a33a3a;
+  --radius: 10px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #14171b;
+    --panel: #1b1f25;
+    --ink: #e6e9ed;
+    --muted: #9aa5b1;
+    --line: #2b313a;
+    --accent: #6ea8fe;
+    --accent-ink: #10131a;
+    --code-bg: #1f242b;
+    --yes: #57c48a;
+    --partial: #d8a53a;
+    --no: #e07a7a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
 
 body {
-	font-family: 'Arial', sans-serif;
-	margin: 0;
-	padding: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 100vh;
-	background-color: #f4f4f4;
-  }
-  
-  h1 {
-	text-align: center;
-	color: #333;
-  }
-  
-  table {
-	width: 100%;
-	max-width: 800px;
-	margin: 20px;
-	border-collapse: collapse;
-	border-radius: 8px;
-	overflow: hidden;
-	box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-	background-color: #fff;
-  }
-  
-  thead {
-	background-color: #3498db;
-	color: #fff;
-  }
-  
-  th, td {
-	padding: 15px;
-	text-align: left;
-  }
-  
-  tbody tr:nth-child(even) {
-	background-color: #f2f2f2;
-  }
-  
-  a {
-	color: #3498db;
-	text-decoration: none;
-  }
-  
-  a:hover {
-	text-decoration: underline;
-  }
-  
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    16px/1.6 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+a {
+  color: var(--accent);
+}
+
+header {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  padding: 48px 0 36px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin: 12px 0 0;
+  max-width: 60ch;
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.actions {
+  margin: 24px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+/* something the page names but cannot link to yet */
+.btn.off {
+  color: var(--muted);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.btn.off:hover {
+  border-color: var(--line);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+nav .wrap {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+}
+
+nav .wrap::-webkit-scrollbar {
+  display: none;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+nav a:hover {
+  color: var(--ink);
+}
+
+main {
+  padding: 8px 20px 64px;
+}
+
+section {
+  padding-top: 44px;
+  scroll-margin-top: 60px;
+}
+
+h2 {
+  margin: 0 0 14px;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  margin: 28px 0 8px;
+  font-size: 17px;
+}
+
+p,
+ul {
+  max-width: 68ch;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+.note {
+  border-left: 3px solid var(--line);
+  padding-left: 14px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+code {
+  background: var(--code-bg);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 16px 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+thead th {
+  background: var(--panel);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.opts td:first-child,
+.matrix td:first-child,
+.versions td:first-child {
+  white-space: nowrap;
+}
+
+/* the headings are property names, so they keep their own casing */
+.matrix thead th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.matrix td:not(:first-child) {
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.matrix .y {
+  color: var(--yes);
+}
+
+.matrix .p {
+  color: var(--partial);
+}
+
+.matrix .n {
+  color: var(--no);
+}
+
+.matrix .na {
+  color: var(--muted);
+}
+
+.cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 16px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 18px 20px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.cardnote {
+  margin: 4px 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.card ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  padding: 28px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+footer p {
+  margin: 0 0 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+footer .updated {
+  display: block;
+}

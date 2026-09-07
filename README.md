@@ -58,21 +58,25 @@ view._renderer.wgOptions.debugLog = true;
 | --- | --- | --- | --- |
 | `debugLog` | Log per-frame render timings to the console. | `false` | 1.0.0 |
 | `renderLock` | Skip re-entrant render calls while a frame is in flight. The most recent request always runs. Improves responsiveness of interactive charts. | `true` | 1.1.1 |
-| `renderBatch` | Draw each line mark as one instanced call. When `false`, segments of consecutive line marks are accumulated into a single draw call instead (helps e.g. parallel coordinates). | `true` | 1.2.0 |
 | `sampleCount` | MSAA samples per pixel: `4` (antialiased) or `1` (plain single-sampled rendering). Can be changed between frames. | `4` | 2.0.0 |
 | `redrawOnZoom` | Follow browser zoom. Zoom changes `devicePixelRatio`, and the default re-sizes the canvas and redraws so the view stays sharp. When `false` the canvas holds the ratio it was first sized at and the browser scales it, which is softer but skips the redraw. | `true` | 2.0.0 |
-| `cacheShapes` | Cache triangulated shape geometry between frames (experimental). | `false` | 1.1.0 |
-| `simpleLine` | Deprecated since 1.2.0, superseded by `renderBatch`. | `true` | 1.0.0 |
+| `cacheShapes` | Keep triangulated shape geometry between frames instead of rebuilding it. Costs memory on a scene whose geometry changes every frame. | `true` | 1.1.0 |
+| `offscreen` | Render into a texture the renderer owns and never touch the canvas swapchain, for a headless runner with no compositor where acquiring it destroys the device. The canvas stays blank, so the frame is only reachable through `captureFrame()`. | `false` | 2.0.0 |
+
+`renderBatch` and `simpleLine` were removed in 2.0.0: the line mark batches its
+segments unconditionally now, so neither had anything left to switch.
 
 ## Supported marks & known limitations
 
-Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, trail, text (rasterized into a GPU glyph atlas), rounded rect and group corners, line dashes, gradient fills (linear + radial) on rect, symbol, area, path, shape and arc marks, and gradient strokes on area, path, shape, arc and trail marks.
+Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, trail, text (rasterized into a GPU glyph atlas), rounded rect and group corners, line dashes, gradient fills (linear + radial) on arc, area, group, path, rect, shape, symbol and trail marks, and gradient strokes on arc, area, path, shape and trail marks.
 
 Not supported yet:
 
 - Gradient strokes on symbol, rect, rule and line marks (a placeholder color is used)
 - Radial gradients with an offset focal point (approximated as concentric circles)
 - Miter and bevel line joins (round joins are used for all lines)
+- `strokeDash` outside line marks and group borders, so a dashed axis grid draws solid
+- `blend` on group, image and text marks (they always draw normal)
 
 ### Borders between abutting fills
 
@@ -86,10 +90,11 @@ background survives as a pale seam. This renderer draws the polygons in one
 multisampled pass, where the two fills split the samples between them and cover
 the edge completely, so nothing shows through.
 
-Reproducing the seam would mean giving each polygon its own fractional coverage,
-which a triangulated fill cannot supply: the fragment would need its distance to
-the polygon's outline, and the triangulation only knows its own edges, which have
-to stay hard. So the seam is not reproduced.
+Reproducing it needs each polygon composited separately against what is already
+on the canvas, which is what makes canvas slow at this and what one pass is for.
+It is on the roadmap for a release after 2.0.0, through a second multisampled
+attachment that records which item owns each sample so a resolve pass can
+composite a pixel's owners in draw order. Until then the seam is not drawn.
 
 Ask for the border instead, which is clearer about the intent and renders the
 same everywhere:
@@ -147,7 +152,9 @@ machine:
 Setting `redrawOnZoom` to `false` also helps here, since zooming in then cannot
 push a view that already fits back over the cap.
 
-Known gaps and planned work are in [ToDo.md](ToDo.md).
+Known gaps and planned work are in [ToDo.md](ToDo.md). The same material, plus a
+per-mark feature table and a broad roadmap, is on the
+[project page](https://kanadaat.github.io/vega-webgpu/releases/).
 
 ## Development
 
