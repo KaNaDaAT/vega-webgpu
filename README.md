@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/KaNaDaAT/vega-webgpu/actions/workflows/ci.yml/badge.svg)](https://github.com/KaNaDaAT/vega-webgpu/actions/workflows/ci.yml)
 
-A GPU-accelerated renderer plugin for Vega, registered as `renderer: 'webgpu'`. Marks are triangulated and drawn with WebGPU (instanced where possible). Text is drawn onto an overlaid 2D canvas.
+A GPU-accelerated renderer plugin for Vega, registered as `renderer: 'webgpu'`. Marks are triangulated and drawn with WebGPU (instanced where possible). Text is rasterized into a glyph atlas and drawn as instanced quads.
 
 [Live demo](https://kanadaat.github.io/vega-webgpu/test). For a stress test, try the `splom-outer-50k` spec (50,000 points, where canvas and svg slow down or crash) or `benchmark` (signal-controlled up to 300k animated points).
 

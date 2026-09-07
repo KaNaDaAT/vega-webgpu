@@ -47,10 +47,15 @@
       // Renderer versions before 2.0 were built for Vega 5 and require d3 globals.
       // Pinned to 5.19.1: later 5.x turned Renderer into a class, which the old
       // bundles cannot subclass (they call Renderer.call(this)).
+      // ?vega=<name> loads a local build from test/vendor/vega-<name>.js, for
+      // comparing an upstream change against the released one. Not committed.
+      const vegaBuild = getQueryParam('vega');
       const vegaUrl =
-        major >= 2
-          ? 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'
-          : 'https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js';
+        vegaBuild && /^[a-z-]+$/.test(vegaBuild)
+          ? `./vendor/vega-${vegaBuild}.js`
+          : major >= 2
+            ? 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'
+            : 'https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js';
 
       function boot() {
         loadScript(vegaUrl, function () {

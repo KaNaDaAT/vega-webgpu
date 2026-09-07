@@ -360,8 +360,23 @@ function stripZ(triangles: Float32Array, count: number): Float32Array {
 /** Floats per sdf instance: centre, size, fill, stroke, width, angle. */
 const SDF_STRIDE = 13;
 
+/**
+ * One scratch array the instance builders write into, so a mark does not mint
+ * a new one every frame. createBuffer copies through writeBuffer before it
+ * returns, so the next builder is free to overwrite it. At 300k symbols this is
+ * 13.7 MB a frame that no longer has to be allocated and collected.
+ */
+let scratch = new Float32Array(0);
+
+function scratchFor(length: number): Float32Array {
+  if (scratch.length < length) {
+    scratch = new Float32Array(length);
+  }
+  return scratch.subarray(0, length);
+}
+
 function createSdfAttributes(items: SceneItem[]): Float32Array {
-  const result = new Float32Array(items.length * SDF_STRIDE);
+  const result = scratchFor(items.length * SDF_STRIDE);
   for (let i = 0, len = items.length; i < len; i++) {
     const item = items[i] as SceneSymbolExt;
     const { fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = item;
@@ -406,7 +421,7 @@ function sdfPipeline(
 const CIRCLE_STRIDE = 12;
 
 function createCircleAttributes(items: SceneItem[]): Float32Array {
-  const result = new Float32Array(items.length * CIRCLE_STRIDE);
+  const result = scratchFor(items.length * CIRCLE_STRIDE);
   for (let i = 0, len = items.length; i < len; i++) {
     const item = items[i] as SceneSymbolExt;
     const { fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = item;

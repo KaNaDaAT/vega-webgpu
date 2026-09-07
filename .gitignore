@@ -15,3 +15,6 @@ npm-debug.log*
 
 # Local scratch
 test/penguins_read.py
+
+# local vega builds for A/B testing an upstream change
+test/vendor/
