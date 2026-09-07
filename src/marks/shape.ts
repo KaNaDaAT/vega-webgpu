@@ -7,7 +7,6 @@ import geometryForItem from '../path/geometryForItem.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
-import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
@@ -17,7 +16,8 @@ import {
   segmentInstances,
   geometryVertexData,
   getMarkResources,
-  gradientBounds,
+  enqueueGradient,
+  type GradientTarget,
   markClip,
   markPipeline,
   whiteCarrier,
@@ -98,6 +98,16 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const useCache = ctx._renderer.wgOptions.cacheShapes ?? false;
   const clip = markClip(ctx, scene);
   const vertexLength = res.vertexManager.getVertexLength();
+  const gradientTarget: GradientTarget = {
+    ctx,
+    device,
+    name: `${drawName}Gradient`,
+    pipeline: res.gradientPipeline,
+    bufferManager: res.bufferManager,
+    uniformBuffer,
+    vertexLength,
+    clip,
+  };
 
   // Solid fills and strokes share one pipeline and are accumulated in paint
   // order into a single buffer/draw. Gradient fills interrupt the batch.
@@ -147,33 +157,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
     if (fillData.length > 0 && gradient && bounds) {
       flushBatch();
-      const gres = getGradientResources(device, ctx);
-      ctx._renderQueue.enqueue({
-        pipeline: res.gradientPipeline,
-        drawCounts: [fillData.length / vertexLength],
-        vertexBuffers: [res.bufferManager.createGeometryBuffer(fillData)],
-        bindGroups: [
-          createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-          createGradientBindGroup(gres, res.gradientPipeline, gradient, gradientBounds(ctx, bounds)),
-        ],
-        clip,
-      });
+      enqueueGradient(gradientTarget, fillData, gradient, bounds);
     } else {
       batch.push(fillData);
     }
     if (strokeData.length > 0 && strokeGradient && bounds) {
       flushBatch();
-      const gres = getGradientResources(device, ctx);
-      ctx._renderQueue.enqueue({
-        pipeline: res.gradientPipeline,
-        drawCounts: [strokeData.length / vertexLength],
-        vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
-        bindGroups: [
-          createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-          createGradientBindGroup(gres, res.gradientPipeline, strokeGradient, gradientBounds(ctx, bounds)),
-        ],
-        clip,
-      });
+      enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds);
     } else {
       batch.push(strokeData);
       pushOutline(outlines, item, geom);

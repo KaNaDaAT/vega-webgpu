@@ -6,13 +6,13 @@ import geometryForItem from '../path/geometryForItem.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
-import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
   geometryVertexData,
   getMarkResources,
-  gradientBounds,
+  enqueueGradient,
+  type GradientTarget,
   markClip,
   markPipeline,
   whiteCarrier,
@@ -64,7 +64,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const fill = gradient
     ? whiteCarrier(item.opacity, item.fillOpacity)
     : Color.from2(item.fill, item.opacity, item.fillOpacity);
-  const stroke = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+  const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
+  const stroke = strokeGradient
+    ? whiteCarrier(item.opacity, item.strokeOpacity)
+    : Color.from2(item.stroke, item.opacity, item.strokeOpacity);
 
   const shapeGeom = trail(ctx, items);
   const geometry = geometryForItem(ctx, item, shapeGeom, true);
@@ -73,20 +76,20 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
   const vertexLength = res.vertexManager.getVertexLength();
+  const gradientTarget: GradientTarget = {
+    ctx,
+    device,
+    name: `${drawName}Gradient`,
+    pipeline: res.gradientPipeline,
+    bufferManager: res.bufferManager,
+    uniformBuffer,
+    vertexLength,
+    clip,
+  };
 
   if (fillData.length > 0) {
     if (gradient && bounds) {
-      const gres = getGradientResources(device, ctx);
-      ctx._renderQueue.enqueue({
-        pipeline: res.gradientPipeline,
-        drawCounts: [fillData.length / vertexLength],
-        vertexBuffers: [res.bufferManager.createGeometryBuffer(fillData)],
-        bindGroups: [
-          createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
-          createGradientBindGroup(gres, res.gradientPipeline, gradient, gradientBounds(ctx, bounds)),
-        ],
-        clip,
-      });
+      enqueueGradient(gradientTarget, fillData, gradient, bounds);
     } else {
       ctx._renderQueue.enqueue({
         pipeline,
@@ -99,13 +102,17 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   if (strokeData.length > 0) {
-    ctx._renderQueue.enqueue({
-      pipeline,
-      drawCounts: [strokeData.length / vertexLength],
-      vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
-      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
-      clip,
-    });
+    if (strokeGradient && bounds) {
+      enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds);
+    } else {
+      ctx._renderQueue.enqueue({
+        pipeline,
+        drawCounts: [strokeData.length / vertexLength],
+        vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
+        bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
+        clip,
+      });
+    }
   }
 }
 

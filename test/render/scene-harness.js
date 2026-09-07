@@ -29,6 +29,7 @@
     const revive = (_key, value) =>
       value === '__NaN__' ? NaN : value === '__Infinity__' ? Infinity : value === '__-Infinity__' ? -Infinity : value;
     const scene = vega.sceneFromJSON(JSON.parse(JSON.stringify(fixture.scene), revive));
+    boundScene(scene);
     const r = new module.renderer();
     applyTestOptions(r, params);
     r.initialize(document.querySelector('#vis'), fixture.width, fixture.height, fixture.origin ?? [0, 0]);
@@ -46,3 +47,25 @@
     window.__renderError = String((err && err.stack) || err);
   }
 })();
+
+/**
+ * Fills in item bounds, which a serialized fixture does not carry and a
+ * gradient needs to map its ramp onto. A live scenegraph gets these from
+ * vega's Bound transform, which allocates one per item before measuring.
+ */
+function boundScene(node) {
+  if (!node || typeof node !== 'object') return;
+  for (const item of node.items ?? []) {
+    item.bounds = item.bounds ?? new vega.Bounds();
+    for (const child of item.items ?? []) {
+      if (child && child.marktype) boundScene(child);
+    }
+  }
+  if (!node.marktype) return;
+  vega.boundMark(node);
+  // A nested mark draws its whole series from items[0], and the gradient on it
+  // reads that item's bounds, which boundMark leaves empty.
+  if (vega.Marks[node.marktype]?.nested && node.items?.length) {
+    node.items[0].bounds = node.bounds;
+  }
+}

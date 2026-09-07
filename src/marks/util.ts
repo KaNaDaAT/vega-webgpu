@@ -9,6 +9,9 @@ import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/cont
 import type { ItemGeometry } from '../types/geometry.js';
 import type { SceneRectExt } from '../types/scene.js';
 import { Color, type RGBA } from '../util/color.js';
+import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
+import { createUniformBindGroup } from '../util/webgpu.js';
+import type { SceneGradient } from '../types/scene.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 /** A mark renderer module, as registered in marks/index.ts. */
@@ -115,6 +118,38 @@ export function gradientBounds(ctx: GPUVegaCanvasContext, bounds: Bounds): [numb
 /** Fill color for vertex data: white carrier with opacity when a gradient is used. */
 export function whiteCarrier(opacity = 1, fillOpacity = 1): RGBA {
   return [1, 1, 1, opacity * fillOpacity];
+}
+
+/** What a mark needs to paint triangulated geometry from a gradient ramp. */
+export interface GradientTarget {
+  ctx: GPUVegaCanvasContext;
+  device: GPUDevice;
+  name: string;
+  pipeline: GPURenderPipeline;
+  bufferManager: BufferManager;
+  uniformBuffer: GPUBuffer;
+  vertexLength: number;
+  clip: ClipRect | undefined;
+}
+
+/** Draws geometry whose color comes from a ramp rather than its vertices. */
+export function enqueueGradient(
+  target: GradientTarget,
+  data: Float32Array,
+  gradient: SceneGradient,
+  bounds: Bounds,
+): void {
+  const { ctx, device, pipeline } = target;
+  ctx._renderQueue.enqueue({
+    pipeline,
+    drawCounts: [data.length / target.vertexLength],
+    vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
+    bindGroups: [
+      createUniformBindGroup(target.name, device, pipeline, target.uniformBuffer),
+      createGradientBindGroup(getGradientResources(device, ctx), pipeline, gradient, gradientBounds(ctx, bounds)),
+    ],
+    clip: target.clip,
+  });
 }
 
 /**
