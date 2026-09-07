@@ -70,6 +70,11 @@ test('compare and diff checkboxes', async ({ page }) => {
   for (const style of ['mask', 'heat', 'over']) {
     expect(styles[style].painted, `${style} paints something`).toBeGreaterThan(0);
   }
-  // over keeps the whole chart, the other two only mark what differs
-  expect(styles.over.painted).toBeGreaterThan(styles.mask.painted * 10);
+  // over keeps the whole chart, the other two only mark what differs. A ratio
+  // against the mask does not hold: the mask grows with the difference, and on
+  // a software rasterizer that is a tenth of the pixels, while over is capped
+  // at the canvas.
+  const [w, h] = compare.sizes[0].split('x').map(Number);
+  expect(styles.over.painted, 'over covers the whole render').toBeGreaterThan(w * h * 0.9);
+  expect(styles.mask.painted, 'the mask marks only what differs').toBeLessThan(styles.over.painted);
 });
