@@ -50,6 +50,52 @@ export class Color {
    * Same as `from`, returning a plain RGBA tuple. Parses through a cache
    * keyed by the color string. Opacity is applied after cache lookup.
    */
+  /**
+   * Writes the colour straight into `out` at `index`, which is what a per item
+   * attribute loop wants: from2 allocates a fresh array on every call, and a
+   * mark resolves a fill and a stroke for each of its items on every frame.
+   */
+  static write(
+    out: Float32Array,
+    index: number,
+    value: SceneColor | Color | null | undefined,
+    opacity = 1.0,
+    fsOpacity = 1.0,
+  ): void {
+    if (value instanceof Color) {
+      out[index] = value.values[0];
+      out[index + 1] = value.values[1];
+      out[index + 2] = value.values[2];
+      out[index + 3] = value.values[3];
+      return;
+    }
+    const rgba = Color.resolve(value);
+    out[index] = rgba[0];
+    out[index + 1] = rgba[1];
+    out[index + 2] = rgba[2];
+    out[index + 3] = rgba[3] * opacity * fsOpacity;
+  }
+
+  /** The colour's unscaled rgba, cached per string. */
+  private static resolve(value: SceneColor | null | undefined): RGBA {
+    if (value == null || value === 'transparent') {
+      return TRANSPARENT;
+    }
+    if (isGradient(value)) {
+      if (!warnedGradient) {
+        warnedGradient = true;
+        console.warn('[vega-webgpu] Gradient strokes are not supported, drawing a placeholder color.');
+      }
+      return GRADIENT_FALLBACK;
+    }
+    let rgba = Color.cache[value];
+    if (rgba === undefined) {
+      rgba = parse(value);
+      Color.cache[value] = rgba;
+    }
+    return rgba;
+  }
+
   static from2(value: SceneColor | Color | null | undefined, opacity = 1.0, fsOpacity = 1.0): RGBA {
     if (value == null) {
       return TRANSPARENT;

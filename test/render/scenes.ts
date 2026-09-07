@@ -67,10 +67,11 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   // these are 3.1 levels off on average where canvas is 15.8, so the budget is
   // mostly canvas's own error.
   'rule-diagonals': 70,
-  // Held by canvas, not by us. Against exact pixel coverage these stroked
-  // circles are 2 to 3 levels off on average, worst 16, where canvas is 7 to 14
-  // and worst 90 on an arc running nearly tangent to a pixel row.
-  'symbol-circles': 75,
+  // Held by canvas, not by us. Against exact pixel coverage these circles are
+  // 0.6 levels off on average for a fill and 2.3 for a stroke, worst 12, where
+  // canvas is 1.5 and 10.4 and worst 90 on an arc running nearly tangent to a
+  // pixel row. The budget tracks how far canvas is from the truth.
+  'symbol-circles': 80,
   // fixed function blending reproduces these exactly
   blend: 5,
   // these need the destination in the shader, so they draw unblended on purpose

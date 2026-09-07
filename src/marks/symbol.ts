@@ -21,7 +21,6 @@ import {
   type MarkModule,
 } from './util.js';
 
-const segments = 32;
 const drawName = 'Symbol';
 // Bounds the triangulated-shape cache. `size` is continuous, so a size-encoded
 // chart would otherwise mint a GPU buffer per distinct size, forever.
@@ -136,7 +135,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       const instanceBuffer = res.bufferManager.createInstanceBuffer(createCircleAttributes(run));
       ctx._renderQueue.enqueue({
         pipeline: circlePipeline,
-        drawCounts: [segments * 3, run.length],
+        drawCounts: [6, run.length],
         vertexBuffers: [res.circleGeometry, instanceBuffer],
         bindGroups: [circleBindGroup],
         clip,
@@ -358,27 +357,22 @@ function stripZ(triangles: Float32Array, count: number): Float32Array {
 }
 
 /** Instance data for the analytic shapes: one quad each, no triangulation. */
+/** Floats per sdf instance: centre, size, fill, stroke, width, angle. */
+const SDF_STRIDE = 13;
+
 function createSdfAttributes(items: SceneItem[]): Float32Array {
-  const result = new Float32Array(items.length * 14);
-  let index = -1;
+  const result = new Float32Array(items.length * SDF_STRIDE);
   for (let i = 0, len = items.length; i < len; i++) {
     const item = items[i] as SceneSymbolExt;
     const { fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = item;
-    const col = Color.from2(fill, opacity, fillOpacity);
-    const scol = Color.from2(stroke, opacity, strokeOpacity);
-    result[++index] = item.x || 0;
-    result[++index] = item.y || 0;
-    result[++index] = Math.sqrt(item.size ?? 64);
-    result[++index] = col[0];
-    result[++index] = col[1];
-    result[++index] = col[2];
-    result[++index] = col[3];
-    result[++index] = scol[0];
-    result[++index] = scol[1];
-    result[++index] = scol[2];
-    result[++index] = scol[3];
-    result[++index] = stroke ? strokeWidth : 0;
-    result[++index] = ((item.angle || 0) * Math.PI) / 180;
+    const base = i * SDF_STRIDE;
+    result[base] = item.x || 0;
+    result[base + 1] = item.y || 0;
+    result[base + 2] = Math.sqrt(item.size ?? 64);
+    Color.write(result, base + 3, fill, opacity, fillOpacity);
+    Color.write(result, base + 7, stroke, opacity, strokeOpacity);
+    result[base + 11] = stroke ? strokeWidth : 0;
+    result[base + 12] = ((item.angle || 0) * Math.PI) / 180;
   }
   return result;
 }
@@ -408,45 +402,27 @@ function sdfPipeline(
   return pipeline;
 }
 
+/** Floats per circle instance: centre, radius, fill, stroke, width. */
+const CIRCLE_STRIDE = 12;
+
 function createCircleAttributes(items: SceneItem[]): Float32Array {
-  const result = new Float32Array(items.length * 12);
-  let index = -1;
+  const result = new Float32Array(items.length * CIRCLE_STRIDE);
   for (let i = 0, len = items.length; i < len; i++) {
     const item = items[i] as SceneSymbolExt;
     const { fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = item;
-    const col = Color.from2(fill, opacity, fillOpacity);
-    const scol = Color.from2(stroke, opacity, strokeOpacity);
-    const rad = Math.sqrt(item.size ?? 64) / 2;
-
-    result[++index] = item.x || 0;
-    result[++index] = item.y || 0;
-    result[++index] = rad;
-    result[++index] = col[0];
-    result[++index] = col[1];
-    result[++index] = col[2];
-    result[++index] = col[3];
-    result[++index] = scol[0];
-    result[++index] = scol[1];
-    result[++index] = scol[2];
-    result[++index] = scol[3];
-    result[++index] = stroke ? strokeWidth : 0;
+    const base = i * CIRCLE_STRIDE;
+    result[base] = item.x || 0;
+    result[base + 1] = item.y || 0;
+    result[base + 2] = Math.sqrt(item.size ?? 64) / 2;
+    Color.write(result, base + 3, fill, opacity, fillOpacity);
+    Color.write(result, base + 7, stroke, opacity, strokeOpacity);
+    result[base + 11] = stroke ? strokeWidth : 0;
   }
   return result;
 }
 
 function createCircleGeometry(): Float32Array {
-  return new Float32Array(
-    Array.from({ length: segments }, (_, i) => {
-      const j = (i + 1) % segments;
-      const ang1 = !i ? 0 : ((Math.PI * 2.0) / segments) * i;
-      const ang2 = !j ? 0 : ((Math.PI * 2.0) / segments) * j;
-      const x1 = Math.cos(ang1);
-      const y1 = Math.sin(ang1);
-      const x2 = Math.cos(ang2);
-      const y2 = Math.sin(ang2);
-      return [x1, y1, 0, 0, x2, y2];
-    }).flat(),
-  );
+  return new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
 }
 
 export default {
