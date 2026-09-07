@@ -46,7 +46,7 @@ export default class WebGPURenderer extends Renderer {
     renderBatch: true,
     simpleLine: true,
     debugLog: false,
-    cacheShapes: false,
+    cacheShapes: true,
     renderLock: true,
     offscreen: false,
     sampleCount: defaultSampleCount,
@@ -72,6 +72,8 @@ export default class WebGPURenderer extends Renderer {
 
   /** Reason the GPU device was lost, if it ever was. Set for every reason. */
   deviceLostReason: string | null = null;
+  /** Set to an object to accumulate per-mark draw time. Diagnostic only. */
+  markTimings: Record<string, number> | null = null;
   /** Number of GPU devices this renderer has created. */
   deviceGeneration = 0;
   private _recoveries = 0;
@@ -560,6 +562,13 @@ export default class WebGPURenderer extends Renderer {
     const mark = marks[scene.marktype];
     if (mark == null) {
       console.error(`[vega-webgpu] Unknown mark type: '${scene.marktype}'`);
+      return;
+    }
+    if (this.markTimings) {
+      const t0 = performance.now();
+      mark.draw.call(this, device, ctx, scene, bounds, markTypes);
+      const key = scene.marktype;
+      this.markTimings[key] = (this.markTimings[key] ?? 0) + (performance.now() - t0);
       return;
     }
     mark.draw.call(this, device, ctx, scene, bounds, markTypes);

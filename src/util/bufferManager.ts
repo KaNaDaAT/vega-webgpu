@@ -1,5 +1,9 @@
+// A scene has few distinct group offsets, so this collapses to a handful.
+const MAX_UNIFORM_CACHE = 128;
+
 export class BufferManager {
   private device: GPUDevice;
+  private uniformCache = new Map<string, GPUBuffer>();
   private bufferName: string;
   private resolution: [width: number, height: number];
   private offset: [x: number, y: number];
@@ -22,6 +26,34 @@ export class BufferManager {
   ): GPUBuffer {
     const values = data ?? new Float32Array([...this.resolution, ...this.offset]);
     return this.createBuffer(`${this.bufferName} Uniform Buffer`, values, usage);
+  }
+
+  /**
+   * Uniform buffer for the current resolution and offset, reused across draws
+   * that share them. Marks that draw many times per frame would otherwise mint
+   * one per draw. Keyed by the values rather than shared outright, because the
+   * render queue defers every draw to the end of the frame: one buffer rewritten
+   * per group would hand every draw the last group's offset.
+   */
+  sharedUniformBuffer(): GPUBuffer {
+    const values = new Float32Array([...this.resolution, ...this.offset]);
+    const key = values.join(',');
+    let buffer = this.uniformCache.get(key);
+    if (!buffer) {
+      buffer = this.createBuffer(
+        `${this.bufferName} Uniform`,
+        values,
+        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      );
+      if (this.uniformCache.size >= MAX_UNIFORM_CACHE) {
+        const oldest = this.uniformCache.keys().next().value;
+        if (oldest !== undefined) {
+          this.uniformCache.delete(oldest);
+        }
+      }
+      this.uniformCache.set(key, buffer);
+    }
+    return buffer;
   }
 
   createGeometryBuffer(

@@ -49,14 +49,6 @@ export default function geometryForItem(
   dx = 0,
   dy = 0,
 ): ItemGeometry {
-  const key = shapeGeom.key;
-  if (cache && key !== undefined) {
-    const entry = context._geometryCache[key];
-    if (entry) {
-      return entry;
-    }
-  }
-
   const lineWidth = item.strokeWidth ?? 1;
   const lineCap = item.strokeCap ?? 'butt';
   const opacity = item.opacity ?? 1;
@@ -70,16 +62,31 @@ export default function geometryForItem(
     fillOpacity = 0;
   }
   const fill = Boolean(item.fill) && fillOpacity > 0;
-  const fillVertexCount = fill ? fillTriangleCoords.length / 3 : 0;
 
   if (item.stroke === 'transparent') {
     strokeOpacity = 0;
   }
+  const strokeOn = lineWidth > 0 && Boolean(item.stroke) && strokeOpacity > 0;
+
+  // The path alone does not determine the geometry: stroke width, cap and the
+  // item translation all move vertices, and whether a fill or stroke is built
+  // at all changes what comes back.
+  const key =
+    shapeGeom.key === undefined
+      ? undefined
+      : `${shapeGeom.key}|${lineWidth}|${lineCap}|${dx}|${dy}|${fill ? 1 : 0}|${strokeOn ? 1 : 0}`;
+  if (cache && key !== undefined) {
+    const entry = context._geometryCache[key];
+    if (entry) {
+      return entry;
+    }
+  }
+  const fillVertexCount = fill ? fillTriangleCoords.length / 3 : 0;
 
   type StrokeMesh = ReturnType<ReturnType<typeof extrude>['build']>;
   const strokeMeshes: { mesh: StrokeMesh; lo: [number, number]; hi: [number, number] }[] = [];
   let strokeCellCount = 0;
-  if (lineWidth > 0 && item.stroke && strokeOpacity > 0) {
+  if (strokeOn) {
     const strokeExtrude = extrude({
       thickness: lineWidth,
       cap: lineCap,

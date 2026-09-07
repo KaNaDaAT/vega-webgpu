@@ -25,6 +25,7 @@ Tracking the gap to a production-grade, canvas-matching WebGPU renderer. Items a
 ## Missing features
 
 - [x] **Line dashes.** `strokeDash`/`strokeDashOffset` are split into drawn runs on the cpu and emitted as segments, covering straight and curved lines. Group and rect borders dash the same way, since the analytic rect stroke cannot express a pattern. Fixture `line-dashes`, 0.000% against canvas.
+- [x] **Symbol geometry is already cached** per (shape, size, strokeWidth) with least-recently-used eviction, and instanced: 0.02 to 0.22 ms a frame in the benchmark. Only gradient-filled symbols bypass it.
 - [x] **Symbol shapes**: all shapes (square, cross, diamond, triangle-\*, arrow, wedge, stroke, custom SVG) plus `angle` rotation now render. Circles keep the analytic shader. Other shapes are triangulated once per (shape, size) and instanced. `symbol-shapes` 6.8% to 0.03%, `symbol-angle` 14.3% to 0.001%.
 - [x] **Gradient on symbols**: gradient-filled symbols (e.g. a legend swatch) now render via the gradient pipeline (triangulated, per item). The `gradient` spec's radial-gradient circle went 4.6% to 0.007%.
 - [ ] **Trail marks** are not implemented.
@@ -32,7 +33,12 @@ Tracking the gap to a production-grade, canvas-matching WebGPU renderer. Items a
 
 ## Performance
 
-- [ ] **Line/"graph" charts are much slower than canvas**, and interactive updates (choropleth pan/hover) lag badly. Root cause: geometry is re-triangulated and re-uploaded every frame. Fix: retained per-mark geometry rebuilt only when dirty, move curve flattening and triangulation to compute shaders, single render pass (done) plus instanced batching.
+- [x] **Geometry is cached per item instead of rebuilt every frame.** `cacheShapes` existed but defaulted off and only covered `shape` marks. It is on by default now, bounded to 4096 entries with least-recently-used eviction, and the same helper backs `path` as well. A colour-only change rewrites colours over the cached positions instead of triangulating again. choropleth re-render 67.2 ms to 12.8 ms, which is faster than canvas at 47 ms.
+- [x] **Measured on real hardware, and the software rasterizer was most of it.** `WEBGPU_HARDWARE=1` runs the benchmark on the machine's own adapter and drops the forced Vulkan flags, so the browser picks its own backend. Frame cost against SwiftShader: contour-map 40.5 ms to 4.8, choropleth 13.3 to 7.0, airports 8.9 to 4.1, tree-radial-bundle 41.9 to 26.7. choropleth beats canvas by 6.8x (7.0 against 47). Nothing here argues for moving tessellation into a compute shader: on hardware the GPU side is already small, and under SwiftShader it would be adding to the part that is slow.
+- [ ] **tree-radial-bundle is the one CPU-bound spec left**, 26.7 ms on hardware against canvas 1.2, with 16.8 ms of that synchronous mark drawing. Curve flattening for hundreds of bundled links is the cost. This is the one place a compute shader could pay, and it wants measuring against a simple worker or an incremental flattening cache first.
+
+- [x] **Uniform buffers are reused across draws.** Every `draw` call minted a uniform buffer and a bind group, and a spec with hundreds of small line marks paid for hundreds of both per frame. They are keyed by resolution and offset now. Note that outright sharing one buffer is wrong: the render queue defers every draw to the end of the frame, so one buffer rewritten per group hands every draw the last group's offset, which is what `line-curves` and `regression` caught.
+- [ ] **Per-draw bind groups remain.** The buffers are shared but each draw still builds its own bind group. Cache those against the same key.
 - [ ] **movies-sort**: ~3.4 s draw (giant 95k-px-tall canvas).
 
 ## Robustness / bugs

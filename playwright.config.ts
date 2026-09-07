@@ -62,12 +62,17 @@ export default defineConfig({
     ...(executablePath ? {} : { channel: 'chromium' as const }),
     launchOptions: {
       ...(executablePath ? { executablePath } : {}),
-      args: [
-        '--enable-unsafe-webgpu',
-        '--enable-features=Vulkan',
-        '--disable-vulkan-surface',
-        '--use-webgpu-adapter=swiftshader',
-      ],
+      // WEBGPU_HARDWARE runs on the machine's real adapter, for benchmarking.
+      // It also drops the Vulkan flags so the browser picks its own backend,
+      // which on Windows means D3D12 rather than the vendor Vulkan driver.
+      args: process.env.WEBGPU_HARDWARE
+        ? ['--enable-unsafe-webgpu']
+        : [
+            '--enable-unsafe-webgpu',
+            '--enable-features=Vulkan',
+            '--disable-vulkan-surface',
+            '--use-webgpu-adapter=swiftshader',
+          ],
     },
   },
   webServer: {

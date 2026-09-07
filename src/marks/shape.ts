@@ -20,6 +20,9 @@ import {
 } from './util.js';
 
 const drawName = 'Shape';
+// Bounds the per-context geometry cache so a long streaming session, where
+// every frame brings new datum ids, cannot grow it without limit.
+const MAX_CACHE = 4096;
 
 interface ShapeCacheEntry {
   fill: RGBA;
@@ -158,6 +161,9 @@ function createGeometryData(
       item.y === entry.y &&
       sameBounds(item.bounds, entry.bounds)
     ) {
+      // re-insert to keep the map in least-recently-used order
+      res.cache.delete(key);
+      res.cache.set(key, entry);
       if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
         return entry.data;
       }
@@ -177,6 +183,12 @@ function createGeometryData(
   const data = geometryVertexData(geometry, fill, stroke);
 
   if (useCache) {
+    if (res.cache.size >= MAX_CACHE) {
+      const oldest = res.cache.keys().next().value;
+      if (oldest !== undefined) {
+        res.cache.delete(oldest);
+      }
+    }
     res.cache.set(key, {
       fill,
       stroke,

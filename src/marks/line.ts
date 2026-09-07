@@ -128,7 +128,7 @@ function drawDashed(
     drawCounts: [6, data.length / SEGMENT_STRIDE],
     vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
     bindGroups: [
-      createUniformBindGroup(`S${drawName}`, device, res.instancedPipeline, res.bufferManager.createUniformBuffer()),
+      createUniformBindGroup(`S${drawName}`, device, res.instancedPipeline, res.bufferManager.sharedUniformBuffer()),
     ],
     clip,
   });
@@ -144,7 +144,7 @@ function drawPath(
 ): void {
   const first = points[0];
   const shapeGeom = lineGeometry(ctx, points);
-  const geometry = geometryForItem(ctx, { ...first, fill: undefined }, shapeGeom);
+  const geometry = geometryForItem(ctx, { ...first, fill: undefined }, shapeGeom, true);
   const stroke = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
   const [, strokeData] = geometryVertexData(geometry, [0, 0, 0, 0], stroke);
   if (strokeData.length === 0) {
@@ -155,7 +155,7 @@ function drawPath(
     drawCounts: [strokeData.length / res.curveVertexManager.getVertexLength()],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
     bindGroups: [
-      createUniformBindGroup(`${drawName}Curve`, device, res.curvePipeline, res.bufferManager.createUniformBuffer()),
+      createUniformBindGroup(`${drawName}Curve`, device, res.curvePipeline, res.bufferManager.sharedUniformBuffer()),
     ],
     clip,
   });
@@ -189,7 +189,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       `S${drawName}`,
       device,
       res.instancedPipeline,
-      res.bufferManager.createUniformBuffer(),
+      res.bufferManager.sharedUniformBuffer(),
     );
     if (items.length < 2) {
       return; // a single point has no segment to draw
@@ -248,7 +248,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         `${drawName}Join`,
         device,
         res.joinPipeline,
-        res.bufferManager.createUniformBuffer(),
+        res.bufferManager.sharedUniformBuffer(),
       );
       ctx._renderQueue.enqueue({
         pipeline: res.joinPipeline,

@@ -246,3 +246,138 @@ export function dashedBorderInstances(item: SceneRectExt): Float32Array | null {
   const color = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
   return segmentInstances(runs, color, item.strokeWidth ?? 1);
 }
+
+/**
+ * Per-item geometry cache, shared by the marks that triangulate. Rebuilding the
+ * vertex data every frame is what makes a re-render cost multiples of canvas,
+ * and the geometry only changes when the item's position, size or path does.
+ */
+export interface CacheableItem {
+  x?: number;
+  y?: number;
+  bounds?: Bounds;
+  strokeWidth?: number;
+  path?: string;
+  datum?: { id?: unknown };
+  id?: unknown;
+}
+
+type BoundsSnapshot = { x1: number; y1: number; x2: number; y2: number };
+
+export interface GeometryCacheEntry {
+  fill: RGBA;
+  stroke: RGBA;
+  x?: number;
+  y?: number;
+  bounds?: BoundsSnapshot;
+  strokeWidth?: number;
+  path?: string;
+  data: [Float32Array, Float32Array];
+}
+
+export type GeometryCache = Map<unknown, GeometryCacheEntry>;
+
+// Bounds the cache so a streaming session, where every frame brings new datum
+// ids, cannot grow it without limit.
+const MAX_GEOMETRY_CACHE = 4096;
+
+/** Identifies an item across frames: vega keeps tuple ids on a symbol. */
+function cacheKey(item: CacheableItem): unknown {
+  if (item.datum?.id != null) {
+    return item.datum.id;
+  }
+  if (item.id != null) {
+    return item.id;
+  }
+  const symbols = Object.getOwnPropertySymbols(item);
+  return symbols.length > 0 ? (item as unknown as Record<symbol, unknown>)[symbols[0]] : item;
+}
+
+/**
+ * Vega mutates a Bounds in place as the view pans or zooms, so comparing by
+ * identity never sees a change. Snapshot the numbers and compare those.
+ */
+function copyBounds(b?: Bounds): BoundsSnapshot | undefined {
+  return b ? { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 } : undefined;
+}
+
+function sameBounds(b: Bounds | undefined, snap: BoundsSnapshot | undefined): boolean {
+  if (!b || !snap) {
+    return b === undefined && snap === undefined;
+  }
+  return b.x1 === snap.x1 && b.y1 === snap.y1 && b.x2 === snap.x2 && b.y2 === snap.y2;
+}
+
+function sameColor(a: RGBA, b: RGBA): boolean {
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+}
+
+/** Copies positions from `source` and writes `color` into every vertex. */
+function recolor(data: Float32Array, source: Float32Array, color: RGBA): void {
+  for (let i = 0; i < data.length; i += 7) {
+    data[i] = source[i];
+    data[i + 1] = source[i + 1];
+    data[i + 2] = source[i + 2];
+    data[i + 3] = color[0];
+    data[i + 4] = color[1];
+    data[i + 5] = color[2];
+    data[i + 6] = color[3];
+  }
+}
+
+/**
+ * Returns the item's vertex data, building it only when the geometry changed.
+ * A colour-only change rewrites the colours over the cached positions instead
+ * of triangulating again.
+ */
+export function cachedGeometryData(
+  cache: GeometryCache,
+  item: CacheableItem,
+  fill: RGBA,
+  stroke: RGBA,
+  build: () => [Float32Array, Float32Array],
+): [Float32Array, Float32Array] {
+  const key = cacheKey(item);
+  const entry = cache.get(key);
+  if (
+    entry &&
+    item.strokeWidth === entry.strokeWidth &&
+    item.x === entry.x &&
+    item.y === entry.y &&
+    item.path === entry.path &&
+    sameBounds(item.bounds, entry.bounds)
+  ) {
+    // re-insert to keep the map in least-recently-used order
+    cache.delete(key);
+    cache.set(key, entry);
+    if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
+      return entry.data;
+    }
+    const data: [Float32Array, Float32Array] = [
+      new Float32Array(entry.data[0].length),
+      new Float32Array(entry.data[1].length),
+    ];
+    recolor(data[0], entry.data[0], fill);
+    recolor(data[1], entry.data[1], stroke);
+    return data;
+  }
+
+  const data = build();
+  if (cache.size >= MAX_GEOMETRY_CACHE) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) {
+      cache.delete(oldest);
+    }
+  }
+  cache.set(key, {
+    fill,
+    stroke,
+    x: item.x,
+    y: item.y,
+    bounds: copyBounds(item.bounds),
+    strokeWidth: item.strokeWidth,
+    path: item.path,
+    data,
+  });
+  return data;
+}

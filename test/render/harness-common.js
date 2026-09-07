@@ -83,4 +83,7 @@ function applyTestOptions(renderer, params) {
   if (sampleCount) {
     options.sampleCount = Number(sampleCount);
   }
+  if (params?.get('cacheShapes')) {
+    options.cacheShapes = true;
+  }
 }

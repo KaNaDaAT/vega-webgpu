@@ -10,6 +10,8 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
   GeometryBatch,
+  cachedGeometryData,
+  type GeometryCache,
   geometryVertexData,
   getMarkResources,
   gradientBounds,
@@ -27,6 +29,7 @@ interface PathResources {
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
   gradientPipeline: GPURenderPipeline;
+  cache: GeometryCache;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): PathResources {
@@ -37,7 +40,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     );
     const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipeline };
+    return { device, bufferManager, vertexManager, pipeline, gradientPipeline, cache: new Map() };
   });
 }
 
@@ -73,14 +76,16 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const gradient = isGradient(item.fill) && bounds ? item.fill : null;
     const gBounds = gradient && bounds ? gradientBounds(ctx, bounds) : null;
 
-    const shapeGeom = geometryForPath(ctx, item.path);
-    // path items carry their own x/y translation (matching the canvas mark)
-    const geometry = geometryForItem(ctx, item, shapeGeom, false, item.x || 0, item.y || 0);
     const fill = gradient
       ? whiteCarrier(item.opacity, item.fillOpacity)
       : Color.from2(item.fill, item.opacity, item.fillOpacity);
     const stroke = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
-    const [fillData, strokeData] = geometryVertexData(geometry, fill, stroke);
+    const [fillData, strokeData] = cachedGeometryData(res.cache, item, fill, stroke, () => {
+      const shapeGeom = geometryForPath(ctx, item.path);
+      // path items carry their own x/y translation (matching the canvas mark)
+      const geometry = geometryForItem(ctx, item, shapeGeom, false, item.x || 0, item.y || 0);
+      return geometryVertexData(geometry, fill, stroke);
+    });
 
     if (fillData.length > 0 && gradient && gBounds) {
       flushBatch();

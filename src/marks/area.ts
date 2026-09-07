@@ -59,7 +59,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const stroke = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
 
   const shapeGeom = area(ctx, items);
-  const geometry = geometryForItem(ctx, item, shapeGeom);
+  const geometry = geometryForItem(ctx, item, shapeGeom, true);
   const [fillData, strokeData] = geometryVertexData(geometry, fill, stroke);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();

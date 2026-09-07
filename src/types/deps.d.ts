@@ -31,10 +31,7 @@ declare module 'triangulate-contours' {
     /** tess2 winding rule: 0 even-odd, 1 nonzero. Defaults to even-odd. */
     windingRule?: number;
   }
-  export default function triangulate(
-    contours: [number, number][][],
-    opt?: TriangulateOptions,
-  ): TriangulationMesh;
+  export default function triangulate(contours: [number, number][][], opt?: TriangulateOptions): TriangulationMesh;
 }
 
 declare module 'extrude-polyline' {
