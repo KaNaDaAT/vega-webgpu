@@ -59,11 +59,24 @@ test('fidelity against canvas', async ({ page }) => {
   const byMean = [...rows].sort((a, b) => b.mean - a.mean);
   const exact = rows.filter(r => r.max <= 2).length;
 
+  /** How many cases sit in each band, so the shape of the corpus is one line. */
+  const bands = (pick: (r: Row) => number, edges: number[]) =>
+    edges
+      .map((edge, i) => {
+        const low = i === 0 ? 0 : edges[i - 1];
+        const n = rows.filter(r => pick(r) > low && pick(r) <= edge).length;
+        return `${low}-${edge}: ${n}`;
+      })
+      .concat(`over ${edges[edges.length - 1]}: ${rows.filter(r => pick(r) > edges[edges.length - 1]).length}`)
+      .join('   ');
+
   console.log(
     [
       '',
       '=== fidelity against canvas ===',
       `${rows.length} cases, ${exact} matching canvas to within 2 levels everywhere`,
+      `by max channel error   ${bands(r => r.max, [2, 8, 32, 128])}`,
+      `by mean channel error  ${bands(r => r.mean, [1, 2, 4, 8])}`,
       '',
       'worst by max channel error (a misplaced or missing mark):',
       ...byMax.slice(0, 15).map(fmt),
