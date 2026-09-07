@@ -1,5 +1,6 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { PathGeometry } from '../types/geometry.js';
 import type { SceneShapeItem } from '../types/scene.js';
 import { shape } from '../path/shapes.js';
 import geometryForItem from '../path/geometryForItem.js';
@@ -11,6 +12,9 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
   GeometryBatch,
+  SEGMENT_LAYOUT,
+  SEGMENT_STRIDE,
+  segmentInstances,
   geometryVertexData,
   getMarkResources,
   gradientBounds,
@@ -32,8 +36,12 @@ interface ShapeCacheEntry {
   y?: number;
   bounds?: BoundsSnapshot;
   strokeWidth?: number;
+  strokeIsGradient: boolean;
   data: [Float32Array, Float32Array];
 }
+
+/** Every interior vertex of a contour gets a round join on the earlier end. */
+const CONTOUR_CAPS = [0, 1] as const;
 
 interface ShapeResources {
   device: GPUDevice;
@@ -42,6 +50,9 @@ interface ShapeResources {
   pipeline: GPURenderPipeline;
   pipelineFor: (blend: string) => GPURenderPipeline;
   gradientPipeline: GPURenderPipeline;
+  /** Outlines draw as segments rather than a triangulated ribbon. */
+  segmentVertexManager: VertexBufferManager;
+  segmentPipeline: GPURenderPipeline;
   cache: Map<unknown, ShapeCacheEntry>;
 }
 
@@ -59,7 +70,19 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
         ? pipeline
         : markPipeline(ctx, device, `${drawName} ${blend}`, 'SolidFill', vertexManager, undefined, blend);
     const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
-    return { device, bufferManager, vertexManager, pipeline, pipelineFor, gradientPipeline, cache: new Map() };
+    const segmentVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
+    const segmentPipeline = markPipeline(ctx, device, `${drawName}Stroke`, 'SLine', segmentVertexManager);
+    return {
+      device,
+      bufferManager,
+      vertexManager,
+      pipeline,
+      pipelineFor,
+      gradientPipeline,
+      segmentVertexManager,
+      segmentPipeline,
+      cache: new Map(),
+    };
   });
 }
 
@@ -81,6 +104,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const batch = new GeometryBatch();
   // one batch draws with one pipeline, so a change of blend closes it
   let batchBlend = 'normal';
+  // Outlines accumulate separately and draw after the fills. A sub pixel
+  // stroke on a triangulated ribbon takes its coverage from MSAA, which can
+  // only express quarter steps, so a 0.2 px country border came out patchy.
+  const outlines: number[] = [];
   const flushBatch = () => {
     const data = batch.flush();
     if (data) {
@@ -103,7 +130,20 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     const bounds = item.bounds;
     const gradient = isGradient(item.fill) && bounds ? item.fill : null;
-    const [fillData, strokeData] = createGeometryData(ctx, res, item, gradient !== null, useCache);
+    // A gradient stroke samples the ramp per fragment, which the segment shader
+    // cannot do, so it keeps the triangulated ribbon and the gradient pipeline.
+    const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
+    let shapeGeom: PathGeometry | null = null;
+    const geom = () => (shapeGeom ??= shape(ctx, item));
+    const [fillData, strokeData] = createGeometryData(
+      ctx,
+      res,
+      item,
+      gradient !== null,
+      strokeGradient !== null,
+      useCache,
+      geom,
+    );
 
     if (fillData.length > 0 && gradient && bounds) {
       flushBatch();
@@ -121,9 +161,53 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     } else {
       batch.push(fillData);
     }
-    batch.push(strokeData);
+    if (strokeData.length > 0 && strokeGradient && bounds) {
+      flushBatch();
+      const gres = getGradientResources(device, ctx);
+      ctx._renderQueue.enqueue({
+        pipeline: res.gradientPipeline,
+        drawCounts: [strokeData.length / vertexLength],
+        vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
+        bindGroups: [
+          createUniformBindGroup(`${drawName}Gradient`, device, res.gradientPipeline, uniformBuffer),
+          createGradientBindGroup(gres, res.gradientPipeline, strokeGradient, gradientBounds(ctx, bounds)),
+        ],
+        clip,
+      });
+    } else {
+      batch.push(strokeData);
+      pushOutline(outlines, item, geom);
+    }
   }
   flushBatch();
+
+  if (outlines.length > 0) {
+    ctx._renderQueue.enqueue({
+      pipeline: res.segmentPipeline,
+      drawCounts: [6, outlines.length / SEGMENT_STRIDE],
+      vertexBuffers: [res.bufferManager.createInstanceBuffer(Float32Array.from(outlines))],
+      bindGroups: [createUniformBindGroup(`${drawName}Stroke`, device, res.segmentPipeline, uniformBuffer)],
+      clip,
+    });
+  }
+}
+
+/** Appends one item's outline, contour by contour, as segment instances. */
+function pushOutline(out: number[], item: SceneShapeItem, geom: () => PathGeometry): void {
+  const width = item.strokeWidth ?? 1;
+  if (!item.stroke || width <= 0) {
+    return;
+  }
+  const color = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+  if (color[3] <= 0) {
+    return;
+  }
+  const data = segmentInstances(geom().lines, color, width, CONTOUR_CAPS);
+  if (data) {
+    for (let i = 0; i < data.length; i++) {
+      out.push(data[i]);
+    }
+  }
 }
 
 function cacheKey(item: SceneShapeItem): unknown {
@@ -159,18 +243,23 @@ function createGeometryData(
   res: ShapeResources,
   item: SceneShapeItem,
   hasGradient: boolean,
+  strokeIsGradient: boolean,
   useCache: boolean,
+  geom: () => PathGeometry,
 ): [fillData: Float32Array, strokeData: Float32Array] {
   const key = cacheKey(item);
   const fill = hasGradient
     ? whiteCarrier(item.opacity, item.fillOpacity)
     : Color.from2(item.fill, item.opacity, item.fillOpacity);
-  const stroke = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+  const stroke = strokeIsGradient
+    ? whiteCarrier(item.opacity, item.strokeOpacity)
+    : Color.from2(item.stroke, item.opacity, item.strokeOpacity);
 
   if (useCache) {
     const entry = res.cache.get(key);
     if (
       entry &&
+      strokeIsGradient === entry.strokeIsGradient &&
       item.strokeWidth === entry.strokeWidth &&
       item.x === entry.x &&
       item.y === entry.y &&
@@ -193,8 +282,8 @@ function createGeometryData(
     }
   }
 
-  const shapeGeom = shape(ctx, item);
-  const geometry = geometryForItem(ctx, item, shapeGeom);
+  // the outline draws as segments, so the triangulation only builds the fill
+  const geometry = geometryForItem(ctx, strokeIsGradient ? item : { ...item, stroke: undefined }, geom());
   const data = geometryVertexData(geometry, fill, stroke);
 
   if (useCache) {
@@ -211,6 +300,7 @@ function createGeometryData(
       y: item.y,
       bounds: copyBounds(item.bounds),
       strokeWidth: item.strokeWidth,
+      strokeIsGradient,
       data,
     });
   }

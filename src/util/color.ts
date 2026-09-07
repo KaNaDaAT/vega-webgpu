@@ -84,7 +84,7 @@ export class Color {
     if (isGradient(value)) {
       if (!warnedGradient) {
         warnedGradient = true;
-        console.warn('[vega-webgpu] Gradient strokes are not supported, drawing a placeholder color.');
+        console.warn('[vega-webgpu] A gradient stroke is only sampled where the mark triangulates it.');
       }
       return GRADIENT_FALLBACK;
     }

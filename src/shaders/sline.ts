@@ -76,7 +76,10 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let e = safeDirection(ab);
     let v = in.pos.xy - in.a_dev;
     let along = dot(v, e);
-    let cover = clamp(in.half_dev - length(v - e * clamp(along, 0.0, len)) + 0.5, 0.0, 1.0);
+    // the difference of the two edges, so a stroke thinner than a pixel reports
+    // its real width rather than the 0.6 the near edge alone would give
+    let dist = length(v - e * clamp(along, 0.0, len));
+    let cover = clamp(in.half_dev - dist + 0.5, 0.0, 1.0) - clamp(-in.half_dev - dist + 0.5, 0.0, 1.0);
     let behind = select(clamp(along + 0.5, 0.0, 1.0), 1.0, in.caps.x > 0.5);
     let ahead = select(clamp(len - along + 0.5, 0.0, 1.0), 1.0, in.caps.y > 0.5);
     return vec4<f32>(in.fill.rgb, in.fill.a * cover * behind * ahead);

@@ -105,10 +105,14 @@ export const FILL_STROKE_SHARE = `fn fillStrokeShare(fill: vec4<f32>, stroke: ve
  * complementary coverage, so the seam is the faint one canvas leaves and not a
  * whole missing sample. A deliberate gap between them is preserved exactly,
  * because the geometry is untouched. lo/hi are in device pixels.
+ *
+ * Taking the difference of the two edges rather than the distance to the
+ * nearer one is what keeps a box thinner than a pixel honest: the near edge
+ * alone reports a 0.2 px border as 0.6 covered.
  */
 export const BOX_COVERAGE = `fn boxCoverage(p: vec2<f32>, lo: vec2<f32>, hi: vec2<f32>) -> f32 {
-    let cx = clamp(min(p.x - lo.x, hi.x - p.x) + 0.5, 0.0, 1.0);
-    let cy = clamp(min(p.y - lo.y, hi.y - p.y) + 0.5, 0.0, 1.0);
+    let cx = clamp(hi.x - p.x + 0.5, 0.0, 1.0) - clamp(lo.x - p.x + 0.5, 0.0, 1.0);
+    let cy = clamp(hi.y - p.y + 0.5, 0.0, 1.0) - clamp(lo.y - p.y + 0.5, 0.0, 1.0);
     return cx * cy;
 }`;
 
