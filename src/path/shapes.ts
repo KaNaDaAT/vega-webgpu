@@ -30,7 +30,7 @@ const trailShape = pathTrail<AreaPoint>().x(x).y(y).defined(def).size(ts);
 const lineShape = d3_line<AreaPoint>().x(x).y(y).defined(def);
 
 export function arc(context: GPUVegaCanvasContext, item: SceneArcItem): PathGeometry {
-  return geometryForPath(context, arcShape.context(null)(item) ?? '', 0.1);
+  return geometryForPath(context, arcShape.context(null)(item) ?? '');
 }
 
 export function area(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeometry {
@@ -42,7 +42,7 @@ export function area(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeo
       : (item.orient === 'horizontal' ? areahShape : areavShape)
           .curve(pathCurves(interp, item.orient, item.tension))
           .context(null)(items);
-  return geometryForPath(context, path ?? '', 0.1);
+  return geometryForPath(context, path ?? '');
 }
 
 /**
@@ -50,7 +50,7 @@ export function area(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeo
  * point's `size`, which is what vega's own trail mark draws.
  */
 export function trail(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeometry {
-  return geometryForPath(context, trailShape.context(null)(items) ?? '', 0.1);
+  return geometryForPath(context, trailShape.context(null)(items) ?? '');
 }
 
 /**
@@ -60,7 +60,7 @@ export function trail(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGe
 export function line(context: GPUVegaCanvasContext, items: AreaPoint[]): PathGeometry {
   const item = items[0];
   const curve = pathCurves(item.interpolate || 'linear', item.orient, item.tension);
-  return geometryForPath(context, lineShape.curve(curve).context(null)(items) ?? '', 0.1);
+  return geometryForPath(context, lineShape.curve(curve).context(null)(items) ?? '');
 }
 
 /** The path calls d3's generators make, for a consumer that is not a canvas. */
@@ -84,7 +84,7 @@ export function lineSpans(items: AreaPoint[], sink: PathSink): void {
 
 export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem): PathGeometry {
   const generator = ((item.mark as { shape?: unknown }).shape ?? item.shape) as ShapeGenerator;
-  return geometryForPath(context, generator.context(null)(item) ?? '', 0.1);
+  return geometryForPath(context, generator.context(null)(item) ?? '');
 }
 
 /**
@@ -96,5 +96,5 @@ export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem): Path
 export function symbol(context: GPUVegaCanvasContext, shapeName: string, size: number): PathGeometry {
   const type = pathSymbols(shapeName || 'circle') as unknown as SymbolType;
   const path = d3_symbol(type, size).context(null)() ?? '';
-  return geometryForPath(context, path, 0.1);
+  return geometryForPath(context, path);
 }

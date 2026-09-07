@@ -7,7 +7,7 @@ import { shaderModule, type ShaderKey } from '../shaders/index.js';
 import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { ItemGeometry } from '../types/geometry.js';
-import type { SceneRectExt } from '../types/scene.js';
+import type { SceneGroupExt, SceneRectExt } from '../types/scene.js';
 import { Color, type RGBA } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -281,6 +281,17 @@ export function segmentInstances(
  * as a closed polyline instead and emitted as single-segment line instances.
  * Returns null when the item has no dashed border to draw.
  */
+/**
+ * vega nudges a group's border by half a pixel when the stroke is about one
+ * pixel wide, so the hairline lands on one row of pixels instead of straddling
+ * two. Only the background and border move, not the group's contents.
+ */
+export function withStrokeOffset(item: SceneGroupExt): SceneGroupExt {
+  const sw = item.strokeWidth ?? 1;
+  const off = item.strokeOffset ?? (item.stroke && sw > 0.5 && sw < 1.5 ? 0.5 - Math.abs(sw - 1) : 0);
+  return off === 0 ? item : { ...item, x: (item.x || 0) + off, y: (item.y || 0) + off };
+}
+
 export function dashedBorderInstances(item: SceneRectExt): Float32Array | null {
   const pattern = Array.isArray(item.strokeDash) ? item.strokeDash : undefined;
   if (!pattern?.length || !item.stroke) {

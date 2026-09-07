@@ -14,11 +14,14 @@ const WINDING_NONZERO = 1;
 /**
  * Triangulates an SVG path string into fill triangles and outline contours.
  * Results are cached on the context, keyed by the path string.
+ *
+ * `threshold` is the Douglas-Peucker tolerance in pixels. At 1.0 a gentle
+ * curve collapses into visible facets, which is what an isocontour is made of.
  */
 export default function geometryForPath(
   context: GPUVegaCanvasContext,
   path: string | null | undefined,
-  threshold = 1.0,
+  threshold = 0.1,
 ): PathGeometry {
   if (!path) {
     return EMPTY;

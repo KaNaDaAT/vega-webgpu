@@ -13,6 +13,7 @@ import {
   SEGMENT_LAYOUT,
   SEGMENT_STRIDE,
   dashedBorderInstances,
+  withStrokeOffset,
   getMarkResources,
   markPipeline,
   type MarkModule,
@@ -95,11 +96,12 @@ function draw(
 
   const dashed: Float32Array[] = [];
   for (const item of items as SceneGroupExt[]) {
-    const border = dashedBorderInstances(item);
+    const edged = withStrokeOffset(item);
+    const border = dashedBorderInstances(edged);
     if (border) {
       dashed.push(border);
     }
-    const drawn = border ? { ...item, stroke: undefined } : item;
+    const drawn = border ? { ...edged, stroke: undefined } : edged;
     const fill = drawn.fill;
     if (!isGradient(fill)) {
       run.push(drawn);
