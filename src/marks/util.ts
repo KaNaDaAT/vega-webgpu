@@ -45,6 +45,7 @@ export function getMarkResources<T extends { device: GPUDevice }>(
     const buffers = (res as { bufferManager?: BufferManager }).bufferManager;
     buffers?.setResolution(ctx._uniforms.resolution);
     buffers?.setOffset([vb.x1, vb.y1]);
+    buffers?.setDpi(ctx._uniforms.dpi);
   }
   return res;
 }
@@ -270,6 +271,9 @@ export interface CacheableItem {
   bounds?: Bounds;
   strokeWidth?: number;
   path?: string;
+  angle?: number;
+  scaleX?: number;
+  scaleY?: number;
   datum?: { id?: unknown };
   id?: unknown;
 }
@@ -284,6 +288,9 @@ export interface GeometryCacheEntry {
   bounds?: BoundsSnapshot;
   strokeWidth?: number;
   path?: string;
+  angle?: number;
+  scaleX?: number;
+  scaleY?: number;
   data: [Float32Array, Float32Array];
 }
 
@@ -357,6 +364,9 @@ export function cachedGeometryData(
     item.x === entry.x &&
     item.y === entry.y &&
     item.path === entry.path &&
+    item.angle === entry.angle &&
+    item.scaleX === entry.scaleX &&
+    item.scaleY === entry.scaleY &&
     sameBounds(item.bounds, entry.bounds)
   ) {
     // re-insert to keep the map in least-recently-used order
@@ -389,6 +399,9 @@ export function cachedGeometryData(
     bounds: copyBounds(item.bounds),
     strokeWidth: item.strokeWidth,
     path: item.path,
+    angle: item.angle,
+    scaleX: item.scaleX,
+    scaleY: item.scaleY,
     data,
   });
   return data;

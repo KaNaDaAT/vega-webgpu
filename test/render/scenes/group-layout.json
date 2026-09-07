@@ -1,0 +1,215 @@
+{
+ "description": "Group backgrounds, corner radii, a clip and an opacity, each with a translated child mark.",
+ "width": 360,
+ "height": 240,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "group",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 20,
+        "width": 110,
+        "height": 90,
+        "fill": "#eef3f8",
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 10,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 32,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 54,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#e45756"
+           },
+           {
+            "x": 76,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#f58518"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 150,
+        "y": 20,
+        "width": 110,
+        "height": 90,
+        "fill": "#eef3f8",
+        "stroke": "#333",
+        "strokeWidth": 2,
+        "cornerRadius": 10,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 10,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 32,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 54,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#e45756"
+           },
+           {
+            "x": 76,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#f58518"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 280,
+        "y": 20,
+        "width": 60,
+        "height": 90,
+        "fill": "#eef3f8",
+        "clip": true,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 10,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 32,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 54,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#e45756"
+           },
+           {
+            "x": 76,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#f58518"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "x": 20,
+        "y": 130,
+        "width": 110,
+        "height": 90,
+        "fill": "#eef3f8",
+        "opacity": 0.5,
+        "items": [
+         {
+          "marktype": "rect",
+          "role": "mark",
+          "interactive": true,
+          "clip": false,
+          "items": [
+           {
+            "x": 10,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#4c78a8"
+           },
+           {
+            "x": 32,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#72b7b2"
+           },
+           {
+            "x": 54,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#e45756"
+           },
+           {
+            "x": 76,
+            "y": 10,
+            "width": 18,
+            "height": 60,
+            "fill": "#f58518"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

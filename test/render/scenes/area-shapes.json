@@ -1,0 +1,1058 @@
+{
+ "description": "Area marks across interpolations, with and without a stroke, and with a defined gap.",
+ "width": 450,
+ "height": 285,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 45.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 31,
+        "y": 27.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 42,
+        "y": 16.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 53,
+        "y": 16.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 64,
+        "y": 27.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 75,
+        "y": 44.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 86,
+        "y": 62.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 97,
+        "y": 73.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 108,
+        "y": 73.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 125,
+        "y": 45.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 136,
+        "y": 27.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 147,
+        "y": 16.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 158,
+        "y": 16.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 169,
+        "y": 27.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 180,
+        "y": 44.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 191,
+        "y": 62.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 202,
+        "y": 73.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 213,
+        "y": 73.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 230,
+        "y": 45.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 241,
+        "y": 27.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 252,
+        "y": 16.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 263,
+        "y": 16.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 274,
+        "y": 27.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 285,
+        "y": 44.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 296,
+        "y": 62.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 307,
+        "y": 73.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 318,
+        "y": 73.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 335,
+        "y": 45.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 346,
+        "y": 27.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 357,
+        "y": 16.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 368,
+        "y": 16.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 379,
+        "y": 27.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 390,
+        "y": 44.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 401,
+        "y": 62.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 412,
+        "y": 73.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 423,
+        "y": 73.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 135.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 31,
+        "y": 117.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 42,
+        "y": 106.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 53,
+        "y": 106.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 64,
+        "y": 117.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 75,
+        "y": 134.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 86,
+        "y": 152.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 97,
+        "y": 163.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 108,
+        "y": 163.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 125,
+        "y": 135.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 136,
+        "y": 117.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 147,
+        "y": 106.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 158,
+        "y": 106.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 169,
+        "y": 117.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 180,
+        "y": 134.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 191,
+        "y": 152.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 202,
+        "y": 163.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 213,
+        "y": 163.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 230,
+        "y": 135.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 241,
+        "y": 117.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 252,
+        "y": 106.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 263,
+        "y": 106.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 274,
+        "y": 117.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 285,
+        "y": 134.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 296,
+        "y": 152.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 307,
+        "y": 163.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 318,
+        "y": 163.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 335,
+        "y": 135.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 346,
+        "y": 117.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 357,
+        "y": 106.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 368,
+        "y": 106.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 379,
+        "y": 117.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 390,
+        "y": 134.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 401,
+        "y": 152.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 412,
+        "y": 163.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 423,
+        "y": 163.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 225.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 31,
+        "y": 207.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 42,
+        "y": 196.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 53,
+        "y": 196.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 64,
+        "y": 207.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear",
+        "defined": false
+       },
+       {
+        "x": 75,
+        "y": 224.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 86,
+        "y": 242.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 97,
+        "y": 253.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       },
+       {
+        "x": 108,
+        "y": 253.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "linear"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 125,
+        "y": 225.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 136,
+        "y": 207.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 147,
+        "y": 196.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 158,
+        "y": 196.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 169,
+        "y": 207.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone",
+        "defined": false
+       },
+       {
+        "x": 180,
+        "y": 224.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 191,
+        "y": 242.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 202,
+        "y": 253.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       },
+       {
+        "x": 213,
+        "y": 253.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "monotone"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 230,
+        "y": 225.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 241,
+        "y": 207.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 252,
+        "y": 196.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 263,
+        "y": 196.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 274,
+        "y": 207.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step",
+        "defined": false
+       },
+       {
+        "x": 285,
+        "y": 224.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 296,
+        "y": 242.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 307,
+        "y": 253.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       },
+       {
+        "x": 318,
+        "y": 253.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "step"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 335,
+        "y": 225.0,
+        "height": 40.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 346,
+        "y": 207.447,
+        "height": 57.553,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 357,
+        "y": 196.53,
+        "height": 68.47,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 368,
+        "y": 196.377,
+        "height": 68.623,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 379,
+        "y": 207.046,
+        "height": 57.954,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis",
+        "defined": false
+       },
+       {
+        "x": 390,
+        "y": 224.502,
+        "height": 40.498,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 401,
+        "y": 242.147,
+        "height": 22.853,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 412,
+        "y": 253.309,
+        "height": 11.691,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       },
+       {
+        "x": 423,
+        "y": 253.768,
+        "height": 11.232,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.85,
+        "interpolate": "basis"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

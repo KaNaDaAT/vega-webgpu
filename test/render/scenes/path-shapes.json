@@ -1,0 +1,98 @@
+{
+ "description": "Path marks: fills, a hole, a self intersection, arcs, quadratics, stroke only and transforms.",
+ "width": 340,
+ "height": 250,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "path",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 20,
+        "y": 20,
+        "path": "M0,0L60,0L60,50L0,50Z",
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 100,
+        "y": 20,
+        "path": "M30,0L60,50L0,50Z",
+        "fill": "#72b7b2",
+        "stroke": "#333",
+        "strokeWidth": 2
+       },
+       {
+        "x": 180,
+        "y": 20,
+        "path": "M0,25A25,25 0 1,0 50,25A25,25 0 1,0 0,25Z",
+        "fill": "#e45756"
+       },
+       {
+        "x": 260,
+        "y": 20,
+        "path": "M0,0L60,0L60,50L0,50ZM15,12L45,12L45,38L15,38Z",
+        "fill": "#f58518"
+       },
+       {
+        "x": 20,
+        "y": 100,
+        "path": "M30,0L48,50L0,18L60,18L12,50Z",
+        "fill": "#9d755d"
+       },
+       {
+        "x": 100,
+        "y": 100,
+        "path": "M0,50C0,0 60,0 60,50",
+        "stroke": "#4c78a8",
+        "strokeWidth": 3
+       },
+       {
+        "x": 180,
+        "y": 100,
+        "path": "M0,50Q30,-10 60,50",
+        "stroke": "#e45756",
+        "strokeWidth": 3
+       },
+       {
+        "x": 260,
+        "y": 100,
+        "path": "M0,0L60,0L60,50L0,50Z",
+        "fill": "#54a24b",
+        "angle": 20
+       },
+       {
+        "x": 20,
+        "y": 180,
+        "path": "M0,0L60,0L60,50L0,50Z",
+        "fill": "#b279a2",
+        "scaleX": 0.6,
+        "scaleY": 1.3
+       },
+       {
+        "x": 100,
+        "y": 180,
+        "path": "M0,0h60v50h-60z",
+        "stroke": "#333",
+        "strokeWidth": 4
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

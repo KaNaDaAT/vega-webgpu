@@ -97,8 +97,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const stroke = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
     const [fillData, strokeData] = cachedGeometryData(res.cache, item, fill, stroke, () => {
       const shapeGeom = geometryForPath(ctx, item.path);
-      // path items carry their own x/y translation (matching the canvas mark)
-      const geometry = geometryForItem(ctx, item, shapeGeom, false, item.x || 0, item.y || 0);
+      // path items carry their own translation, rotation and scale
+      const geometry = geometryForItem(ctx, item, shapeGeom, false, item.x || 0, item.y || 0, {
+        angle: ((item.angle || 0) * Math.PI) / 180,
+        scaleX: item.scaleX ?? 1,
+        scaleY: item.scaleY ?? 1,
+      });
       return geometryVertexData(geometry, fill, stroke);
     });
 

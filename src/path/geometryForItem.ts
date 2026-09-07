@@ -36,6 +36,20 @@ export type GeometryItem = FillStyle &
   };
 
 /**
+ * A path item's own transform, applied the way the canvas mark does it: the
+ * path coordinates scale, then the whole thing rotates about the item origin.
+ * Scaling before the stroke is extruded is what keeps the stroke width uniform,
+ * which is the `non-scaling-stroke` the svg renderer asks for.
+ */
+export interface ItemTransform {
+  angle: number;
+  scaleX: number;
+  scaleY: number;
+}
+
+const IDENTITY: ItemTransform = { angle: 0, scaleX: 1, scaleY: 1 };
+
+/**
  * Converts triangulated path geometry into per-item fill and stroke
  * triangle buffers. `dx`/`dy` apply an item-local translation (e.g. the
  * x/y of a path mark item). Group translation is handled by the render
@@ -48,7 +62,17 @@ export default function geometryForItem(
   cache = false,
   dx = 0,
   dy = 0,
+  transform: ItemTransform = IDENTITY,
 ): ItemGeometry {
+  const { angle, scaleX, scaleY } = transform;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const place = (x: number, y: number, out: Float32Array, i: number): void => {
+    const sx = x * scaleX;
+    const sy = y * scaleY;
+    out[i] = sx * cos - sy * sin + dx;
+    out[i + 1] = sx * sin + sy * cos + dy;
+  };
   const lineWidth = item.strokeWidth ?? 1;
   const lineCap = item.strokeCap ?? 'butt';
   const opacity = item.opacity ?? 1;
@@ -74,7 +98,7 @@ export default function geometryForItem(
   const key =
     shapeGeom.key === undefined
       ? undefined
-      : `${shapeGeom.key}|${lineWidth}|${lineCap}|${dx}|${dy}|${fill ? 1 : 0}|${strokeOn ? 1 : 0}`;
+      : `${shapeGeom.key}|${lineWidth}|${lineCap}|${dx}|${dy}|${angle}|${scaleX}|${scaleY}|${fill ? 1 : 0}|${strokeOn ? 1 : 0}`;
   if (cache && key !== undefined) {
     const entry = context._geometryCache[key];
     if (entry) {
@@ -96,7 +120,11 @@ export default function geometryForItem(
       closed: false,
     });
     const pad = MITER_LIMIT * lineWidth;
-    for (const line of shapeGeom.lines) {
+    const scaled =
+      scaleX === 1 && scaleY === 1
+        ? shapeGeom.lines
+        : shapeGeom.lines.map(l => l.map(p => [p[0] * scaleX, p[1] * scaleY] as Point));
+    for (const line of scaled) {
       const mesh = strokeExtrude.build(reopenRing(line as Point[]) ?? line);
       let minX = Infinity;
       let minY = Infinity;
@@ -118,8 +146,7 @@ export default function geometryForItem(
 
   if (fill) {
     for (let i = 0; i < fillTriangleCoords.length; i += 3) {
-      triangles[i] = fillTriangleCoords[i] + dx;
-      triangles[i + 1] = fillTriangleCoords[i + 1] + dy;
+      place(fillTriangleCoords[i], fillTriangleCoords[i + 1], triangles, i);
       triangles[i + 2] = fillTriangleCoords[i + 2];
     }
   }
@@ -152,8 +179,8 @@ export default function geometryForItem(
         }
         for (const pointIndex of cell) {
           const p = positions[pointIndex];
-          strokeTriangles[i * 3] = p[0] + dx;
-          strokeTriangles[i * 3 + 1] = p[1] + dy;
+          strokeTriangles[i * 3] = p[0] * cos - p[1] * sin + dx;
+          strokeTriangles[i * 3 + 1] = p[0] * sin + p[1] * cos + dy;
           strokeTriangles[i * 3 + 2] = z;
           i++;
         }

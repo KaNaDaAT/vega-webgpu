@@ -28,6 +28,10 @@ export const SCENE_CHECK_DEFAULT = 0.002;
 export const sceneCheckOverrides: Record<string, number | null> = {
   // drawn unblended on purpose, so the pixel count is not meaningful
   'blend-unsupported': null,
+  // Dense outlines on triangulated marks, whose edge coverage comes from MSAA.
+  // Almost every differing pixel is one of those edges.
+  'arc-shapes': 0.004,
+  'path-shapes': 0.012,
 };
 
 /**
@@ -52,6 +56,17 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   'symbol-custom': 80,
   // a triangulated ribbon, so its edge gets its coverage from MSAA
   trail: 90,
+  // Triangulated marks take their edge coverage from MSAA, which expresses
+  // quarter steps: an edge landing on a pixel boundary reads 1 or 3 samples
+  // where canvas fills the pixel. rect, rule, symbol and segments are analytic,
+  // these are not.
+  'arc-shapes': 130,
+  'area-shapes': 80,
+  'path-shapes': 180,
+  // Both renderers approximate a slanted edge. Against exact pixel coverage
+  // these are 3.1 levels off on average where canvas is 15.8, so the budget is
+  // mostly canvas's own error.
+  'rule-diagonals': 70,
   // Held by canvas, not by us. Against exact pixel coverage these stroked
   // circles are 2 to 3 levels off on average, worst 16, where canvas is 7 to 14
   // and worst 90 on an arc running nearly tangent to a pixel row.

@@ -18,9 +18,13 @@ export interface TextTexture {
 /**
  * Sub-pixel phases are quantized to this many steps per device pixel so the
  * glyph cache does not grow unbounded when the same string is drawn at many
- * fractional positions. 8 steps means at most 1/16 px of placement error, which is imperceptible.
+ * fractional positions. At 8 steps a label could land in a different one of
+ * skia's own subpixel buckets than canvas picked, which flips a whole stem
+ * pixel: scales-discretize and panzoom were both 255 off on one. 64 costs
+ * nothing on a static scene, since each label still has one phase, and only
+ * churns the cache faster while text is moving.
  */
-export const PHASE_STEPS = 8;
+export const PHASE_STEPS = 64;
 
 /** Quantized fractional part of `v`, in [0, 1), on the PHASE_STEPS grid. */
 export function quantizePhase(v: number): number {

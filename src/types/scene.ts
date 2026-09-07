@@ -96,6 +96,10 @@ export type ScenePathItem = SceneItem &
   FillStyle &
   StrokeStyle & {
     path?: string;
+    /** Degrees, clockwise about the item origin. */
+    angle?: number;
+    scaleX?: number;
+    scaleY?: number;
   };
 
 export type SceneShapeItem = SceneItem &

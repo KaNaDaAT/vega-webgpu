@@ -99,6 +99,20 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 }
 
 /**
+ * True when the line ends in a square cap, which the GPU segment and curve
+ * shaders do not draw. extrude-polyline does, so those go through the
+ * tessellated path. A round cap is drawn as a disc at each end instead, since
+ * extrude-polyline has no round cap either.
+ */
+function needsSquareCap(points: SceneLinePoint[]): boolean {
+  return points[0]?.strokeCap === 'square';
+}
+
+function hasRoundCap(points: SceneLinePoint[]): boolean {
+  return points[0]?.strokeCap === 'round';
+}
+
+/**
  * True when the mark cannot be drawn as a plain polyline, either because it
  * uses a curve interpolation or because `defined: false` puts gaps in it.
  */
@@ -397,6 +411,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     return;
   }
 
+  if (needsSquareCap(points)) {
+    drawPath(device, ctx, res, points, clip);
+    return;
+  }
+
   if (isBasisCurve(points)) {
     drawBasis(device, ctx, res, points, clip);
     return;
@@ -475,10 +494,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
   }
 
-  // Round joins: fill the gap at each interior vertex where two segment quads
-  // meet at an angle (otherwise the outer corner of every bend is notched).
-  if (points.length > 2) {
-    const joinData = createJoinAttributes(points);
+  // Round joins fill the gap at each interior vertex where two segment quads
+  // meet at an angle, and a round cap puts the same disc on the two ends.
+  const round = hasRoundCap(points);
+  const first = round ? 0 : 1;
+  const last = round ? points.length - 1 : points.length - 2;
+  if (last >= first) {
+    const joinData = createJoinAttributes(points, first, last);
     if (joinData.length > 0) {
       const joinUniformBindGroup = createUniformBindGroup(
         `${drawName}Join`,
@@ -488,7 +510,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       );
       ctx._renderQueue.enqueue({
         pipeline: res.joinPipeline,
-        drawCounts: [JOIN_SEGMENTS * 3, points.length - 2],
+        drawCounts: [JOIN_SEGMENTS * 3, last - first + 1],
         vertexBuffers: [res.joinGeometryBuffer, res.bufferManager.createInstanceBuffer(joinData)],
         bindGroups: [joinUniformBindGroup],
         clip,
@@ -497,12 +519,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 }
 
-/** Symbol-shader instance data for a filled circle at each interior vertex. */
-function createJoinAttributes(points: SceneLinePoint[]): Float32Array {
-  const count = points.length - 2;
-  const result = new Float32Array(count * 12);
+/** Symbol-shader instance data for a filled circle at each vertex in the range. */
+function createJoinAttributes(points: SceneLinePoint[], first: number, last: number): Float32Array {
+  const result = new Float32Array((last - first + 1) * 12);
   let index = 0;
-  for (let i = 1; i < points.length - 1; i++) {
+  for (let i = first; i <= last; i++) {
     const { x = 0, y = 0, stroke, strokeOpacity = 1, strokeWidth = 1, opacity = 1 } = points[i];
     const col = Color.from2(stroke, opacity, strokeOpacity);
     result[index] = x;

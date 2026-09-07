@@ -7,6 +7,7 @@ export class BufferManager {
   private bufferName: string;
   private resolution: [width: number, height: number];
   private offset: [x: number, y: number];
+  private dpi = 1;
 
   constructor(
     device: GPUDevice,
@@ -24,7 +25,7 @@ export class BufferManager {
     data?: Float32Array,
     usage: GPUBufferUsageFlags = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   ): GPUBuffer {
-    const values = data ?? new Float32Array([...this.resolution, ...this.offset]);
+    const values = data ?? this.uniformValues();
     return this.createBuffer(`${this.bufferName} Uniform Buffer`, values, usage);
   }
 
@@ -36,7 +37,7 @@ export class BufferManager {
    * per group would hand every draw the last group's offset.
    */
   sharedUniformBuffer(): GPUBuffer {
-    const values = new Float32Array([...this.resolution, ...this.offset]);
+    const values = this.uniformValues();
     const key = values.join(',');
     let buffer = this.uniformCache.get(key);
     if (!buffer) {
@@ -112,5 +113,14 @@ export class BufferManager {
 
   setOffset(offset: [x: number, y: number]): void {
     this.offset = offset;
+  }
+
+  setDpi(dpi: number): void {
+    this.dpi = dpi || 1;
+  }
+
+  /** The shared uniform block: resolution, group offset and device pixel ratio. */
+  private uniformValues(): Float32Array {
+    return new Float32Array([...this.resolution, ...this.offset, this.dpi, 0, 0, 0]);
   }
 }

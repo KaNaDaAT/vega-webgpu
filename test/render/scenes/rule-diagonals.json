@@ -1,0 +1,150 @@
+{
+ "description": "Isolated diagonal rules at five angles and three widths, far enough apart to score each against exact coverage.",
+ "width": 390,
+ "height": 250,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 33.7496,
+        "y": 49.306,
+        "x2": 76.2504,
+        "y2": 60.694,
+        "stroke": "#c0392b",
+        "strokeWidth": 1
+       },
+       {
+        "x": 105.9474,
+        "y": 44.0,
+        "x2": 144.0526,
+        "y2": 66.0,
+        "stroke": "#c0392b",
+        "strokeWidth": 1
+       },
+       {
+        "x": 179.4437,
+        "y": 39.4437,
+        "x2": 210.5563,
+        "y2": 70.5563,
+        "stroke": "#c0392b",
+        "strokeWidth": 1
+       },
+       {
+        "x": 254.0,
+        "y": 35.9474,
+        "x2": 276.0,
+        "y2": 74.0526,
+        "stroke": "#c0392b",
+        "strokeWidth": 1
+       },
+       {
+        "x": 329.306,
+        "y": 33.7496,
+        "x2": 340.694,
+        "y2": 76.2504,
+        "stroke": "#c0392b",
+        "strokeWidth": 1
+       },
+       {
+        "x": 33.7496,
+        "y": 119.306,
+        "x2": 76.2504,
+        "y2": 130.694,
+        "stroke": "#c0392b",
+        "strokeWidth": 2
+       },
+       {
+        "x": 105.9474,
+        "y": 114.0,
+        "x2": 144.0526,
+        "y2": 136.0,
+        "stroke": "#c0392b",
+        "strokeWidth": 2
+       },
+       {
+        "x": 179.4437,
+        "y": 109.4437,
+        "x2": 210.5563,
+        "y2": 140.5563,
+        "stroke": "#c0392b",
+        "strokeWidth": 2
+       },
+       {
+        "x": 254.0,
+        "y": 105.9474,
+        "x2": 276.0,
+        "y2": 144.0526,
+        "stroke": "#c0392b",
+        "strokeWidth": 2
+       },
+       {
+        "x": 329.306,
+        "y": 103.7496,
+        "x2": 340.694,
+        "y2": 146.2504,
+        "stroke": "#c0392b",
+        "strokeWidth": 2
+       },
+       {
+        "x": 33.7496,
+        "y": 189.306,
+        "x2": 76.2504,
+        "y2": 200.694,
+        "stroke": "#c0392b",
+        "strokeWidth": 3
+       },
+       {
+        "x": 105.9474,
+        "y": 184.0,
+        "x2": 144.0526,
+        "y2": 206.0,
+        "stroke": "#c0392b",
+        "strokeWidth": 3
+       },
+       {
+        "x": 179.4437,
+        "y": 179.4437,
+        "x2": 210.5563,
+        "y2": 210.5563,
+        "stroke": "#c0392b",
+        "strokeWidth": 3
+       },
+       {
+        "x": 254.0,
+        "y": 175.9474,
+        "x2": 276.0,
+        "y2": 214.0526,
+        "stroke": "#c0392b",
+        "strokeWidth": 3
+       },
+       {
+        "x": 329.306,
+        "y": 173.7496,
+        "x2": 340.694,
+        "y2": 216.2504,
+        "stroke": "#c0392b",
+        "strokeWidth": 3
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

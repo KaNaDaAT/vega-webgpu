@@ -1,0 +1,190 @@
+{
+ "description": "Arc sweeps, donuts, corner radii and pad angles, filled and stroked.",
+ "width": 400,
+ "height": 395,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "arc",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 55,
+        "y": 55,
+        "startAngle": 0,
+        "endAngle": 1.5707963267948966,
+        "innerRadius": 0,
+        "outerRadius": 38,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 150,
+        "y": 55,
+        "startAngle": 0,
+        "endAngle": 3.7699111843077517,
+        "innerRadius": 0,
+        "outerRadius": 38,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 245,
+        "y": 55,
+        "startAngle": 0,
+        "endAngle": 6.283185307179586,
+        "innerRadius": 0,
+        "outerRadius": 38,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 340,
+        "y": 55,
+        "startAngle": 0.6283185307179586,
+        "endAngle": 0.9424777960769379,
+        "innerRadius": 0,
+        "outerRadius": 38,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 55,
+        "y": 150,
+        "startAngle": 0.3,
+        "endAngle": 4.39822971502571,
+        "innerRadius": 12,
+        "outerRadius": 38,
+        "fill": "#72b7b2",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 150,
+        "y": 150,
+        "startAngle": 0.3,
+        "endAngle": 4.39822971502571,
+        "innerRadius": 22,
+        "outerRadius": 38,
+        "fill": "#72b7b2",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 245,
+        "y": 150,
+        "startAngle": 0.3,
+        "endAngle": 4.39822971502571,
+        "innerRadius": 30,
+        "outerRadius": 38,
+        "fill": "#72b7b2",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 340,
+        "y": 150,
+        "startAngle": 0.3,
+        "endAngle": 4.39822971502571,
+        "innerRadius": 34,
+        "outerRadius": 38,
+        "fill": "#72b7b2",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "x": 55,
+        "y": 245,
+        "startAngle": 0.2,
+        "endAngle": 2.199114857512855,
+        "innerRadius": 14,
+        "outerRadius": 38,
+        "cornerRadius": 0,
+        "fill": "#e45756"
+       },
+       {
+        "x": 150,
+        "y": 245,
+        "startAngle": 0.2,
+        "endAngle": 2.199114857512855,
+        "innerRadius": 14,
+        "outerRadius": 38,
+        "cornerRadius": 4,
+        "fill": "#e45756"
+       },
+       {
+        "x": 245,
+        "y": 245,
+        "startAngle": 0.2,
+        "endAngle": 2.199114857512855,
+        "innerRadius": 14,
+        "outerRadius": 38,
+        "cornerRadius": 8,
+        "fill": "#e45756"
+       },
+       {
+        "x": 340,
+        "y": 245,
+        "startAngle": 0.2,
+        "endAngle": 2.199114857512855,
+        "innerRadius": 14,
+        "outerRadius": 38,
+        "cornerRadius": 14,
+        "fill": "#e45756"
+       },
+       {
+        "x": 55,
+        "y": 340,
+        "startAngle": 0,
+        "endAngle": 2.0943951023931953,
+        "innerRadius": 10,
+        "outerRadius": 38,
+        "padAngle": 0,
+        "fill": "#f58518"
+       },
+       {
+        "x": 150,
+        "y": 340,
+        "startAngle": 0,
+        "endAngle": 2.0943951023931953,
+        "innerRadius": 10,
+        "outerRadius": 38,
+        "padAngle": 0.03,
+        "fill": "#f58518"
+       },
+       {
+        "x": 245,
+        "y": 340,
+        "startAngle": 0,
+        "endAngle": 2.0943951023931953,
+        "innerRadius": 10,
+        "outerRadius": 38,
+        "padAngle": 0.08,
+        "fill": "#f58518"
+       },
+       {
+        "x": 340,
+        "y": 340,
+        "startAngle": 0,
+        "endAngle": 2.0943951023931953,
+        "innerRadius": 10,
+        "outerRadius": 38,
+        "padAngle": 0.15,
+        "fill": "#f58518"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
