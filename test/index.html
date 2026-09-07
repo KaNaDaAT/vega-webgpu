@@ -75,25 +75,67 @@
 
   <body>
     <div id="header">
-      &nbsp; <span class="label">Vega Specification:</span>
+      <span class="label">Vega Specification:</span>
       <select id="specs">
         <option value="">-----</option>
       </select>
-      &nbsp; <span class="label">Renderer:</span>
+      <span class="label">Renderer:</span>
       <select id="render">
         <option value="svg">svg</option>
         <option value="canvas">canvas</option>
         <option value="webgpu" selected>webgpu</option>
       </select>
-      &nbsp; <span class="label">Version:</span>
+      <span class="label">Version:</span>
       <select id="versions"></select>
-      &nbsp;
+      <label class="label"><input type="checkbox" id="compare" /> compare</label>
+      <label class="label"><input type="checkbox" id="diff" /> diff</label>
+      <label class="label" id="thresholdLabel" hidden>
+        ignore under
+        <input type="number" id="diffThreshold" min="0" max="255" step="1" value="3" />
+      </label>
+      <label class="label" id="styleLabel" hidden>
+        <select id="diffStyle">
+          <option value="mask" selected>marks only</option>
+          <option value="heat">green to red</option>
+          <option value="over">over webgpu</option>
+        </select>
+      </label>
+      <label class="label" id="colorLabel" hidden>
+        <input type="color" id="diffColor" value="#e4572e" aria-label="mark colour" />
+      </label>
       <span id="fpsDisplay" class="label"></span>
     </div>
     <script src="./fps.js"></script>
     <div>
       <div id="vis"></div>
     </div>
+    <div id="panels" hidden>
+      <div id="wipeRow" class="label">
+        <span>canvas</span>
+        <input
+          type="range"
+          id="wipe"
+          min="0"
+          max="100"
+          step="0.5"
+          value="50"
+          aria-label="wipe between canvas and webgpu"
+        />
+        <span>webgpu</span>
+      </div>
+      <!-- both renderers in the same box, the top one clipped to the wipe, so
+           anything out of place shows as a jump across the divider -->
+      <div id="overlay">
+        <div class="layer"><div id="visA"></div></div>
+        <div class="layer top"><div id="visB"></div></div>
+      </div>
+    </div>
+    <div id="diffPanel" hidden>
+      <div id="diffSummary" class="label"></div>
+      <canvas id="diffCanvas"></canvas>
+    </div>
+    <!-- one set of bound inputs drives every view, so a diff compares the same state -->
+    <div id="binds"></div>
     <div id="external"></div>
   </body>
 </html>
