@@ -1,0 +1,107 @@
+{
+ "description": "Zero and negative extents",
+ "width": 200,
+ "height": 120,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rect",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 10,
+        "y": 10,
+        "width": 0,
+        "height": 20,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 30,
+        "y": 10,
+        "width": -40,
+        "height": 20,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 80,
+        "y": 10,
+        "width": 50,
+        "height": 0,
+        "fill": "#4c78a8"
+       }
+      ]
+     },
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 30,
+        "y": 60,
+        "size": 0,
+        "fill": "#f58518"
+       },
+       {
+        "x": 60,
+        "y": 60,
+        "size": -100,
+        "fill": "#f58518"
+       }
+      ]
+     },
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 10,
+        "y": 90,
+        "x2": 10,
+        "y2": 90,
+        "stroke": "#333",
+        "strokeWidth": 0
+       }
+      ]
+     },
+     {
+      "marktype": "line",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 10,
+        "y": 110,
+        "stroke": "#333",
+        "strokeWidth": -2
+       },
+       {
+        "x": 100,
+        "y": 110,
+        "stroke": "#333",
+        "strokeWidth": -2
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

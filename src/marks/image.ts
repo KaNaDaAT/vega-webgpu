@@ -133,7 +133,12 @@ function uploadTexture(device: GPUDevice, image: SceneImageSource): GPUTexture {
     source = canvas;
   }
 
-  device.queue.copyExternalImageToTexture({ source }, { texture }, [width, height]);
+  // Keep the texture premultiplied. Converting to straight alpha turns a fully
+  // transparent texel into transparent black, and filtering then drags
+  // neighbouring colour toward it: a red image with transparent white corners
+  // lost its red near them. Canvas filters premultiplied, and the shader
+  // divides the alpha back out after sampling.
+  device.queue.copyExternalImageToTexture({ source }, { texture, premultipliedAlpha: true }, [width, height]);
   return texture;
 }
 

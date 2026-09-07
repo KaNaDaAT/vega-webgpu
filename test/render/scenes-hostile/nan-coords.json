@@ -1,0 +1,129 @@
+{
+ "description": "NaN and Infinity coordinates on every mark type. The sentinels are revived by the harness, since JSON has no literal for either.",
+ "width": 200,
+ "height": 120,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rect",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": "__NaN__",
+        "y": 10,
+        "width": 50,
+        "height": 20,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 10,
+        "y": "__Infinity__",
+        "width": 50,
+        "height": 20,
+        "fill": "#4c78a8"
+       },
+       {
+        "x": 70,
+        "y": 10,
+        "width": "__NaN__",
+        "height": 20,
+        "fill": "#4c78a8"
+       }
+      ]
+     },
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": "__NaN__",
+        "y": 50,
+        "size": 100,
+        "fill": "#f58518"
+       },
+       {
+        "x": 60,
+        "y": "__-Infinity__",
+        "size": 100,
+        "fill": "#f58518"
+       },
+       {
+        "x": 90,
+        "y": 50,
+        "size": "__NaN__",
+        "fill": "#f58518"
+       }
+      ]
+     },
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": "__NaN__",
+        "y": 80,
+        "x2": 150,
+        "y2": 80,
+        "stroke": "#333"
+       }
+      ]
+     },
+     {
+      "marktype": "line",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 10,
+        "y": 100,
+        "stroke": "#333"
+       },
+       {
+        "x": "__NaN__",
+        "y": 100,
+        "stroke": "#333"
+       },
+       {
+        "x": 90,
+        "y": 110,
+        "stroke": "#333"
+       }
+      ]
+     },
+     {
+      "marktype": "text",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": "__NaN__",
+        "y": 60,
+        "text": "nan",
+        "fill": "#000"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

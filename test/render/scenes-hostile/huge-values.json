@@ -1,0 +1,67 @@
+{
+ "description": "Coordinates far outside the viewport",
+ "width": 200,
+ "height": 120,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rect",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": -1000000000.0,
+        "y": -1000000000.0,
+        "width": 2000000000.0,
+        "height": 2000000000.0,
+        "fill": "#4c78a8",
+        "fillOpacity": 0.2
+       }
+      ]
+     },
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 10000000.0,
+        "y": 10000000.0,
+        "size": 1000000.0,
+        "fill": "#f58518"
+       }
+      ]
+     },
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": -1000000.0,
+        "y": 60,
+        "x2": 1000000.0,
+        "y2": 60,
+        "stroke": "#333"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

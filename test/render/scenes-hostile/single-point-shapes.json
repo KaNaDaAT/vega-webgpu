@@ -1,0 +1,62 @@
+{
+ "description": "Lines and areas with too few points",
+ "width": 200,
+ "height": 120,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "line",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 50,
+        "y": 50,
+        "stroke": "#333"
+       }
+      ]
+     },
+     {
+      "marktype": "area",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 50,
+        "y": 50,
+        "y2": 60,
+        "fill": "#4c78a8"
+       }
+      ]
+     },
+     {
+      "marktype": "path",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "path": "M10,10Z",
+        "fill": "#4c78a8",
+        "stroke": "#333"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

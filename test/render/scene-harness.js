@@ -13,7 +13,8 @@
       throw new Error('Missing ?scene= parameter.');
     }
 
-    const fixture = await fetch(`./scenes/${name}.json`).then(r => {
+    const dir = params.get('dir') === 'hostile' ? 'scenes-hostile' : 'scenes';
+    const fixture = await fetch(`./${dir}/${name}.json`).then(r => {
       if (!r.ok) throw new Error(`Failed to load scene '${name}': ${r.status}`);
       return r.json();
     });
@@ -23,7 +24,11 @@
       throw new Error(`No renderer registered for '${rendererName}'.`);
     }
 
-    const scene = vega.sceneFromJSON(JSON.stringify(fixture.scene));
+    // JSON has no literal for NaN or Infinity, so hostile fixtures carry them
+    // as sentinels.
+    const revive = (_key, value) =>
+      value === '__NaN__' ? NaN : value === '__Infinity__' ? Infinity : value === '__-Infinity__' ? -Infinity : value;
+    const scene = vega.sceneFromJSON(JSON.parse(JSON.stringify(fixture.scene), revive));
     const r = new module.renderer();
     applyTestOptions(r, params);
     r.initialize(document.querySelector('#vis'), fixture.width, fixture.height, fixture.origin ?? [0, 0]);

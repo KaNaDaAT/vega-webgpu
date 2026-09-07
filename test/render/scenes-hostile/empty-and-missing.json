@@ -1,0 +1,76 @@
+{
+ "description": "Empty marks and absent styling.",
+ "width": 200,
+ "height": 120,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rect",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": []
+     },
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 50,
+        "y": 50
+       }
+      ]
+     },
+     {
+      "marktype": "text",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 50,
+        "y": 80
+       }
+      ]
+     },
+     {
+      "marktype": "line",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 10,
+        "y": 100
+       }
+      ]
+     },
+     {
+      "marktype": "path",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "path": ""
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

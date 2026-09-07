@@ -32,8 +32,11 @@ fn main_vertex(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-  // The glyph texture is rasterized with the fill/stroke colors baked in
-  // (straight alpha). Only the item opacity is applied here.
+  // The glyph texture is rasterized with the fill/stroke colors baked in and
+  // kept premultiplied, so filtering does not darken an edge. The blend state
+  // expects straight alpha, so divide it back out. Only the item opacity is
+  // applied here.
   let c = textureSample(tex, texSampler, in.uv);
-  return vec4<f32>(c.rgb, c.a * uniforms.opacity);
+  let rgb = c.rgb / max(c.a, 1e-6);
+  return vec4<f32>(rgb, c.a * uniforms.opacity);
 }

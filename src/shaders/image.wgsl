@@ -38,6 +38,9 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
 
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    // the texture is premultiplied so filtering stays correct, and the blend
+    // state expects straight alpha, so divide it back out
     let color = textureSample(imageTexture, imageSampler, in.uv);
-    return vec4<f32>(color.rgb, color.a * in.opacity);
+    let rgb = color.rgb / max(color.a, 1e-6);
+    return vec4<f32>(rgb, color.a * in.opacity);
 }

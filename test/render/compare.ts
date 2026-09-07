@@ -130,4 +130,45 @@ export function maxChannelDelta(a: Buffer, b: Buffer): number {
   return worst;
 }
 
+export interface ChannelStats {
+  /** Largest single channel difference. */
+  max: number;
+  /** Mean channel difference over pixels either side inked. */
+  mean: number;
+  /** Fraction of pixels at least one channel differs on. */
+  touched: number;
+}
+
+/** Per-channel error, which says how far off a render is rather than how much moved. */
+export function channelStats(a: Buffer, b: Buffer): ChannelStats {
+  const imgA = flatten(PNG.sync.read(a));
+  const imgB = flatten(PNG.sync.read(b));
+  let max = 0;
+  let sum = 0;
+  let inked = 0;
+  let touched = 0;
+  for (let i = 0; i < imgA.data.length; i += 4) {
+    let worst = 0;
+    for (let c = 0; c < 3; c++) {
+      const delta = Math.abs(imgA.data[i + c] - imgB.data[i + c]);
+      if (delta > worst) {
+        worst = delta;
+      }
+    }
+    const lit = imgA.data[i] < 250 || imgB.data[i] < 250;
+    if (lit) {
+      inked++;
+      sum += worst;
+    }
+    if (worst > 0) {
+      touched++;
+    }
+    if (worst > max) {
+      max = worst;
+    }
+  }
+  const pixels = imgA.data.length / 4;
+  return { max, mean: inked ? sum / inked : 0, touched: touched / pixels };
+}
+
 export const png = (data: Buffer) => ({ body: data, contentType: 'image/png' as const });

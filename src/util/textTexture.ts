@@ -129,7 +129,13 @@ export function rasterizeText(
     format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
   });
-  device.queue.copyExternalImageToTexture({ source: canvas }, { texture }, [physWidth, physHeight]);
+  // Premultiplied, for the same reason as the image mark: converting a glyph's
+  // antialiased edge to straight alpha turns its transparent side black and
+  // filtering then darkens the edge. The shader divides the alpha back out.
+  device.queue.copyExternalImageToTexture({ source: canvas }, { texture, premultipliedAlpha: true }, [
+    physWidth,
+    physHeight,
+  ]);
 
   return { texture, physWidth, physHeight, anchorTexX, anchorTexY };
 }
