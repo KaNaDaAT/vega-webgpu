@@ -9,7 +9,7 @@ test('bound inputs are shared between the two views', async ({ page }) => {
     if (m.type() === 'error') errs.push(m.text().slice(0, 200));
   });
 
-  await page.goto('/test/?spec=tree-radial-bundle&renderer=webgpu&version=dev&compare=1');
+  await page.goto('/test/?spec=tree-radial-bundle&renderer=webgpu&version=dev&compare=1&offscreen=1');
   await page.waitForFunction(() => document.querySelectorAll('#panels canvas').length === 2, undefined, {
     timeout: 60_000,
   });

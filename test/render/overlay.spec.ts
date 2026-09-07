@@ -8,7 +8,7 @@ import { PNG } from 'pngjs';
  */
 test('the top layer covers the one under it', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/test/?spec=bar&renderer=webgpu&version=dev&compare=1');
+  await page.goto('/test/?spec=bar&renderer=webgpu&version=dev&compare=1&offscreen=1');
   await page.waitForFunction(
     () => (window as unknown as { __compared?: unknown[] }).__compared?.length === 2,
     undefined,

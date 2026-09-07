@@ -19,7 +19,7 @@ test('compare and diff checkboxes', async ({ page }) => {
     };
   });
 
-  await page.goto('/test/?spec=choropleth&renderer=webgpu&version=dev&diff=1');
+  await page.goto('/test/?spec=choropleth&renderer=webgpu&version=dev&diff=1&offscreen=1');
   await page.waitForFunction(() => (document.querySelector('#diffSummary')?.textContent ?? '').length > 0, undefined, {
     timeout: 60_000,
   });

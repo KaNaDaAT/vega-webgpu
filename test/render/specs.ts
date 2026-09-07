@@ -70,6 +70,8 @@ export const onCi = process.env.CI !== undefined;
 export const ciCrossCheckOverrides: Record<string, number> = {
   // 1.263% there, 0.675% on a real adapter: the seam between abutting fills
   'choropleth-stroked': 0.016,
+  // 0.875% there, 0.365% on a real adapter
+  'map-fit-stroked': 0.012,
 };
 
 /** Per-spec densest-tile budgets for the CI rasterizer. */
