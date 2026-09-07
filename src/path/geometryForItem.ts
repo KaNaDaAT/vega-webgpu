@@ -7,6 +7,29 @@ import type { FillStyle, StrokeStyle } from '../types/scene.js';
 // many line widths, which is what bounds the spikes below
 const MITER_LIMIT = 10;
 
+type Point = [number, number];
+
+/**
+ * Reopens a closed ring at the midpoint of its first segment.
+ * extrude-polyline builds no join at the seam when it is told a polyline is
+ * closed, which drops the outer miter at the contour's first vertex: a stroked
+ * square came out with three corners. Starting on a straight run puts every
+ * real vertex in the interior, and the two butt caps meet exactly on it.
+ */
+function reopenRing(points: Point[]): Point[] | null {
+  const ring = points.slice();
+  const last = ring[ring.length - 1];
+  if (Math.hypot(ring[0][0] - last[0], ring[0][1] - last[1]) > 1e-9) {
+    return null; // an open contour, stroke it as it is
+  }
+  ring.pop();
+  if (ring.length < 3) {
+    return null;
+  }
+  const mid: Point = [(ring[0][0] + ring[1][0]) / 2, (ring[0][1] + ring[1][1]) / 2];
+  return [mid, ...ring.slice(1), ring[0], mid];
+}
+
 export type GeometryItem = FillStyle &
   StrokeStyle & {
     opacity?: number;
@@ -63,11 +86,11 @@ export default function geometryForItem(
       join: 'miter',
       // at 1 almost every corner is bevel-cut
       miterLimit: MITER_LIMIT,
-      closed: shapeGeom.closed,
+      closed: false,
     });
     const pad = MITER_LIMIT * lineWidth;
     for (const line of shapeGeom.lines) {
-      const mesh = strokeExtrude.build(line);
+      const mesh = strokeExtrude.build(reopenRing(line as Point[]) ?? line);
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;

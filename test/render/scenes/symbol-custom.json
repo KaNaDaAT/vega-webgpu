@@ -1,0 +1,84 @@
+{
+ "description": "Custom SVG path shapes. The star is self-intersecting, where canvas fills nonzero and our triangulation comes out even-odd.",
+ "width": 220,
+ "height": 120,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "symbol",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "shape": "M0,-1L1,1L-1,1Z",
+        "size": 100,
+        "x": 40,
+        "y": 30,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "M0,-1L1,1L-1,1Z",
+        "size": 400,
+        "x": 40,
+        "y": 85,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "M-1,-1L1,-1L1,1L-1,1Z",
+        "size": 100,
+        "x": 100,
+        "y": 30,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "M-1,-1L1,-1L1,1L-1,1Z",
+        "size": 400,
+        "x": 100,
+        "y": 85,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "M0,-1L0.6,0.8L-1,-0.2L1,-0.2L-0.6,0.8Z",
+        "size": 100,
+        "x": 160,
+        "y": 30,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       },
+       {
+        "shape": "M0,-1L0.6,0.8L-1,-0.2L1,-0.2L-0.6,0.8Z",
+        "size": 400,
+        "x": 160,
+        "y": 85,
+        "fill": "#4c78a8",
+        "stroke": "#333",
+        "strokeWidth": 1.5
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

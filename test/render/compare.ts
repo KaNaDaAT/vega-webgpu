@@ -112,4 +112,22 @@ export function diffPngs(a: Buffer, b: Buffer, name: string): { diffRatio: numbe
   return { diffRatio: diffCount / (imgA.width * imgA.height), diff: PNG.sync.write(diff) };
 }
 
+/**
+ * Largest single channel difference between two renders. The differing-pixel
+ * count says how much moved, this says how far off the worst pixel is, which is
+ * what catches a coverage change too small to trip the pixel threshold.
+ */
+export function maxChannelDelta(a: Buffer, b: Buffer): number {
+  const imgA = flatten(PNG.sync.read(a));
+  const imgB = flatten(PNG.sync.read(b));
+  let worst = 0;
+  for (let i = 0; i < imgA.data.length; i++) {
+    const delta = Math.abs(imgA.data[i] - imgB.data[i]);
+    if (delta > worst) {
+      worst = delta;
+    }
+  }
+  return worst;
+}
+
 export const png = (data: Buffer) => ({ body: data, contentType: 'image/png' as const });

@@ -7,6 +7,10 @@ import type { PathGeometry } from '../types/geometry.js';
 
 const EMPTY: PathGeometry = { lines: [], triangles: [], closed: false, z: 0 };
 
+// tess2's WINDING_NONZERO. canvas fills nonzero, and triangulate-contours asks
+// for even-odd, which leaves the middle of a self-intersecting path hollow.
+const WINDING_NONZERO = 1;
+
 /**
  * Triangulates an SVG path string into fill triangles and outline contours.
  * Results are cached on the context, keyed by the path string.
@@ -32,7 +36,7 @@ export default function geometryForPath(
   // triangulation can fail in some corner cases
   let tri: ReturnType<typeof triangulate>;
   try {
-    tri = triangulate(lines);
+    tri = triangulate(lines, { windingRule: WINDING_NONZERO });
   } catch {
     tri = { positions: [], cells: [] };
   }

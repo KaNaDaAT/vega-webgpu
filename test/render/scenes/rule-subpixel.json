@@ -1,0 +1,100 @@
+{
+ "description": "1px rules at tenth-pixel offsets. 4x MSAA can only express quarter steps, so this is where quantized coverage shows against canvas.",
+ "width": 360,
+ "height": 44,
+ "origin": [
+  0,
+  0
+ ],
+ "scene": {
+  "marktype": "group",
+  "name": "root",
+  "role": "frame",
+  "interactive": true,
+  "clip": false,
+  "items": [
+   {
+    "items": [
+     {
+      "marktype": "rule",
+      "role": "mark",
+      "interactive": true,
+      "clip": false,
+      "items": [
+       {
+        "x": 10,
+        "y": 2.0,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 6.1,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 10.2,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 14.3,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 18.4,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 22.5,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 26.6,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 30.7,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 34.8,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       },
+       {
+        "x": 10,
+        "y": 38.9,
+        "x2": 350,
+        "stroke": "#333",
+        "strokeWidth": 1
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

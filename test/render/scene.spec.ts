@@ -1,6 +1,20 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { diffPngs, png, renderInHarness, saveArtifact, type RendererName, type RenderResult } from './compare.js';
-import { SCENE_CHECK_DEFAULT, renderScenes, sceneCheckOverrides } from './scenes.js';
+import {
+  diffPngs,
+  maxChannelDelta,
+  png,
+  renderInHarness,
+  saveArtifact,
+  type RendererName,
+  type RenderResult,
+} from './compare.js';
+import {
+  MAX_CHANNEL_DELTA_DEFAULT,
+  SCENE_CHECK_DEFAULT,
+  maxChannelDeltaOverrides,
+  renderScenes,
+  sceneCheckOverrides,
+} from './scenes.js';
 
 function renderScene(page: Page, sceneName: string, renderer: RendererName): Promise<RenderResult> {
   const url = `/test/render/scene-harness.html?scene=${encodeURIComponent(sceneName)}&renderer=${renderer}`;
@@ -31,6 +45,14 @@ test.describe('scenes', () => {
       if (budget === null) {
         return; // comparison intentionally skipped for this fixture
       }
+
+      const deltaBudget = maxChannelDeltaOverrides[sceneName] ?? MAX_CHANNEL_DELTA_DEFAULT;
+      const delta = maxChannelDelta(webgpu.png, canvas.png);
+      expect(
+        delta,
+        `worst channel is ${delta} off canvas, over the ${deltaBudget} allowed. ` +
+          `The pixel count below can miss this, since a coverage change stays under its colour threshold`,
+      ).toBeLessThanOrEqual(deltaBudget);
 
       const { diffRatio, diff } = diffPngs(webgpu.png, canvas.png, sceneName);
       await testInfo.attach(`${sceneName}-diff (${(diffRatio * 100).toFixed(2)}%)`, png(diff));

@@ -26,3 +26,22 @@ export const SCENE_CHECK_DEFAULT = 0.002;
 
 /** Per-fixture budgets. `null` skips the comparison. */
 export const sceneCheckOverrides: Record<string, number | null> = {};
+
+/**
+ * Largest single channel difference allowed per fixture. The pixel count only
+ * says how much moved, and pixelmatch's colour threshold tolerates a 30 unit
+ * error, so a coverage change can be invisible to it. This catches that: a
+ * fixture we match exactly must keep matching exactly.
+ */
+export const MAX_CHANNEL_DELTA_DEFAULT = 70;
+
+export const maxChannelDeltaOverrides: Record<string, number> = {
+  // Analytic coverage, so these track canvas to within rounding.
+  'rect-subpixel': 2,
+  'rule-subpixel': 2,
+  'text-layout': 2,
+  // Non-circular symbols are triangulated, so an edge lands up to an
+  // antialiasing level away from canvas.
+  'symbol-shapes': 80,
+  'symbol-custom': 80,
+};
