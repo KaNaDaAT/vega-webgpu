@@ -58,7 +58,10 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:8123',
     viewport: { width: 1000, height: 800 },
-    deviceScaleFactor: 1,
+    // RENDER_DPR runs the whole suite at another device pixel ratio. Every
+    // analytic coverage shader works in device pixels, so dpr 1 exercises none
+    // of that arithmetic.
+    deviceScaleFactor: Number(process.env.RENDER_DPR ?? 1),
     ...(executablePath ? {} : { channel: 'chromium' as const }),
     launchOptions: {
       ...(executablePath ? { executablePath } : {}),

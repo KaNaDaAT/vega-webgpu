@@ -18,7 +18,8 @@ window.addEventListener('unhandledrejection', e => recordTrace('unhandledrejecti
 /**
  * Identifies a renderer by capability, not class name: vega's minified bundle
  * mangles class names. The WebGPU renderer exposes wgOptions plus a live
- * device(); the canvas renderer hands out a real 2D context.
+ * device(), the svg renderer serializes its markup, and the canvas renderer
+ * hands out a real 2D context.
  */
 function rendererKind(r) {
   if (!r) {
@@ -27,7 +28,10 @@ function rendererKind(r) {
   if (r.wgOptions && typeof r.device === 'function' && r.device()) {
     return 'webgpu';
   }
-  if (typeof r.canvas === 'function' && r.canvas() && r.canvas().getContext('2d')) {
+  if (typeof r.svg === 'function' && r.svg()) {
+    return 'svg';
+  }
+  if (typeof r.canvas === 'function' && typeof r.canvas()?.getContext === 'function' && r.canvas().getContext('2d')) {
     return 'canvas';
   }
   return r.constructor?.name || 'other';

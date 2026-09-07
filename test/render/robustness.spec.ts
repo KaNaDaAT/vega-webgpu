@@ -66,7 +66,7 @@ test.describe('hostile input', () => {
     test(name, async ({ page }, testInfo: TestInfo) => {
       const out = await renderHostile(page, name);
       await testInfo.attach(`${name}-webgpu`, png(out.png));
-      saveArtifact(name, 'webgpu', out.png);
+      saveArtifact(`hostile-${name}`, 'webgpu', out.png);
 
       expect(out.rendererKind, `expected WebGPU to render, got '${out.rendererKind}'`).toBe('webgpu');
       expect(out.lost, `the device was lost: ${out.lost}`).toBeNull();

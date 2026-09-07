@@ -37,7 +37,7 @@ export const curveShader = (blend: string, kind = 'basis'): string => {
     throw new Error(`[vega-webgpu] No curve evaluation named '${kind}'.`);
   }
   return `
-${uniformBlock()}
+${uniformBlock('dpi')}
 
 ${TO_NDC}
 
@@ -146,7 +146,8 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
 
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // coverage across the stroke, the way canvas antialiases an edge
-    let coverage = clamp(in.half_width - abs(in.across) + 0.5, 0.0, 1.0);
+    let d = max(uniforms.dpi, 0.001);
+    let coverage = clamp((in.half_width - abs(in.across)) * d + 0.5, 0.0, 1.0);
     return vec4<f32>(in.color.rgb, in.color.a * coverage);
 }
 

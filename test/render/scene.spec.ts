@@ -31,12 +31,12 @@ test.describe('scenes', () => {
     test(sceneName, async ({ page }, testInfo: TestInfo) => {
       const webgpu = await renderScene(page, sceneName, 'webgpu');
       await testInfo.attach(`${sceneName}-webgpu`, png(webgpu.png));
-      saveArtifact(sceneName, 'webgpu', webgpu.png);
+      saveArtifact(`scene-${sceneName}`, 'webgpu', webgpu.png);
       expect(webgpu.rendererKind, `expected WebGPU to render, got '${webgpu.rendererKind}'`).toBe('webgpu');
 
       const canvas = await renderScene(page, sceneName, 'canvas');
       await testInfo.attach(`${sceneName}-canvas`, png(canvas.png));
-      saveArtifact(sceneName, 'canvas', canvas.png);
+      saveArtifact(`scene-${sceneName}`, 'canvas', canvas.png);
       expect(canvas.rendererKind, `expected canvas to render, got '${canvas.rendererKind}'`).toBe('canvas');
 
       const budget = Object.hasOwn(sceneCheckOverrides, sceneName)
@@ -56,7 +56,7 @@ test.describe('scenes', () => {
 
       const { diffRatio, diff } = diffPngs(webgpu.png, canvas.png, sceneName);
       await testInfo.attach(`${sceneName}-diff (${(diffRatio * 100).toFixed(2)}%)`, png(diff));
-      saveArtifact(sceneName, 'diff', diff);
+      saveArtifact(`scene-${sceneName}`, 'diff', diff);
       if (process.env.CROSS_REPORT) {
         console.log(`DIFF scene:${sceneName} ${(diffRatio * 100).toFixed(3)}%`);
       }

@@ -91,8 +91,9 @@ fn sdRoundedRect(p: vec2<f32>, b: vec2<f32>, radii: vec4<f32>) -> f32 {
 // nominal edge like canvas strokes do. aa is the antialiasing width.
 fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     let p = (in.uv - vec2<f32>(0.5, 0.5)) * (in.scale + vec2<f32>(in.strokewidth, in.strokewidth));
-    let d = sdRoundedRect(p, in.scale * 0.5, in.corner_radii);
-    let half_sw = in.strokewidth * 0.5;
+    let scale = max(uniforms.dpi, 0.001);
+    let d = sdRoundedRect(p, in.scale * 0.5, in.corner_radii) * scale;
+    let half_sw = in.strokewidth * 0.5 * scale;
     let aa = 0.75;
 
     let strokeMix = smoothstep(-half_sw - aa, -half_sw + aa, d);

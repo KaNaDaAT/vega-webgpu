@@ -50,8 +50,8 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   // Shapes with a distance function are drawn analytically, so they track
   // canvas the way rects and rules do.
   'symbol-analytic': 25,
-  // circle has its own shader, and cross, arrow and wedge are triangulated and
-  // get their coverage from MSAA, which only expresses quarter steps.
+  // circle has its own shader and cross is triangulated, so its coverage comes
+  // from MSAA, which only expresses quarter steps.
   'symbol-shapes': 80,
   'symbol-custom': 80,
   // a triangulated ribbon, so its edge gets its coverage from MSAA
