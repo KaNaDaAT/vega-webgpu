@@ -9,6 +9,7 @@
  * Run by .github/workflows/release.yml; safe to run locally as well.
  * The build must exist (npm run build) before invoking this script.
  */
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -123,7 +124,12 @@ const byVersionDesc = (a, b) => {
 // a row linking at a folder that is not there yet would only 404. The release
 // run copies the bundle first, so by then the version shows up on its own.
 const hosted = v => existsSync(join(releasesDir, v.replaceAll('.', '_'), 'vega-webgpu-renderer.js'));
+const prerelease = v => v.includes('-');
 const versions = Object.keys(releases).filter(hosted).sort(byVersionDesc);
+/** Written up but not hosted, which is what the note under the table says. */
+const pending = Object.keys(releases)
+  .filter(v => !hosted(v))
+  .sort(byVersionDesc);
 writeFileSync(
   join(releasesDir, 'versions.js'),
   `const vegaWebGPURendererVersions = [${versions.map(v => `'${v}'`).join(', ')}];\n`,
@@ -137,7 +143,9 @@ const rows = versions
     const e = entry(v);
     return `              <tr>
                 <td><a href="./releases/${v.replaceAll('.', '_')}/">${v}</a></td>
-                <td>${notesHtml(e.summary ?? '')}${e.vega === 5 ? ' <em>(needs Vega 5)</em>' : ''}</td>
+                <td>${notesHtml(e.summary ?? '')}${prerelease(v) ? ' <em>(prerelease)</em>' : ''}${
+                  e.vega === 5 ? ' <em>(needs Vega 5)</em>' : ''
+                }</td>
                 <td><a href="${href}">js</a> <a href="${href.replace('.js', '.min.js')}">min</a></td>
               </tr>`;
   })
@@ -154,6 +162,21 @@ page = splice(
 ${rows}
               `,
 );
+const pendingNote = pending.length
+  ? `
+        <p class="note">
+          ${pending.join(' and ')} ${pending.length > 1 ? 'are' : 'is'} written up but not
+          hosted yet. Build from source with the steps above to try ${pending.length > 1 ? 'them' : 'it'}.
+        </p>
+      `
+  : '\n      ';
+// the copy and paste snippet points at the newest stable build. An rc is
+// hosted so it can be tried, not so it can be the one people paste.
+const stable = versions.find(v => !prerelease(v));
+if (stable) {
+  page = splice(page, indexPath, 'latest', stable.replaceAll('.', '_'));
+}
+page = splice(page, indexPath, 'pending', pendingNote);
 page = splice(page, indexPath, 'updated', new Date().toISOString().slice(0, 10));
 writeFileSync(indexPath, page);
 
@@ -236,6 +259,22 @@ ${body || '        <p class="note">Nothing further was recorded for this release
 `;
   mkdirSync(join(releasesDir, dir), { recursive: true });
   writeFileSync(join(releasesDir, dir, 'index.html'), sub);
+}
+
+// Prettier over the generated html, so a run never leaves the tree dirty.
+try {
+  // releases.json and versions.js too: this script writes LF and the repo
+  // keeps CRLF in the working tree, so without prettier they always read dirty
+  const targets = ['index.html', 'releases/releases.json', 'releases/versions.js'].concat(
+    versions.map(v => `releases/${v.replaceAll('.', '_')}/index.html`),
+  );
+  execFileSync('npx', ['prettier', '--write', '--log-level', 'warn', ...targets], {
+    cwd: root,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+} catch {
+  console.warn('prettier is not available, the generated html is left unformatted');
 }
 
 console.log(pagesOnly ? `Rebuilt pages for ${versions.length} versions` : `Prepared release ${version} in ${folder}`);

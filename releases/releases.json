@@ -2,47 +2,30 @@
   "1.0.0": {
     "vega": 5,
     "summary": "First WebGPU implementation.",
-    "features": [
-      "A WebGPU renderer for Vega, registered under the renderer name 'webgpu'"
-    ],
+    "features": ["A WebGPU renderer for Vega, registered under the renderer name 'webgpu'"],
     "performance": [],
     "fixes": []
   },
   "1.1.0": {
     "vega": 5,
     "summary": "Overall improvements to performance, types and structure.",
-    "features": [
-      "wgOptions, so renderer behaviour can be changed from outside"
-    ],
-    "performance": [
-      "General improvements across the renderer"
-    ],
+    "features": ["wgOptions, so renderer behaviour can be changed from outside"],
+    "performance": ["General improvements across the renderer"],
     "fixes": []
   },
   "1.1.1": {
     "vega": 5,
     "summary": "Performance work on paths, plus the renderLock option.",
-    "features": [
-      "renderLock render option"
-    ],
-    "performance": [
-      "Path marks"
-    ],
+    "features": ["renderLock render option"],
+    "performance": ["Path marks"],
     "fixes": []
   },
   "1.2.0": {
     "vega": 5,
     "summary": "Performance work on lines, clipping support and a path offset fix.",
-    "features": [
-      "renderBatch render bundling option",
-      "Clipping support"
-    ],
-    "performance": [
-      "Line marks"
-    ],
-    "fixes": [
-      "Path offsets were applied incorrectly"
-    ]
+    "features": ["renderBatch render bundling option", "Clipping support"],
+    "performance": ["Line marks"],
+    "fixes": ["Path offsets were applied incorrectly"]
   },
   "2.0.0": {
     "vega": 6,

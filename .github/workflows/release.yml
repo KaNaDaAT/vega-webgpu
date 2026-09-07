@@ -48,22 +48,33 @@ jobs:
 
       - run: npm run build
 
-      - name: Update hosted releases on main
+      # npm run release does this before the tag is cut, so normally there is
+      # nothing left to do. This is the safety net for a tag pushed without it.
+      # No --notes: releases.json is the source for the notes, not the tag.
+      - name: Host the build, if main does not already have it
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git switch main
-          node scripts/prepare-release.mjs "${{ steps.meta.outputs.version }}" --notes "${{ steps.meta.outputs.notes }}"
-          git add releases
-          git commit -m "release: host ${{ steps.meta.outputs.version }}"
-          git push origin main
+          node scripts/prepare-release.mjs "$VERSION"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "main already hosts $VERSION, nothing to commit."
+          else
+            git add releases index.html
+            git commit -m "release: host $VERSION"
+            git push origin main
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.meta.outputs.version }}
           body: ${{ steps.meta.outputs.notes }}
+          # a version with a suffix is an rc, and must not read as the latest stable
+          prerelease: ${{ contains(steps.meta.outputs.version, '-') }}
           files: |
             build/vega-webgpu-renderer.js
             build/vega-webgpu-renderer.min.js
@@ -74,9 +85,14 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
             echo "NPM_TOKEN is not configured, skipping the npm publish."
             exit 0
           fi
-          npm publish --provenance --access public
+          # An rc under the default tag becomes what `npm install` gives you.
+          case "$VERSION" in
+            *-*) npm publish --provenance --access public --tag next ;;
+            *) npm publish --provenance --access public ;;
+          esac
