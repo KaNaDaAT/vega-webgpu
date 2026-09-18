@@ -1,6 +1,6 @@
-import type { Bounds } from 'vega-scenegraph';
-import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneGroupExt } from '../types/scene.js';
+import { Bounds } from 'vega-scenegraph';
+import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { SceneGradient, SceneGroupExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
@@ -11,11 +11,14 @@ import { visit } from '../util/visit.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { rectAttributes } from './rect.js';
 import {
-  SEGMENT_LAYOUT,
-  SEGMENT_STRIDE,
-  dashedBorderInstances,
+  outlinePipelines,
+  type OutlinePipelines,
+  borderInstances,
+  enqueueOutline,
+  type OutlineTarget,
   withStrokeOffset,
   getMarkResources,
+  blendPipelines,
   markPipeline,
   type MarkModule,
 } from './util.js';
@@ -28,8 +31,11 @@ interface GroupResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
+  /** The same pipeline with a blend mode baked in, one per mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
   gradientPipelineFor: (blend: string) => GPURenderPipeline;
-  dashPipeline: GPURenderPipeline;
+  /** Pipelines for an outline drawn through the segment shader. */
+  outline: OutlinePipelines;
   geometryBuffer: GPUBuffer;
 }
 
@@ -42,7 +48,10 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
     const pipeline = markPipeline(ctx, device, drawName, 'Rect', vertexManager);
-    const gradientPipeline = markPipeline(
+    // the background is a rect, and a blend is baked into the pipeline state
+    const pipelineFor = blendPipelines(ctx, device, `${drawName}`, 'Rect', vertexManager);
+    // a gradient fill under a blend needs its own pipeline too
+    const gradientPipelineFor = blendPipelines(
       ctx,
       device,
       `${drawName}Gradient`,
@@ -50,24 +59,19 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       vertexManager,
       'main_fragment_gradient',
     );
-    // a gradient fill under a blend needs its own pipeline too
-    const gradientPipelineFor = (blend: string) =>
-      blend === 'normal'
-        ? gradientPipeline
-        : markPipeline(
-            ctx,
-            device,
-            `${drawName}Gradient ${blend}`,
-            'Rect',
-            vertexManager,
-            'main_fragment_gradient',
-            blend,
-          );
 
-    const dashVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const dashPipeline = markPipeline(ctx, device, `${drawName}Dash`, 'SLine', dashVertexManager);
+    const outline = outlinePipelines(ctx, device, `${drawName}Dash`);
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
-    return { device, bufferManager, vertexManager, pipeline, gradientPipelineFor, dashPipeline, geometryBuffer };
+    return {
+      device,
+      bufferManager,
+      vertexManager,
+      pipeline,
+      pipelineFor,
+      gradientPipelineFor,
+      outline,
+      geometryBuffer,
+    };
   });
 }
 
@@ -90,46 +94,73 @@ function draw(
   const parentClip = ctx._clip;
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
 
   // Group backgrounds share the rect instance layout and shader.
   // only materialise the gradient sampler and ramp cache if a gradient shows up
   let gres: ReturnType<typeof getGradientResources> | null = null;
   const gradientResources = () => (gres ??= getGradientResources(device, ctx));
   let run: SceneGroupExt[] = [];
+  // one run draws with one pipeline, so a change of blend closes it
+  let runBlend = 'normal';
   const flushRun = () => {
     if (run.length === 0) {
       return;
     }
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(run));
+    // Each blend gets its own pipeline, and a pipeline built with a default
+    // layout owns its bind group layout, so the group has to come from the one
+    // this draw actually uses.
+    const runPipeline = res.pipelineFor(runBlend);
     ctx._renderQueue.enqueue({
-      pipeline: res.pipeline,
+      pipeline: runPipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [uniformBindGroup],
+      bindGroups: [createUniformBindGroup(drawName, device, runPipeline, uniformBuffer)],
       clip: ctx._clip,
     });
     run = [];
   };
 
-  const dashed: Float32Array[] = [];
+  /** Borders held back until after the backgrounds, which is the order canvas paints them in. */
+  const dashed: { data: Float32Array; gradient: SceneGradient | null; bounds: Bounds | undefined; blend: string }[] =
+    [];
+  /** Where a border that carries its own ramp is enqueued, one draw each. */
+  const outlineTarget = (clip: ClipRect | undefined): OutlineTarget => ({
+    ...res.outline,
+    ctx,
+    device,
+    bufferManager: res.bufferManager,
+    uniformBuffer,
+    clip,
+  });
   // A group asking for strokeForeground has its border held back and enqueued
   // after its own children, which is where vega draws it.
-  const held = new Map<SceneGroupExt, { rect: SceneGroupExt; dash: Float32Array | null }>();
-  for (const item of items as SceneGroupExt[]) {
+  const held = new Map<
+    SceneGroupExt,
+    { rect: SceneGroupExt; dash: Float32Array | null; gradient: SceneGradient | null }
+  >();
+
+  /** One group's background, and the border that goes under its children. */
+  const paintBackdrop = (item: SceneGroupExt): void => {
     const edged = withStrokeOffset(item);
-    const border = dashedBorderInstances(edged);
+    const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
+    const border = borderInstances(ctx, edged, strokeGradient);
     const fore = item.strokeForeground === true && item.stroke != null;
     if (fore) {
-      held.set(item, { rect: { ...edged, fill: undefined }, dash: border });
+      held.set(item, { rect: { ...edged, fill: undefined }, dash: border, gradient: strokeGradient });
     } else if (border) {
-      dashed.push(border);
+      dashed.push({ data: border, gradient: strokeGradient, bounds: item.bounds, blend: blendKey(item.blend) });
     }
     const drawn = border || fore ? { ...edged, stroke: undefined } : edged;
     const fill = drawn.fill;
+    const blend = blendKey(item.blend);
     if (!isGradient(fill)) {
+      if (run.length && blend !== runBlend) {
+        flushRun();
+      }
+      runBlend = blend;
       run.push(drawn);
-      continue;
+      return;
     }
     flushRun();
     const gradientPipeline = res.gradientPipelineFor(blendKey(item.blend));
@@ -144,20 +175,34 @@ function draw(
       ],
       clip: ctx._clip,
     });
-  }
-  flushRun();
+  };
 
-  for (const data of dashed) {
-    ctx._renderQueue.enqueue({
-      pipeline: res.dashPipeline,
-      drawCounts: [6, data.length / SEGMENT_STRIDE],
-      vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
-      bindGroups: [createUniformBindGroup(`${drawName}Dash`, device, res.dashPipeline, uniformBuffer)],
-      clip: ctx._clip,
-    });
+  const flushDashed = (): void => {
+    for (const entry of dashed) {
+      enqueueOutline(outlineTarget(ctx._clip), entry.data, entry.blend, entry.gradient, entry.bounds);
+    }
+    dashed.length = 0;
+  };
+
+  // vega draws each group's background, then its children, then the next group.
+  // Every background in one instanced draw reverses that wherever a later group
+  // covers what an earlier one drew, so the batch is kept only when nothing
+  // overlaps, which is what a row of panels looks like.
+  const interleaved = groupsOverlap(items as SceneGroupExt[]);
+  if (!interleaved) {
+    for (const item of items as SceneGroupExt[]) {
+      paintBackdrop(item);
+    }
+    flushRun();
+    flushDashed();
   }
 
   visit(scene, (group: SceneGroupExt) => {
+    if (interleaved) {
+      paintBackdrop(group);
+      flushRun();
+      flushDashed();
+    }
     const gx = group.x || 0;
     const gy = group.y || 0;
     const gw = group.width || 0;
@@ -194,24 +239,67 @@ function draw(
     const fore = held.get(group);
     if (fore) {
       if (fore.dash) {
-        ctx._renderQueue.enqueue({
-          pipeline: res.dashPipeline,
-          drawCounts: [6, fore.dash.length / SEGMENT_STRIDE],
-          vertexBuffers: [res.bufferManager.createInstanceBuffer(fore.dash)],
-          bindGroups: [createUniformBindGroup(`${drawName}Dash`, device, res.dashPipeline, uniformBuffer)],
-          clip: parentClip,
-        });
+        enqueueOutline(outlineTarget(parentClip), fore.dash, blendKey(fore.rect.blend), fore.gradient, group.bounds);
       } else {
+        // A bind group belongs to the layout of the pipeline it was made from,
+        // so a held border under a blend cannot take the plain one.
+        const forePipeline = res.pipelineFor(blendKey(fore.rect.blend));
         ctx._renderQueue.enqueue({
-          pipeline: res.pipeline,
+          pipeline: forePipeline,
           drawCounts: [6, 1],
           vertexBuffers: [res.geometryBuffer, res.bufferManager.createInstanceBuffer(rectAttributes([fore.rect]))],
-          bindGroups: [uniformBindGroup],
+          bindGroups: [createUniformBindGroup(drawName, device, forePipeline, uniformBuffer)],
           clip: parentClip,
         });
       }
     }
   });
+}
+
+/**
+ * Whether any group's background lands on another's contents, so the order the
+ * two are drawn in shows.
+ *
+ * A group's `bounds` covers its children as well as its own box, which is what
+ * makes this more than a box test: a panel's axis labels reach outside it, and
+ * the next panel's background paints over them.
+ *
+ * Pairwise, since a group mark is panels rather than data points. Past the
+ * limit it answers yes without looking, which is the order vega draws in and
+ * only costs the batch.
+ */
+const OVERLAP_CHECK_LIMIT = 2048;
+
+function groupsOverlap(items: SceneGroupExt[]): boolean {
+  const n = items.length;
+  if (n < 2) {
+    return false;
+  }
+  if (n > OVERLAP_CHECK_LIMIT) {
+    return true;
+  }
+  for (let j = 1; j < n; j++) {
+    for (let i = 0; i < j; i++) {
+      if (paintsOver(items[j], items[i]) || paintsOver(items[i], items[j])) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** True when `a` paints a backdrop at all and its box reaches into `b`. */
+function paintsOver(a: SceneGroupExt, b: SceneGroupExt): boolean {
+  if (!a.fill && !(a.stroke && a.strokeForeground !== true)) {
+    return false;
+  }
+  const bounds = b.bounds;
+  if (!bounds) {
+    return false;
+  }
+  const x1 = a.x || 0;
+  const y1 = a.y || 0;
+  return x1 < bounds.x2 && x1 + (a.width || 0) > bounds.x1 && y1 < bounds.y2 && y1 + (a.height || 0) > bounds.y1;
 }
 
 export default {

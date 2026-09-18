@@ -1,3 +1,4 @@
+import type { TextDrift } from '../util/canvasDrift.js';
 import type { Bounds } from 'vega-scenegraph';
 import type WebGPURenderer from '../WebGPURenderer.js';
 import type { RenderQueue } from '../util/renderQueue.js';
@@ -17,6 +18,18 @@ export interface RenderUniforms {
 export interface GPUVegaOptions {
   /** Cache triangulated shape geometry between frames (experimental). */
   cacheShapes: boolean;
+  /**
+   * Place a label where the canvas renderer puts it rather than where its own
+   * coordinates say, when the two disagree.
+   *
+   * They disagree on a baseline landing exactly on a half device pixel, which
+   * canvas rounds up unless its matrix has drifted below it, and vega's canvas
+   * renderer drifts it by translating to each item and back. See
+   * util/canvasDrift.ts. Off by default: it reproduces another renderer's
+   * rounding error, and the exact placement is the one a canvas without the
+   * drift gives. On when a view has to sit beside a canvas one and match.
+   */
+  canvasTextDrift: boolean;
   /** Log per-frame render timings to the console. */
   debugLog: boolean;
   /** Skip re-entrant render calls; always re-runs the most recent request. */
@@ -65,6 +78,8 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   /** Current group translation while walking the scenegraph. */
   _tx: number;
   _ty: number;
+  /** Per text mark, canvas's own matrix drift, when wgOptions asks for it. */
+  _textDrift?: TextDrift | null;
   /** Active scissor rect (physical pixels), if any. */
   _clip?: ClipRect;
 
@@ -77,6 +92,12 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   _ratio: number;
   /** Active MSAA sample count; mark pipelines must be created with it. */
   _sampleCount: number;
+  /**
+   * Whether the frame was cleared to an opaque colour. Source over leaves the
+   * alpha at one, so a frame that starts opaque is opaque wherever anything
+   * draws, and a blend can then be left to the blend state. See util/blend.ts.
+   */
+  _opaqueBackdrop: boolean;
 
   /** Compiled shader sources, keyed by builder name, sub-variant and blend mode. */
   _shaderCache: Record<string, GPUShaderModule>;

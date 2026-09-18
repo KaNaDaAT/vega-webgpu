@@ -5,7 +5,7 @@ import { SEGMENT_NORMAL, TO_NDC, fragmentTail, uniformBlock } from './common.js'
  * asks for. Measured against canvas: 8 and 16 are indistinguishable and cost
  * the same, 4 is visibly worse.
  */
-export const CURVE_SUBDIVISIONS = 8;
+export const CURVE_SUBDIVISIONS = 32;
 
 /**
  * How a span's four control points become a point and a tangent. Every cubic
@@ -63,6 +63,22 @@ struct VertexOutput {
 
 const K: u32 = ${CURVE_SUBDIVISIONS}u;
 
+/**
+ * How many of the K quads a span actually needs.
+ *
+ * Each quad is straight, so a span that turns sharply inside one of them has
+ * its corner cut off: a hairpin came out blunt where canvas closes the point.
+ * The control polygon is an upper bound on arc length and grows with how far
+ * the span swings, which is what a tight turn does, so it stands in for both
+ * length and curvature. One quad per two device pixels of it, and a gentle span
+ * still costs the handful it did before.
+ */
+fn spanQuads(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>) -> u32 {
+    let poly = length(p1 - p0) + length(p2 - p1) + length(p3 - p2);
+    let want = u32(ceil(poly * max(uniforms.dpi, 0.001) * 0.5));
+    return clamp(want, 1u, K);
+}
+
 /** The span's curve, substituted per variant. */
 fn curveAt(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f32) -> vec2<f32> {
 ${curve.at}
@@ -115,8 +131,19 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
         na = normalAt(b - a);
         nb = na;
     } else {
-        let t0 = f32(sub) / f32(K);
-        let t1 = f32(sub + 1u) / f32(K);
+        // quads past what this span needs collapse and are culled, the way a
+        // straight run's do, so a gentle curve does not pay for a hairpin
+        let quads = spanQuads(instance.p0, instance.p1, instance.p2, instance.p3);
+        if sub >= quads {
+            var out: VertexOutput;
+            out.pos = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+            out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+            out.across = 0.0;
+            out.half_width = 1.0;
+            return out;
+        }
+        let t0 = f32(sub) / f32(quads);
+        let t1 = f32(sub + 1u) / f32(quads);
         a = curveAt(instance.p0, instance.p1, instance.p2, instance.p3, t0);
         b = curveAt(instance.p0, instance.p1, instance.p2, instance.p3, t1);
         na = normalAt(spanTangent(instance.p0, instance.p1, instance.p2, instance.p3, t0));

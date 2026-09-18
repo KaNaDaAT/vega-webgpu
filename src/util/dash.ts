@@ -7,12 +7,22 @@ export type Point = [number, number];
  *
  * Returns one polyline per drawn run, so callers can render them as ordinary
  * line segments.
+ *
+ * `bridge` is how much of a gap the caps at two facing run ends close between
+ * them, which is the stroke width for a round or square cap and nothing for a
+ * butt one. See bridgeGaps.
  */
-export function dashPolyline(points: Point[], pattern: number[], offset = 0): Point[][] {
-  const dashes = normalizePattern(pattern);
-  if (dashes === null || points.length < 2) {
+export function dashPolyline(points: Point[], pattern: number[], offset = 0, bridge = 0): Point[][] {
+  const even = normalizePattern(pattern);
+  if (even === null || points.length < 2) {
     return points.length >= 2 ? [points] : [];
   }
+  const closed = bridgeGaps(even, bridge);
+  if (closed === null) {
+    return [points];
+  }
+  const dashes = closed.dashes;
+  offset += closed.shift;
 
   const total = dashes.reduce((a, b) => a + b, 0);
   let index = 0;
@@ -71,7 +81,66 @@ export function dashPolyline(points: Point[], pattern: number[], offset = 0): Po
   if (current.length >= 2) {
     runs.push(current);
   }
+
+  // A closed contour has no start: canvas strokes it as one loop, so a run that
+  // reaches the seam and one that leaves it are a single run through a corner.
+  // Left apart they meet as two flat ends and the corner goes unpainted.
+  const last = points.length - 1;
+  if (
+    runs.length > 1 &&
+    samePoint(points[0], points[last]) &&
+    samePoint(runs[0][0], points[0]) &&
+    samePoint(runs[runs.length - 1][runs[runs.length - 1].length - 1], points[last])
+  ) {
+    const tail = runs.pop() as Point[];
+    runs[0] = [...tail, ...runs[0].slice(1)];
+  }
   return runs;
+}
+
+/**
+ * The pattern with every gap the caps close over folded into the runs either
+ * side, and how far that moved the pattern's start.
+ *
+ * A square cap reaches half the stroke width past the end of its run, so two
+ * runs with less than a stroke width between them meet, and the two caps fill
+ * the gap exactly. Merging them is the same shape and drops the overlap, which
+ * we would otherwise composite twice. Only square: two round caps cross short
+ * of the stroke edge and leave a notch either side that a merged run paints
+ * over, which is a bigger error than the overlap.
+ *
+ * Null when no gap survives, so the whole stroke is solid.
+ */
+function bridgeGaps(values: number[], bridge: number): { dashes: number[]; shift: number } | null {
+  if (bridge <= 0) {
+    return { dashes: values, shift: 0 };
+  }
+  const dashes: number[] = [];
+  let on = 0;
+  for (let i = 0; i < values.length; i += 2) {
+    on += values[i];
+    const gap = values[i + 1];
+    if (gap <= bridge) {
+      on += gap;
+      continue;
+    }
+    dashes.push(on, gap);
+    on = 0;
+  }
+  if (dashes.length === 0) {
+    return null;
+  }
+  if (on > 0) {
+    // The tail joins the first run of the next turn of the pattern, so the
+    // merged one starts that much earlier and the offset winds it back.
+    dashes[0] += on;
+    return { dashes, shift: on };
+  }
+  return { dashes, shift: 0 };
+}
+
+function samePoint(a: Point, b: Point): boolean {
+  return Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
 }
 
 /** Even-length, all-finite, non-zero-total pattern, or null to draw solid. */

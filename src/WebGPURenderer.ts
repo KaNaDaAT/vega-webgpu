@@ -1,9 +1,11 @@
 import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
+import { canvasTextDrift } from './util/canvasDrift.js';
 import marks from './marks/index.js';
+import { blendCompositeElement } from './marks/util.js';
 import type { GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene, RenderUniforms } from './types/context.js';
 import { Color } from './util/color.js';
 import { GpuTimer } from './util/gpuTimer.js';
-import { RenderQueue } from './util/renderQueue.js';
+import { RenderQueue, type FrameTargets } from './util/renderQueue.js';
 import resize, { pixelRatio } from './util/resize.js';
 import { bufferPool } from './util/bufferManager.js';
 import {
@@ -50,6 +52,7 @@ export default class WebGPURenderer extends Renderer {
   wgOptions: GPUVegaOptions = {
     debugLog: false,
     cacheShapes: true,
+    canvasTextDrift: false,
     renderLock: true,
     offscreen: false,
     sampleCount: defaultSampleCount,
@@ -66,6 +69,14 @@ export default class WebGPURenderer extends Renderer {
   private _device: GPUDevice | null = null;
   private _msaaTexture: GPUTexture | null = null;
   private _msaaTextureDevice: GPUDevice | null = null;
+  /** Whether the last frame had to draw off the frame. Read by the tests. */
+  private _offFrame = false;
+  private _maskTexture: GPUTexture | null = null;
+  private _maskTextureDevice: GPUDevice | null = null;
+  private _layerTexture: GPUTexture | null = null;
+  private _layerResolve: GPUTexture | null = null;
+  private _backdropTexture: GPUTexture | null = null;
+  private _blendTextureDevice: GPUDevice | null = null;
   private _offscreenTexture: GPUTexture | null = null;
   private _offscreenTextureDevice: GPUDevice | null = null;
   private _queue = new RenderQueue();
@@ -155,6 +166,7 @@ export default class WebGPURenderer extends Renderer {
     ctx._origin = [0, 0];
     ctx._ratio = 1;
     ctx._sampleCount = normalizeSampleCount(this.wgOptions.sampleCount);
+    ctx._opaqueBackdrop = false;
     ctx._shaderCache = {};
     ctx._pipelineCache = {};
     ctx._markCache = {};
@@ -337,6 +349,12 @@ export default class WebGPURenderer extends Renderer {
     this._gpuTimer = null;
     this._msaaTexture = null;
     this._msaaTextureDevice = null;
+    this._maskTexture = null;
+    this._maskTextureDevice = null;
+    this._layerTexture = null;
+    this._layerResolve = null;
+    this._backdropTexture = null;
+    this._blendTextureDevice = null;
     this._offscreenTexture = null;
     this._offscreenTextureDevice = null;
     if (this._ctx) {
@@ -487,6 +505,10 @@ export default class WebGPURenderer extends Renderer {
     this._msaaTexture?.destroy();
     this._msaaTexture = null;
     this._msaaTextureDevice = null;
+    // the layer takes the frame's sample count, so it is stale too
+    this._layerTexture?.destroy();
+    this._layerTexture = null;
+    this._blendTextureDevice = null;
   }
 
   private async _frame(scene: GPUVegaScene, markTypes?: string[], settle?: boolean): Promise<void> {
@@ -522,9 +544,14 @@ export default class WebGPURenderer extends Renderer {
 
     ctx._tx = 0;
     ctx._ty = 0;
+    // Read per frame rather than once: vega sets the background after it builds
+    // the renderer, and a view can change it later.
+    ctx._opaqueBackdrop = (this.clearColor() as GPUColorDict).a >= 1;
+    ctx._textDrift = this.wgOptions.canvasTextDrift ? canvasTextDrift(scene, o, ctx._uniforms.dpi || 1) : null;
 
     const t1 = performance.now();
     this._settling = settle === true;
+    this._queue.setCompositor((blendMode, clip) => blendCompositeElement(ctx, device, blendMode, clip));
     try {
       this.draw(device, ctx, scene, vb, markTypes);
     } finally {
@@ -546,11 +573,26 @@ export default class WebGPURenderer extends Renderer {
       renderPassDescriptor.colorAttachments[0].view = target.createView();
     }
     const tSubmit = performance.now();
+    this._offFrame = this._queue.drawsOffFrame();
+    // Built only when a draw asked for one. They are the size of the canvas,
+    // and a frame that neither masks nor blends should not carry them.
+    let targets: FrameTargets | null = null;
+    if (this._queue.drawsOffFrame()) {
+      const blend = this.blendTargets(device);
+      targets = {
+        target,
+        maskView: this.maskTexture(device).createView(),
+        layerView: blend.layer.createView(),
+        layerResolve: ctx._sampleCount > 1 ? blend.resolve.createView() : null,
+        backdrop: blend.backdrop,
+      };
+    }
     this._queue.submit(
       device,
       renderPassDescriptor,
       [this._canvas?.width ?? 0, this._canvas?.height ?? 0],
       this._gpuTimer,
+      targets,
     );
     if (this.markTimings) {
       this.markTimings['_draw'] = (this.markTimings['_draw'] ?? 0) + (t2 - t1);
@@ -784,6 +826,100 @@ export default class WebGPURenderer extends Renderer {
   }
 
   /** Multisampled color attachment, resolved into the canvas each frame. */
+  /**
+   * Single sampled coverage target, for a stroke that has to be composited as
+   * one shape rather than band by band. One per frame is enough: each mask pass
+   * clears it, and the composite that follows reads it before the next pass
+   * fills it again.
+   */
+  maskTexture(device?: GPUDevice): GPUTexture {
+    const gpu = device ?? this._device;
+    const canvas = this._canvas;
+    if (!gpu || !canvas) {
+      throw new Error('[vega-webgpu] Cannot create the mask texture before initialization.');
+    }
+    const existing = this._maskTexture;
+    if (
+      existing &&
+      this._maskTextureDevice === gpu &&
+      existing.width === canvas.width &&
+      existing.height === canvas.height
+    ) {
+      return existing;
+    }
+    existing?.destroy();
+    this._maskTexture = gpu.createTexture({
+      label: 'Coverage Mask Texture',
+      size: [canvas.width, canvas.height, 1],
+      format: 'r8unorm',
+      dimension: '2d',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    this._maskTextureDevice = gpu;
+    return this._maskTexture;
+  }
+
+  /**
+   * Where a mark whose blend has to be evaluated in a shader is drawn, and the
+   * copy of the frame underneath it. The layer takes the frame's own format and
+   * sample count, so a mark draws into it through the pipelines it already has.
+   */
+  blendTargets(device: GPUDevice): { layer: GPUTexture; resolve: GPUTexture; backdrop: GPUTexture } {
+    const canvas = this._canvas;
+    if (!canvas) {
+      throw new Error('[vega-webgpu] Cannot create the blend targets before initialization.');
+    }
+    const samples = this._ctx?._sampleCount ?? defaultSampleCount;
+    const stale =
+      this._blendTextureDevice !== device ||
+      !this._layerResolve ||
+      this._layerResolve.width !== canvas.width ||
+      this._layerResolve.height !== canvas.height;
+    if (stale) {
+      this._layerTexture?.destroy();
+      this._layerResolve?.destroy();
+      this._backdropTexture?.destroy();
+      this._layerTexture = null;
+      this._layerResolve = device.createTexture({
+        label: 'Blend Layer Resolve',
+        size: [canvas.width, canvas.height, 1],
+        format: preferredColorFormat(),
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      });
+      this._backdropTexture = device.createTexture({
+        label: 'Blend Backdrop',
+        size: [canvas.width, canvas.height, 1],
+        format: preferredColorFormat(),
+        usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING,
+      });
+      this._blendTextureDevice = device;
+    }
+    if (samples > 1 && !this._layerTexture) {
+      this._layerTexture = device.createTexture({
+        label: 'Blend Layer',
+        size: [canvas.width, canvas.height, 1],
+        format: preferredColorFormat(),
+        sampleCount: samples,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
+    const resolve = this._layerResolve as GPUTexture;
+    return {
+      layer: samples > 1 ? (this._layerTexture as GPUTexture) : resolve,
+      resolve,
+      backdrop: this._backdropTexture as GPUTexture,
+    };
+  }
+
+  /**
+   * Whether the last frame needed a pass outside the frame's own, for a
+   * coverage mask or a blend evaluated against a copy of it. The fast path for
+   * a blend is silent when it stops being taken, so a test watches this.
+   */
+  drewOffFrame(): boolean {
+    return this._offFrame;
+  }
+
   msaaTexture(device?: GPUDevice): GPUTexture {
     const gpu = device ?? this._device;
     const canvas = this._canvas;

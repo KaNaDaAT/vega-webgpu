@@ -62,43 +62,27 @@ view._renderer.wgOptions.debugLog = true;
 | `redrawOnZoom` | Follow browser zoom. Zoom changes `devicePixelRatio`, and the default re-sizes the canvas and redraws so the view stays sharp. When `false` the canvas holds the ratio it was first sized at and the browser scales it, which is softer but skips the redraw. | `true` | 2.0.0 |
 | `cacheShapes` | Keep triangulated shape geometry between frames instead of rebuilding it. Costs memory on a scene whose geometry changes every frame. | `true` | 1.1.0 |
 | `offscreen` | Render into a texture the renderer owns and never touch the canvas swapchain, for a headless runner with no compositor where acquiring it destroys the device. The canvas stays blank, so the frame is only reachable through `captureFrame()`. | `false` | 2.0.0 |
+| `canvasTextDrift` | Put a label where the canvas renderer puts it rather than where its own coordinates say. The two differ by a whole row when a baseline lands on exactly half a device pixel, because canvas rounds that up and its own matrix has usually drifted just below it. Reproduces that drift, which is another renderer's rounding error, so it is off unless a view has to sit beside a canvas one and match. | `false` | 2.0.0 |
 
-`renderBatch` and `simpleLine` were removed in 2.0.0: the line mark batches its
-segments unconditionally now, so neither had anything left to switch.
+`renderBatch` and `simpleLine` were removed in 2.0.0: the line mark batches its segments unconditionally now, so neither had anything left to switch.
 
 ## Supported marks & known limitations
 
-Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, trail, text (rasterized into a GPU glyph atlas), rounded rect and group corners, line dashes, gradient fills (linear + radial) on arc, area, group, path, rect, shape, symbol, text and trail marks, and gradient strokes on arc, area, path, shape, text and trail marks.
+Supported: rect, symbol (all shapes + rotation), line, area, arc, path, shape, rule, group, image, trail, text (rasterized into a GPU glyph atlas), rounded rect and group corners, `strokeDash` on every mark that strokes, miter, round and bevel line joins with `strokeMiterLimit`, butt, round and square `strokeCap`, every `blend` value on every mark, which is every mode and operator canvas takes, gradient fills (linear + radial) on arc, area, group, path, rect, shape, symbol, text and trail marks, and gradient strokes on every mark that strokes.
 
 Not supported yet:
 
-- Gradient strokes on symbol, rect, rule and line marks (a placeholder color is used)
 - Radial gradients with an offset focal point (approximated as concentric circles)
-- Miter and bevel line joins (round joins are used for all lines)
-- `strokeDash` outside line marks and group borders, so a dashed axis grid draws solid
-- `blend` on group, image and text marks (they always draw normal)
-- A blend over a translucent source or a transparent background (opaque marks on a background match)
 
 ### Borders between abutting fills
 
-Two polygons that share an edge, a choropleth's counties for instance, come out
-without a line between them where canvas draws one.
+Two polygons that share an edge, a choropleth's counties for instance, come out without a line between them where canvas draws one.
 
-That line is not something the spec asked for. Canvas fills each polygon
-separately, so a shared edge takes about half of one fill over the background
-and then about half of the next over that, and roughly a quarter of the
-background survives as a pale seam. This renderer draws the polygons in one
-multisampled pass, where the two fills split the samples between them and cover
-the edge completely, so nothing shows through.
+That line is not something the spec asked for. Canvas fills each polygon separately, so a shared edge takes about half of one fill over the background and then about half of the next over that, and roughly a quarter of the background survives as a pale seam. This renderer draws the polygons in one multisampled pass, where the two fills split the samples between them and cover the edge completely, so nothing shows through.
 
-Reproducing it needs each polygon composited separately against what is already
-on the canvas, which is what makes canvas slow at this and what one pass is for.
-It is on the roadmap for a release after 2.0.0, through a second multisampled
-attachment that records which item owns each sample so a resolve pass can
-composite a pixel's owners in draw order. Until then the seam is not drawn.
+Reproducing it needs each polygon composited separately against what is already on the canvas, which is what makes canvas slow at this and what one pass is for. It is on the roadmap for a release after 2.0.0, through a second multisampled attachment that records which item owns each sample so a resolve pass can composite a pixel's owners in draw order. Until then the seam is not drawn.
 
-Ask for the border instead, which is clearer about the intent and renders the
-same everywhere:
+Ask for the border instead, which is clearer about the intent and renders the same everywhere:
 
 ```json
 "encode": {
@@ -110,79 +94,54 @@ same everywhere:
 }
 ```
 
-`choropleth-stroked` and `map-fit-stroked` in `test/specs-valid` are the two
-corpus specs of this kind written that way. Both track canvas more closely than
-the versions that rely on the seam.
+`choropleth-stroked` and `map-fit-stroked` in `test/specs-valid` are the two corpus specs of this kind written that way. Both track canvas more closely than the versions that rely on the seam.
 
 ### Maximum canvas size
 
-WebGPU caps a texture at `maxTextureDimension2D`, which is 8192 on most GPUs and
-16384 on some desktop parts. The canvas is a texture, so no view can hold more
-device pixels than that on either axis.
+WebGPU caps a texture at `maxTextureDimension2D`, which is 8192 on most GPUs and 16384 on some desktop parts. The canvas is a texture, so no view can hold more device pixels than that on either axis.
 
-The cap is on **device** pixels, not CSS pixels, which is the part that catches
-people out. The canvas is sized `width * devicePixelRatio`, so a 2x display
-halves how wide a chart can be before it starts losing sharpness:
+The cap is on **device** pixels, not CSS pixels, which is the part that catches people out. The canvas is sized `width * devicePixelRatio`, so a 2x display halves how wide a chart can be before it starts losing sharpness:
 
 | devicePixelRatio | widest chart at full sharpness, 8192 cap |
-| --- | --- |
-| 1 | 8192 css px |
-| 2 | 4096 css px |
-| 3 | 2730 css px |
+| ---------------- | ---------------------------------------- |
+| 1                | 8192 css px                              |
+| 2                | 4096 css px                              |
+| 3                | 2730 css px                              |
 
-A long sorted bar list or a tall facet grid reaches this well before it looks
-unreasonable.
+A long sorted bar list or a tall facet grid reaches this well before it looks unreasonable.
 
-The renderer reads the cap from the GPU adapter and lowers the ratio to fit
-rather than refusing to draw, so a large view stays on screen and only loses
-sharpness. It says so once:
+The renderer reads the cap from the GPU adapter and lowers the ratio to fit rather than refusing to draw, so a large view stays on screen and only loses sharpness. It says so once:
 
 ```
 [vega-webgpu] 8192x300 at 2x needs 16384px, over the GPU's maximum texture size
 (8192px). Drawing at 1.000x instead, so the view is softer than requested.
 ```
 
-To get full sharpness back, keep `width * devicePixelRatio` and
-`height * devicePixelRatio` under the cap. To read the cap on the current
-machine:
+To get full sharpness back, keep `width * devicePixelRatio` and `height * devicePixelRatio` under the cap. To read the cap on the current machine:
 
 ```js
 (await navigator.gpu.requestAdapter()).limits.maxTextureDimension2D;
 ```
 
-Setting `redrawOnZoom` to `false` also helps here, since zooming in then cannot
-push a view that already fits back over the cap.
+Setting `redrawOnZoom` to `false` also helps here, since zooming in then cannot push a view that already fits back over the cap.
 
-Known gaps and planned work are in [ToDo.md](ToDo.md). The same material, plus a
-per-mark feature table and a broad roadmap, is on the
-[project page](https://kanadaat.github.io/vega-webgpu/).
+Known gaps and planned work are in [ToDo.md](ToDo.md). The same material, plus a per-mark feature table and a broad roadmap, is on the [project page](https://kanadaat.github.io/vega-webgpu/).
 
 ## Development
 
-Two numbers are reported per spec. The whole-image differing-pixel percentage
-is diluted by however much of a chart is empty or flat, so a small region that
-is badly wrong reads much like a faint haze over everything. The second number
-is the densest 32px square of difference and where it is, which across the
-corpus runs a median of 30x the whole-image figure and up to 633x:
+Two numbers are reported per spec. The whole-image differing-pixel percentage is diluted by however much of a chart is empty or flat, so a small region that is badly wrong reads much like a faint haze over everything. The second number is the densest 32px square of difference and where it is, which across the corpus runs a median of 30x the whole-image figure and up to 633x:
 
 ```
 DIFF map-fit 0.436% TILE 23.3% at 544,288
 ```
 
-
-
-The demo page fills its spec picker from `test/specs-valid.json`, which is
-generated from `test/specs-valid/` by `npm run manifest` (and by `npm run
-build`). Drop a `.vg.json` in and rebuild rather than editing the list. To keep
-one out of the picker, name it in an optional `test/specs-ignore.json`:
+The demo page fills its spec picker from `test/specs-valid.json`, which is generated from `test/specs-valid/` by `npm run manifest` (and by `npm run build`). Drop a `.vg.json` in and rebuild rather than editing the list. To keep one out of the picker, name it in an optional `test/specs-ignore.json`:
 
 ```json
 ["benchmark", "splom-outer-50k"]
 ```
 
 A test fails if the manifest falls behind the directory.
-
-
 
 ```bash
 npm install

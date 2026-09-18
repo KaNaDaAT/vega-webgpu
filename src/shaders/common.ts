@@ -87,16 +87,23 @@ fn normalAt(d: vec2<f32>) -> vec2<f32> {
 }`;
 
 /**
- * Fill and stroke each take their true share of the pixel, given the fraction
- * inside each edge. Thresholding instead would hand the whole pixel to one of
- * them, which drops the inner half of any stroke thin enough to straddle a
- * pixel boundary.
+ * The stroke over the fill, each taking its true share of the pixel.
+ * Thresholding instead would hand the whole pixel to one of them, which drops
+ * the inner half of any stroke thin enough to straddle a pixel boundary.
+ *
+ * Over, not side by side. Canvas fills the whole shape and then strokes on top,
+ * so a stroke that is translucent shows the fill through it and one that is
+ * fully transparent leaves the fill untouched. Giving the stroke band to the
+ * stroke alone instead ate a ring off every such shape: a vega legend swatch is
+ * `stroke: transparent` with a width of 1.5, which came out 8px across where
+ * canvas draws 10. An opaque stroke covers the fill under it either way, so
+ * nothing that was already right moves.
  */
-export const FILL_STROKE_SHARE = `fn fillStrokeShare(fill: vec4<f32>, stroke: vec4<f32>, inner: f32, outer: f32) -> vec4<f32> {
-    let fa = fill.a * inner;
-    let sa = stroke.a * max(outer - inner, 0.0);
-    let a = fa + sa;
-    return vec4<f32>((fill.rgb * fa + stroke.rgb * sa) / max(a, 1e-6), a);
+export const FILL_STROKE_SHARE = `fn fillStrokeShare(fill: vec4<f32>, stroke: vec4<f32>, fillCov: f32, strokeCov: f32) -> vec4<f32> {
+    let sa = stroke.a * strokeCov;
+    let fa = fill.a * fillCov * (1.0 - sa);
+    let a = sa + fa;
+    return vec4<f32>((stroke.rgb * sa + fill.rgb * fa) / max(a, 1e-6), a);
 }`;
 
 /**

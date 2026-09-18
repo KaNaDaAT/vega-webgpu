@@ -98,7 +98,8 @@ fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
 
     let outer = 1.0 - smoothstep(half_sw - aa, half_sw + aa, d);
     let inner = 1.0 - smoothstep(-half_sw - aa, -half_sw + aa, d);
-    return fillStrokeShare(fill, in.stroke, inner, outer);
+    let fillCov = 1.0 - smoothstep(-aa, aa, d);
+    return fillStrokeShare(fill, in.stroke, fillCov, max(outer - inner, 0.0));
 }
 
 fn straightRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
@@ -106,7 +107,8 @@ fn straightRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     let sw = vec2<f32>(in.strokewidth, in.strokewidth) * max(uniforms.dpi, 0.001);
     let outer = boxCoverage(p, in.lo_dev, in.hi_dev);
     let inner = boxCoverage(p, in.lo_dev + sw, in.hi_dev - sw);
-    return fillStrokeShare(fill, in.stroke, inner, outer);
+    // this stroke sits inside the edge, so the nominal fill is the whole box
+    return fillStrokeShare(fill, in.stroke, outer, max(outer - inner, 0.0));
 }
 
 fn maxRadius(radii: vec4<f32>) -> f32 {

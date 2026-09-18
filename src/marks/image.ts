@@ -5,15 +5,16 @@ import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import { getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
+import { blendKey } from '../util/blend.js';
+import { blendPipelines, getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Image';
 
 interface TextureEntry {
   texture: GPUTexture;
-  smoothBindGroup?: GPUBindGroup;
-  pixelatedBindGroup?: GPUBindGroup;
+  /** Keyed by sampler and blend, since each blend pipeline owns its layout. */
+  bindGroups: Map<string, GPUBindGroup>;
 }
 
 interface ImageResources {
@@ -21,6 +22,8 @@ interface ImageResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
+  /** The same pipeline with a blend mode baked in, one per mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
   geometryBuffer: GPUBuffer;
   smoothSampler: GPUSampler;
   pixelatedSampler: GPUSampler;
@@ -36,22 +39,33 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x2', 'float32'], // origin, size, opacity
     );
     const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    // a blend is baked into the pipeline state, so each mode needs its own
+    const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
     const smoothSampler = device.createSampler({
       label: 'Image Sampler (smooth)',
       magFilter: 'linear',
       minFilter: 'linear',
+      mipmapFilter: 'linear',
+      // an image whose width and height are scaled differently reduces by a
+      // different amount on each axis, and one level for both blurs the
+      // shallower one by the difference
+      maxAnisotropy: 16,
     });
+    // Nearest at any scale is what a 2D context does with smoothing off, so
+    // this one stays on the full resolution texels however far it is reduced.
     const pixelatedSampler = device.createSampler({
       label: 'Image Sampler (pixelated)',
       magFilter: 'nearest',
       minFilter: 'nearest',
+      lodMaxClamp: 0,
     });
     return {
       device,
       bufferManager,
       vertexManager,
       pipeline,
+      pipelineFor,
       geometryBuffer,
       smoothSampler,
       pixelatedSampler,
@@ -108,9 +122,11 @@ function imageYOffset(baseline: SceneImageItem['baseline'], h: number): number {
 function uploadTexture(device: GPUDevice, image: SceneImageSource): GPUTexture {
   const width = image.width || 1;
   const height = image.height || 1;
+  const levels = Math.floor(Math.log2(Math.max(width, height))) + 1;
   const texture = device.createTexture({
     label: 'Image Texture',
     size: [width, height, 1],
+    mipLevelCount: levels,
     format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
   });
@@ -139,27 +155,76 @@ function uploadTexture(device: GPUDevice, image: SceneImageSource): GPUTexture {
   // lost its red near them. Canvas filters premultiplied, and the shader
   // divides the alpha back out after sampling.
   device.queue.copyExternalImageToTexture({ source }, { texture, premultipliedAlpha: true }, [width, height]);
+  writeMipChain(device, texture, source, width, height, levels);
   return texture;
 }
 
-function getBindGroup(res: ImageResources, image: SceneImageSource, smooth: boolean): GPUBindGroup {
+/**
+ * Halves the image into every level below the first.
+ *
+ * A reduction reads four texels of whatever level it lands between, so without
+ * a chain an icon drawn at a quarter of its size takes four of the sixteen
+ * texels under each pixel and drops the rest. Canvas does not do that: at a
+ * quarter it lands within a level of the average of all sixteen where a plain
+ * bilinear read comes back empty along the edge.
+ *
+ * Every level is drawn from the original rather than from the one above it, so
+ * each is the image reduced once through the 2D context canvas itself reduces
+ * through. Halving repeatedly compounds the filter instead, which comes out
+ * softer than canvas at every level past the first.
+ */
+function writeMipChain(
+  device: GPUDevice,
+  texture: GPUTexture,
+  image: HTMLCanvasElement | ImageBitmap,
+  width: number,
+  height: number,
+  levels: number,
+): void {
+  for (let level = 1; level < levels; level++) {
+    const w = Math.max(1, width >> level);
+    const h = Math.max(1, height >> level);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+    context.imageSmoothingEnabled = true;
+    context.drawImage(image, 0, 0, w, h);
+    device.queue.copyExternalImageToTexture(
+      { source: canvas },
+      { texture, mipLevel: level, premultipliedAlpha: true },
+      [w, h],
+    );
+  }
+}
+
+function getBindGroup(
+  res: ImageResources,
+  image: SceneImageSource,
+  smooth: boolean,
+  pipeline: GPURenderPipeline,
+  blend: string,
+): GPUBindGroup {
   let entry = res.textures.get(image as object);
   if (!entry) {
-    entry = { texture: uploadTexture(res.device, image) };
+    entry = { texture: uploadTexture(res.device, image), bindGroups: new Map() };
     res.textures.set(image as object, entry);
   }
-  const key = smooth ? 'smoothBindGroup' : 'pixelatedBindGroup';
-  let bindGroup = entry[key];
+  const key = `${smooth ? 'smooth' : 'pixelated'}|${blend}`;
+  let bindGroup = entry.bindGroups.get(key);
   if (!bindGroup) {
     bindGroup = res.device.createBindGroup({
-      label: `Image Texture Bind Group (${smooth ? 'smooth' : 'pixelated'})`,
-      layout: res.pipeline.getBindGroupLayout(1),
+      label: `Image Texture Bind Group (${key})`,
+      layout: pipeline.getBindGroupLayout(1),
       entries: [
         { binding: 0, resource: smooth ? res.smoothSampler : res.pixelatedSampler },
         { binding: 1, resource: entry.texture.createView() },
       ],
     });
-    entry[key] = bindGroup;
+    entry.bindGroups.set(key, bindGroup);
   }
   return bindGroup;
 }
@@ -179,7 +244,6 @@ function draw(
   const res = getResources(device, ctx, vb);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
   const clip = markClip(ctx, scene);
 
   for (const item of items) {
@@ -212,12 +276,18 @@ function draw(
     }
 
     const instanceBuffer = res.bufferManager.createInstanceBuffer(Float32Array.from([x, y, w, h, item.opacity ?? 1]));
+    // a pipeline with a default layout owns its bind group layout, so the
+    // groups have to come from the blend variant this draw uses
+    const imagePipeline = res.pipelineFor(blendKey(item.blend));
 
     ctx._renderQueue.enqueue({
-      pipeline: res.pipeline,
+      pipeline: imagePipeline,
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [uniformBindGroup, getBindGroup(res, image, item.smooth !== false)],
+      bindGroups: [
+        createUniformBindGroup(drawName, device, imagePipeline, uniformBuffer),
+        getBindGroup(res, image, item.smooth !== false, imagePipeline, blendKey(item.blend)),
+      ],
       clip,
     });
   }

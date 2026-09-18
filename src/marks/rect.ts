@@ -1,14 +1,25 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneItem, SceneRectExt } from '../types/scene.js';
+import type { SceneGradient, SceneItem, SceneRectExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { blendKey } from '../util/blend.js';
+import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import { getMarkResources, markClip, markPipeline, whiteCarrier, type MarkModule } from './util.js';
+import {
+  outlinePipelines,
+  type OutlinePipelines,
+  borderInstances,
+  enqueueOutline,
+  getMarkResources,
+  markClip,
+  blendPipelines,
+  markPipeline,
+  whiteCarrier,
+  type MarkModule,
+} from './util.js';
 
 const drawName = 'Rect';
 
@@ -19,7 +30,10 @@ interface RectResources {
   pipeline: GPURenderPipeline;
   gradientPipelineFor: (blend: string) => GPURenderPipeline;
   geometryBuffer: GPUBuffer;
-  blendPipelines: Map<string, GPURenderPipeline>;
+  /** The background, one pipeline per blend mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
+  /** Pipelines for an outline drawn through the segment shader. */
+  outline: OutlinePipelines;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RectResources {
@@ -31,7 +45,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
     const pipeline = markPipeline(ctx, device, drawName, 'Rect', vertexManager);
-    const gradientPipeline = markPipeline(
+    // a gradient fill under a blend needs its own pipeline too
+    const gradientPipelineFor = blendPipelines(
       ctx,
       device,
       `${drawName}Gradient`,
@@ -39,19 +54,10 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       vertexManager,
       'main_fragment_gradient',
     );
-    // a gradient fill under a blend needs its own pipeline too
-    const gradientPipelineFor = (blend: string) =>
-      blend === 'normal'
-        ? gradientPipeline
-        : markPipeline(
-            ctx,
-            device,
-            `${drawName}Gradient ${blend}`,
-            'Rect',
-            vertexManager,
-            'main_fragment_gradient',
-            blend,
-          );
+
+    // The analytic stroke cannot express a pattern, so a dashed border is
+    // walked as a polyline and drawn as segments, the way a group's is.
+    const outline = outlinePipelines(ctx, device, `${drawName}Dash`);
 
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
     return {
@@ -61,7 +67,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       pipeline,
       gradientPipelineFor,
       geometryBuffer,
-      blendPipelines: new Map(),
+      pipelineFor: blendPipelines(ctx, device, drawName, 'Rect', vertexManager),
+      outline,
     };
   });
 }
@@ -82,22 +89,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const gradientResources = () => (gres ??= getGradientResources(device, ctx));
   let run: SceneItem[] = [];
   let runBlend = 'normal';
-  const pipelineFor = (blend: string) => {
-    if (blend === 'normal') {
-      return res.pipeline;
-    }
-    let pipeline = res.blendPipelines.get(blend);
-    if (!pipeline) {
-      pipeline = markPipeline(ctx, device, `${drawName} ${blend}`, 'Rect', res.vertexManager, undefined, blend);
-      res.blendPipelines.set(blend, pipeline);
-    }
-    return pipeline;
-  };
   const flushRun = () => {
     if (run.length === 0) {
       return;
     }
-    const pipeline = pipelineFor(runBlend);
+    const pipeline = res.pipelineFor(runBlend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(run));
     ctx._renderQueue.enqueue({
       pipeline,
@@ -112,6 +108,30 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   for (const item of items) {
     const fill = (item as SceneRectExt).fill;
     const blend = blendKey((item as SceneRectExt).blend);
+    const strokeGradient =
+      isGradient((item as SceneRectExt).stroke) && item.bounds
+        ? ((item as SceneRectExt).stroke as SceneGradient)
+        : null;
+    const border = borderInstances(ctx, item as SceneRectExt, strokeGradient);
+    if (border) {
+      // The fill first, which is the order canvas paints them in, with the
+      // stroke taken off it so the analytic one is not drawn solid underneath.
+      if (blend !== runBlend && run.length > 0) {
+        flushRun();
+      }
+      runBlend = blend;
+      const filled: SceneRectExt = { ...(item as SceneRectExt), stroke: undefined };
+      run.push(filled);
+      flushRun();
+      enqueueOutline(
+        { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip },
+        border,
+        blend,
+        strokeGradient,
+        item.bounds,
+      );
+      continue;
+    }
     if (!isGradient(fill)) {
       // a run shares one pipeline, so a change of blend starts a new one
       if (blend !== runBlend && run.length > 0) {
@@ -119,6 +139,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       }
       runBlend = blend;
       run.push(item);
+      // canvas composites each mark against what is already there, so two of
+      // these overlapping have to meet the frame one at a time
+      if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
+        flushRun();
+      }
       continue;
     }
     flushRun();
@@ -157,10 +182,21 @@ export function rectAttributes(items: SceneItem[], whiteGradientFill = false): F
         cornerRadiusTopLeft,
       } = rect as SceneRectExt;
       const item = rect as SceneRectExt;
-      const x = item.x || 0;
-      const y = item.y || 0;
-      const width = item.width || 0;
-      const height = item.height || 0;
+      // canvas's fillRect flips a negative extent and paints the rectangle on
+      // the other side of x or y, so a quad built from the raw numbers would be
+      // inverted and draw nothing where canvas draws a box.
+      let x = item.x || 0;
+      let y = item.y || 0;
+      let width = item.width || 0;
+      let height = item.height || 0;
+      if (width < 0) {
+        x += width;
+        width = -width;
+      }
+      if (height < 0) {
+        y += height;
+        height = -height;
+      }
       const col =
         whiteGradientFill && isGradient(fill)
           ? whiteCarrier(opacity, fillOpacity)

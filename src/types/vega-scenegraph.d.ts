@@ -103,6 +103,29 @@ declare module 'vega-scenegraph' {
   export function domClear(el: Element, index: number): Element;
   export function domCreate(doc: Document | null, tag: string, ns?: string): Element;
 
+  /** One svg path command: the letter, then its parameters. */
+  export type PathCommand = [string, ...number[]];
+  export function pathParse(path: string): PathCommand[];
+  /**
+   * Replays parsed commands onto a 2D-context-like sink, offset by `l`/`t` and
+   * scaled by `sX`/`sY`. Curves come through as bezier or quadratic calls and
+   * an arc as beziers, so a sink needs no arc of its own.
+   */
+  export function pathRender(
+    context: {
+      beginPath?: () => void;
+      moveTo: (x: number, y: number) => void;
+      lineTo: (x: number, y: number) => void;
+      bezierCurveTo: (x1: number, y1: number, x2: number, y2: number, x: number, y: number) => void;
+      quadraticCurveTo: (cx: number, cy: number, x: number, y: number) => void;
+      closePath: () => void;
+    },
+    path: PathCommand[],
+    l?: number,
+    t?: number,
+    sX?: number,
+    sY?: number,
+  ): void;
   export function pathCurves(interpolate: string, orientation?: string, tension?: number): CurveFactory;
   export function pathSymbols(shape: string | SymbolType): SymbolType;
 
@@ -114,7 +137,12 @@ declare module 'vega-scenegraph' {
     y(f: number | ((item: T) => number)): this;
     width(f: number | ((item: T) => number)): this;
     height(f: number | ((item: T) => number)): this;
-    cornerRadius(f: number | ((item: T) => number)): this;
+    cornerRadius(
+      tl: number | ((item: T) => number),
+      tr?: number | ((item: T) => number),
+      br?: number | ((item: T) => number),
+      bl?: number | ((item: T) => number),
+    ): this;
   }
   export function pathRectangle<T = unknown>(): RectanglePathGenerator<T>;
 

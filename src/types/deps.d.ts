@@ -3,23 +3,27 @@
  * Shapes are derived from each package's README and observed runtime usage.
  */
 
-declare module 'parse-svg-path' {
-  /** Parses an SVG path string into segments of [command, ...coordinates]. */
-  export type PathSegment = [string, ...number[]];
-  export default function parse(path: string): PathSegment[];
-}
-
 declare module 'simplify-path' {
   export type Point = [number, number];
   /** Ramer-Douglas-Peucker polyline simplification. */
   export default function simplify(points: Point[], tolerance?: number): Point[];
 }
 
-declare module 'svg-path-contours' {
-  import type { PathSegment } from 'parse-svg-path';
-  export type Contour = [number, number][];
-  /** Converts parsed SVG path segments into a list of polyline contours. */
-  export default function contours(segments: PathSegment[], scale?: number): Contour[];
+declare module 'adaptive-bezier-curve' {
+  export type Point = [number, number];
+  /**
+   * Subdivides a cubic until it is flat to within `scale`, appending the result
+   * to `points`. Both ends are included, so consecutive calls repeat the point
+   * they share.
+   */
+  export default function bezier(
+    start: Point,
+    c1: Point,
+    c2: Point,
+    end: Point,
+    scale: number,
+    points: Point[],
+  ): Point[];
 }
 
 declare module 'triangulate-contours' {

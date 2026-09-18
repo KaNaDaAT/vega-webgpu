@@ -1,4 +1,5 @@
 import type { ClipRect } from '../types/context.js';
+import { layerMode } from './blend.js';
 import { BufferManager } from './bufferManager.js';
 import type { GpuTimer } from './gpuTimer.js';
 import type { VertexBufferManager } from './vertexManager.js';
@@ -11,6 +12,24 @@ export interface QueueElement {
   vertexBuffers: GPUBuffer[];
   bindGroups: GPUBindGroup[];
   clip?: ClipRect;
+  /**
+   * Drawn somewhere other than the frame. A run of these breaks the frame's
+   * pass, fills a cleared target, and the composite that follows reads it back.
+   * `mask` is coverage alone (shaders/maskComposite.ts) and `layer` is the
+   * mark's own colour over a copy of the frame (shaders/blendComposite.ts).
+   */
+  pass?: 'mask' | 'layer';
+}
+
+/** Where a frame draws, beyond its own attachment. */
+export interface FrameTargets {
+  /** What the frame resolves into, which a backdrop copy reads. */
+  target: GPUTexture;
+  maskView: GPUTextureView;
+  /** Multisampled when the frame is, in which case `layerResolve` follows it. */
+  layerView: GPUTextureView;
+  layerResolve: GPUTextureView | null;
+  backdrop: GPUTexture;
 }
 
 export interface RenderBatchInfo {
@@ -32,18 +51,51 @@ export interface RenderBatchInfo {
  */
 export class RenderQueue {
   private queue: QueueElement[] = [];
-  private batch: number[] = [];
+  private batch: ArrayLike<number>[] = [];
+  private batchLength = 0;
   private batchInfo: RenderBatchInfo | null = null;
+  private offFrame = false;
 
   startFrame(): void {
     this.queue = [];
     this.batch = [];
+    this.batchLength = 0;
     this.batchInfo = null;
+    this.offFrame = false;
+  }
+
+  /** Whether anything this frame draws somewhere other than the frame itself. */
+  drawsOffFrame(): boolean {
+    return this.offFrame;
+  }
+
+  /**
+   * Builds the draw that folds a layer back into the frame, installed once per
+   * frame by the renderer. Without one a layered pipeline draws into the frame
+   * unblended, which is what it used to do anyway.
+   */
+  private compositor: ((blend: string, clip: ClipRect | undefined) => QueueElement) | null = null;
+
+  setCompositor(build: ((blend: string, clip: ClipRect | undefined) => QueueElement) | null): void {
+    this.compositor = build;
   }
 
   enqueue(element: QueueElement): void {
     if (this.batchInfo !== null && element.pipeline !== this.batchInfo.pipeline) {
       this.flushBatch();
+    }
+    // A mode the blend state cannot express draws into a layer and is folded in
+    // straight after, so each draw meets the frame on its own the way canvas
+    // composites a fill and then a stroke.
+    const blend = this.compositor ? layerMode(element.pipeline) : undefined;
+    if (blend !== undefined) {
+      this.offFrame = true;
+      this.queue.push({ ...element, pass: 'layer' });
+      this.queue.push((this.compositor as (b: string, c: ClipRect | undefined) => QueueElement)(blend, element.clip));
+      return;
+    }
+    if (element.pass) {
+      this.offFrame = true;
     }
     this.queue.push(element);
   }
@@ -60,24 +112,41 @@ export class RenderQueue {
     }
     this.flushBatch();
     this.batch = [];
+    this.batchLength = 0;
     this.batchInfo = info;
   }
 
-  queueBatchInstance(values: number[]): void {
-    this.batch.push(...values);
+  /**
+   * Adds one mark's instances to the open batch. Held rather than copied out,
+   * since spreading them into an array throws past about 125 thousand values,
+   * which a line of seven thousand points reaches.
+   */
+  queueBatchInstance(values: ArrayLike<number>): void {
+    if (values.length === 0) {
+      return;
+    }
+    this.batch.push(values);
+    this.batchLength += values.length;
   }
 
   flushBatch(): void {
     const info = this.batchInfo;
-    if (info === null || this.batch.length === 0) {
+    if (info === null || this.batchLength === 0) {
       this.batchInfo = null;
       return;
     }
     this.batchInfo = null;
 
-    const data = new BufferManager(info.device, 'RenderBatch').createInstanceBuffer(Float32Array.from(this.batch));
-    const instanceCount = this.batch.length / info.vertexManager.getInstanceLength();
+    const values = new Float32Array(this.batchLength);
+    let at = 0;
+    for (const chunk of this.batch) {
+      values.set(chunk, at);
+      at += chunk.length;
+    }
+    const data = new BufferManager(info.device, 'RenderBatch').createInstanceBuffer(values);
+    const instanceCount = this.batchLength / info.vertexManager.getInstanceLength();
     this.batch = [];
+    this.batchLength = 0;
 
     if (info.geometryBuffer == null) {
       this.enqueue({
@@ -108,45 +177,170 @@ export class RenderQueue {
     renderPassDescriptor: GPURenderPassDescriptor,
     attachmentSize: [width: number, height: number],
     timer?: GpuTimer | null,
+    targets?: FrameTargets | null,
   ): void {
     this.flushBatch();
+    const queue = this.queue;
+    this.queue = [];
     const commandEncoder = device.createCommandEncoder({ label: 'RenderQueue Encoder' });
-    // All draws share one render pass: the attachment is loaded/cleared and
-    // resolved exactly once per frame. Draw order = scenegraph paint order.
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    let scissored = false;
-    for (const q of this.queue) {
-      let clip: ClipRect | undefined;
-      if (q.clip) {
-        const clamped = clampClip(q.clip, attachmentSize);
-        if (clamped === null) {
-          continue; // clipped to nothing
-        }
-        clip = clamped;
+    if (targets && queue.some(q => q.pass)) {
+      encodeSplit(commandEncoder, renderPassDescriptor, queue, attachmentSize, targets);
+    } else {
+      // All draws share one render pass: the attachment is loaded/cleared and
+      // resolved exactly once per frame. Draw order = scenegraph paint order.
+      const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+      let scissored = false;
+      for (const q of queue) {
+        scissored = encodeDraw(passEncoder, q, attachmentSize, scissored);
       }
-      if (clip) {
-        passEncoder.setScissorRect(clip[0], clip[1], clip[2], clip[3]);
-        scissored = true;
-      } else if (scissored) {
-        // scissor state persists within the pass, so restore full coverage
-        passEncoder.setScissorRect(0, 0, attachmentSize[0], attachmentSize[1]);
-        scissored = false;
-      }
-      passEncoder.setPipeline(q.pipeline);
-      for (let i = 0; i < q.vertexBuffers.length; i++) {
-        passEncoder.setVertexBuffer(i, q.vertexBuffers[i]);
-      }
-      for (let i = 0; i < q.bindGroups.length; i++) {
-        passEncoder.setBindGroup(i, q.bindGroups[i]);
-      }
-      passEncoder.draw(q.drawCounts[0], q.drawCounts[1] ?? 1, q.drawCounts[2] ?? 0, q.drawCounts[3] ?? 0);
+      passEncoder.end();
     }
-    passEncoder.end();
     timer?.resolve(commandEncoder);
     device.queue.submit([commandEncoder.finish()]);
     timer?.sample();
-    this.queue = [];
   }
+}
+
+/**
+ * The same draws, with each run of off-frame elements lifted into a pass of its
+ * own. The frame's pass is broken either side of the run and resumed with a
+ * load, so the only difference the frame sees is that the composite following
+ * the run reads a finished target.
+ *
+ * A mask run needs nothing of the frame, so the pass before it can skip its
+ * MSAA resolve. A layer run reads the frame underneath the mark, so the pass
+ * before that one has to resolve before the copy. The timer keeps its two
+ * stamps across the whole set, and a pass carrying neither is rejected.
+ */
+function encodeSplit(
+  encoder: GPUCommandEncoder,
+  descriptor: GPURenderPassDescriptor,
+  queue: QueueElement[],
+  attachmentSize: [width: number, height: number],
+  targets: FrameTargets,
+): void {
+  const attachment = [...descriptor.colorAttachments][0] as GPURenderPassColorAttachment;
+  const stamps = descriptor.timestampWrites;
+  const segments: { kind: 'frame' | 'mask' | 'layer'; items: QueueElement[] }[] = [];
+  for (const q of queue) {
+    const kind = q.pass ?? 'frame';
+    const last = segments[segments.length - 1];
+    if (last && last.kind === kind) {
+      last.items.push(q);
+    } else {
+      segments.push({ kind, items: [q] });
+    }
+  }
+  const runs = segments.filter(seg => seg.kind !== 'frame');
+  const frames = runs.length + 1;
+
+  const beginFrame = (index: number): GPURenderPassEncoder => {
+    const colour: GPURenderPassColorAttachment = { ...attachment };
+    if (index > 0) {
+      colour.loadOp = 'load';
+      colour.storeOp = 'store';
+    }
+    if (index < frames - 1 && runs[index]?.kind !== 'layer') {
+      colour.resolveTarget = undefined;
+    }
+    const pass: GPURenderPassDescriptor = { ...descriptor, colorAttachments: [colour], timestampWrites: undefined };
+    if (stamps && (index === 0 || index === frames - 1)) {
+      const writes: GPURenderPassTimestampWrites = { querySet: stamps.querySet };
+      if (index === 0) {
+        writes.beginningOfPassWriteIndex = stamps.beginningOfPassWriteIndex;
+      }
+      if (index === frames - 1) {
+        writes.endOfPassWriteIndex = stamps.endOfPassWriteIndex;
+      }
+      pass.timestampWrites = writes;
+    }
+    return encoder.beginRenderPass(pass);
+  };
+
+  const beginRun = (kind: 'mask' | 'layer'): GPURenderPassEncoder => {
+    if (kind === 'mask') {
+      return encoder.beginRenderPass({
+        label: 'Coverage Mask',
+        colorAttachments: [
+          { view: targets.maskView, clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: 'clear', storeOp: 'store' },
+        ],
+      });
+    }
+    encoder.copyTextureToTexture({ texture: targets.target }, { texture: targets.backdrop }, [
+      attachmentSize[0],
+      attachmentSize[1],
+      1,
+    ]);
+    return encoder.beginRenderPass({
+      label: 'Blend Layer',
+      colorAttachments: [
+        {
+          view: targets.layerView,
+          resolveTarget: targets.layerResolve ?? undefined,
+          clearValue: { r: 0, g: 0, b: 0, a: 0 },
+          loadOp: 'clear',
+          storeOp: 'store',
+        },
+      ],
+    });
+  };
+
+  let index = 0;
+  let passEncoder = beginFrame(0);
+  let scissored = false;
+  for (const segment of segments) {
+    if (segment.kind === 'frame') {
+      for (const q of segment.items) {
+        scissored = encodeDraw(passEncoder, q, attachmentSize, scissored);
+      }
+      continue;
+    }
+    passEncoder.end();
+    const runPass = beginRun(segment.kind);
+    let runScissored = false;
+    for (const q of segment.items) {
+      runScissored = encodeDraw(runPass, q, attachmentSize, runScissored);
+    }
+    runPass.end();
+    index++;
+    passEncoder = beginFrame(index);
+    scissored = false;
+  }
+  passEncoder.end();
+}
+
+/** Encodes one draw, returning whether a scissor rect is left set on the pass. */
+function encodeDraw(
+  passEncoder: GPURenderPassEncoder,
+  q: QueueElement,
+  attachmentSize: [width: number, height: number],
+  scissored: boolean,
+): boolean {
+  let clip: ClipRect | undefined;
+  if (q.clip) {
+    const clamped = clampClip(q.clip, attachmentSize);
+    if (clamped === null) {
+      return scissored; // clipped to nothing
+    }
+    clip = clamped;
+  }
+  if (clip) {
+    passEncoder.setScissorRect(clip[0], clip[1], clip[2], clip[3]);
+    scissored = true;
+  } else if (scissored) {
+    // scissor state persists within the pass, so restore full coverage
+    passEncoder.setScissorRect(0, 0, attachmentSize[0], attachmentSize[1]);
+    scissored = false;
+  }
+  passEncoder.setPipeline(q.pipeline);
+  for (let i = 0; i < q.vertexBuffers.length; i++) {
+    passEncoder.setVertexBuffer(i, q.vertexBuffers[i]);
+  }
+  for (let i = 0; i < q.bindGroups.length; i++) {
+    passEncoder.setBindGroup(i, q.bindGroups[i]);
+  }
+  passEncoder.draw(q.drawCounts[0], q.drawCounts[1] ?? 1, q.drawCounts[2] ?? 0, q.drawCounts[3] ?? 0);
+  return scissored;
 }
 
 /**

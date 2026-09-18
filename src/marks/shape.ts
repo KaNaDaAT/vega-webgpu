@@ -4,24 +4,26 @@ import type { PathGeometry } from '../types/geometry.js';
 import type { SceneShapeItem } from '../types/scene.js';
 import { shape } from '../path/shapes.js';
 import geometryForItem from '../path/geometryForItem.js';
-import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
-import type { Point } from '../util/dash.js';
+import { dashPolyline, type Point } from '../util/dash.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
-import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
   GeometryBatch,
-  SEGMENT_LAYOUT,
   SEGMENT_STRIDE,
   segmentCount,
+  segmentInstances,
   writeSegments,
+  enqueueOutline,
   geometryVertexData,
   getMarkResources,
+  gradientTargetOf,
   enqueueGradient,
-  type GradientTarget,
   markClip,
-  markPipeline,
+  fillResources,
+  type FillResources,
+  dashPatternOf,
+  strokeEnds,
   whiteCarrier,
   type MarkModule,
 } from './util.js';
@@ -44,20 +46,7 @@ interface ShapeCacheEntry {
   lines: Point[][];
 }
 
-/** Every interior vertex of a contour gets a round join on the earlier end. */
-const CONTOUR_CAPS = [0, 1] as const;
-
-interface ShapeResources {
-  device: GPUDevice;
-  bufferManager: BufferManager;
-  vertexManager: VertexBufferManager;
-  pipeline: GPURenderPipeline;
-  pipelineFor: (blend: string) => GPURenderPipeline;
-  gradientPipelineFor: (blend: string) => GPURenderPipeline;
-  /** Outlines draw as segments rather than a triangulated ribbon. */
-  segmentVertexManager: VertexBufferManager;
-  segmentPipeline: GPURenderPipeline;
-  /** Reused between frames so an outline never reallocates. */
+interface ShapeResources extends FillResources {
   outlines: OutlineBuffer;
   /**
    * Per scene, because resources are shared by every mark of a type while the
@@ -69,40 +58,12 @@ interface ShapeResources {
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): ShapeResources {
-  return getMarkResources(ctx, 'shape', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-    const vertexManager = new VertexBufferManager(
-      ['float32x3', 'float32x4'], // position, color
-      [],
-    );
-    const pipeline = markPipeline(ctx, device, drawName, 'SolidFill', vertexManager);
-    // blend needs its own pipeline, and markPipeline caches them by mode
-    const pipelineFor = (blend: string) =>
-      blend === 'normal'
-        ? pipeline
-        : markPipeline(ctx, device, `${drawName} ${blend}`, 'SolidFill', vertexManager, undefined, blend);
-    const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', vertexManager);
-    // a gradient fill under a blend needs its own pipeline too
-    const gradientPipelineFor = (blend: string) =>
-      blend === 'normal'
-        ? gradientPipeline
-        : markPipeline(ctx, device, `${drawName}Gradient ${blend}`, 'GradientFill', vertexManager, undefined, blend);
-    const segmentVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const segmentPipeline = markPipeline(ctx, device, `${drawName}Stroke`, 'SLine', segmentVertexManager);
-    return {
-      device,
-      bufferManager,
-      vertexManager,
-      pipeline,
-      pipelineFor,
-      gradientPipelineFor,
-      segmentVertexManager,
-      segmentPipeline,
-      outlines: new OutlineBuffer(),
-      outlineState: new WeakMap(),
-      cache: new Map(),
-    };
-  });
+  return getMarkResources(ctx, 'shape', device, vb, () => ({
+    ...fillResources(ctx, device, vb, drawName, `${drawName}Stroke`),
+    outlines: new OutlineBuffer(),
+    outlineState: new WeakMap(),
+    cache: new Map(),
+  }));
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
@@ -114,19 +75,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const useCache = ctx._renderer.wgOptions.cacheShapes ?? false;
+  const useCache = ctx._renderer.wgOptions.cacheShapes ?? true;
   const clip = markClip(ctx, scene);
   const vertexLength = res.vertexManager.getVertexLength();
-  const gradientTarget: GradientTarget = {
-    ctx,
-    device,
-    name: `${drawName}Gradient`,
-    pipelineFor: res.gradientPipelineFor,
-    bufferManager: res.bufferManager,
-    uniformBuffer,
-    vertexLength,
-    clip,
-  };
+  const gradientTarget = gradientTargetOf(ctx, device, `${drawName}Gradient`, res, uniformBuffer, clip);
 
   // Solid fills and strokes share one pipeline and are accumulated in paint
   // order into a single buffer/draw. Gradient fills interrupt the batch.
@@ -142,6 +94,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // changed colour, which on a stroked choropleth is the difference between
   // rewriting a few hundred thousand segments a frame and rewriting none.
   let outlinesHeld = true;
+  // Which stretch of the shared outline buffer carries which blend, so one
+  // buffer can still serve a mark whose items do not agree on it.
+  const outlineRuns: { blend: string; start: number; count: number }[] = [];
   const flushBatch = () => {
     const data = batch.flush();
     if (data) {
@@ -185,13 +140,32 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     } else {
       batch.push(fillData);
     }
-    if (strokeData.length > 0 && strokeGradient && bounds) {
-      flushBatch();
-      enqueueGradient(gradientTarget, strokeData, strokeGradient, bounds, blendKey(item.blend));
+    batch.push(strokeData);
+    if (strokeGradient && bounds) {
+      // A ramp is per item, so this one cannot join the held buffer below: its
+      // own draw carries its own bind group. Only a gradient stroke pays that.
+      const own = outlineInstances(item, lines, whiteCarrier(item.opacity, item.strokeOpacity));
+      if (own) {
+        flushBatch();
+        enqueueOutline(
+          { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip },
+          own,
+          blendKey(item.blend),
+          strokeGradient,
+          bounds,
+        );
+      }
     } else {
-      batch.push(strokeData);
       outlinesHeld &&= unchanged;
+      const before = outlines.length / SEGMENT_STRIDE;
       pushOutline(outlines, item, lines);
+      const after = outlines.length / SEGMENT_STRIDE;
+      const last = outlineRuns[outlineRuns.length - 1];
+      if (last && last.blend === blend) {
+        last.count = after - last.start;
+      } else if (after > before) {
+        outlineRuns.push({ blend, start: before, count: after - before });
+      }
     }
   }
   flushBatch();
@@ -202,31 +176,57 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   state.length = outlines.length;
 
   if (outlines.length > 0) {
-    ctx._renderQueue.enqueue({
-      pipeline: res.segmentPipeline,
-      drawCounts: [6, outlines.length / SEGMENT_STRIDE],
-      vertexBuffers: [outlineBuffer(device, state, outlines, heldOutline)],
-      bindGroups: [createUniformBindGroup(`${drawName}Stroke`, device, res.segmentPipeline, uniformBuffer)],
-      clip,
-    });
+    const buffer = outlineBuffer(device, state, outlines, heldOutline);
+    for (const run of outlineRuns) {
+      const pipeline = res.outline.pipelineFor(run.blend);
+      ctx._renderQueue.enqueue({
+        pipeline,
+        drawCounts: [6, run.count, 0, run.start],
+        vertexBuffers: [buffer],
+        bindGroups: [createUniformBindGroup(`${drawName}Stroke`, device, pipeline, uniformBuffer)],
+        clip,
+      });
+    }
   }
 }
 
-/** Appends one item's outline, contour by contour, as segment instances. */
+/**
+ * Appends one item's outline, contour by contour, as segment instances. A dash
+ * splits each contour into its drawn runs first, which is the only way a shape
+ * can carry one: its stroke is an extruded ribbon everywhere else.
+ */
 function pushOutline(out: OutlineBuffer, item: SceneShapeItem, lines: Point[][]): void {
   const width = item.strokeWidth ?? 1;
-  if (!item.stroke || width <= 0) {
-    return;
-  }
   const color = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
-  if (color[3] <= 0) {
+  const runs = outlineRuns(item, lines);
+  if (!runs || color[3] <= 0) {
     return;
   }
-  const needed = segmentCount(lines) * SEGMENT_STRIDE;
-  if (needed === 0) {
-    return;
+  const needed = segmentCount(runs) * SEGMENT_STRIDE;
+  const { caps, join } = strokeEnds(item);
+  out.length = writeSegments(out.reserve(needed), out.length, runs, color, width, caps, join);
+}
+
+/** The drawn runs of one item's outline, or null when it has none. */
+function outlineRuns(item: SceneShapeItem, lines: Point[][]): Point[][] | null {
+  if (!item.stroke || (item.strokeWidth ?? 1) <= 0) {
+    return null;
   }
-  out.length = writeSegments(out.reserve(needed), out.length, lines, color, width, CONTOUR_CAPS);
+  const pattern = dashPatternOf(item);
+  const runs = pattern
+    ? lines.flatMap(line => dashPolyline(line, pattern, item.strokeDashOffset ?? 0, strokeEnds(item).bridge))
+    : lines;
+  return segmentCount(runs) === 0 ? null : runs;
+}
+
+/** The same runs as their own instance buffer, for an outline drawn on its own. */
+function outlineInstances(item: SceneShapeItem, lines: Point[][], color: RGBA): Float32Array | null {
+  const runs = outlineRuns(item, lines);
+  if (!runs) {
+    return null;
+  }
+  const { caps, join, square } = strokeEnds(item);
+  return segmentInstances(runs, color, item.strokeWidth ?? 1, caps, join, square);
 }
 
 interface OutlineState {
@@ -357,7 +357,7 @@ function createGeometryData(
 
   // the outline draws as segments, so the triangulation only builds the fill
   const shapeGeom = geom();
-  const geometry = geometryForItem(ctx, strokeIsGradient ? item : { ...item, stroke: undefined }, shapeGeom);
+  const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom);
   const data = geometryVertexData(geometry, fill, stroke);
 
   if (useCache) {

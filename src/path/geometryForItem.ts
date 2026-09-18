@@ -7,6 +7,11 @@ import type { FillStyle, StrokeStyle } from '../types/scene.js';
 // many line widths, which is what bounds the spikes below
 const MITER_LIMIT = 10;
 
+/** extrude-polyline knows miter and bevel, so a round join takes the miter. */
+function extrudeJoin(strokeJoin: string | undefined): 'miter' | 'bevel' {
+  return strokeJoin === 'bevel' ? 'bevel' : 'miter';
+}
+
 type Point = [number, number];
 
 /**
@@ -67,6 +72,8 @@ export default function geometryForItem(
   const { angle, scaleX, scaleY } = transform;
   const lineWidth = item.strokeWidth ?? 1;
   const lineCap = item.strokeCap ?? 'butt';
+  const lineJoin = extrudeJoin(item.strokeJoin);
+  const miterLimit = item.strokeMiterLimit || MITER_LIMIT;
   const opacity = item.opacity ?? 1;
   let fillOpacity = opacity * (item.fillOpacity ?? 1);
   let strokeOpacity = opacity * (item.strokeOpacity ?? 1);
@@ -90,7 +97,7 @@ export default function geometryForItem(
   const key =
     shapeGeom.key === undefined
       ? undefined
-      : `${shapeGeom.key}|${lineWidth}|${lineCap}|${dx}|${dy}|${angle}|${scaleX}|${scaleY}|${fill ? 1 : 0}|${strokeOn ? 1 : 0}`;
+      : `${shapeGeom.key}|${lineWidth}|${lineCap}|${lineJoin}|${miterLimit}|${dx}|${dy}|${angle}|${scaleX}|${scaleY}|${fill ? 1 : 0}|${strokeOn ? 1 : 0}`;
   if (cache && key !== undefined) {
     const entry = context._geometryCache[key];
     if (entry) {
@@ -112,12 +119,12 @@ export default function geometryForItem(
     const strokeExtrude = extrude({
       thickness: lineWidth,
       cap: lineCap,
-      join: 'miter',
+      join: lineJoin,
       // at 1 almost every corner is bevel-cut
-      miterLimit: MITER_LIMIT,
+      miterLimit,
       closed: false,
     });
-    const pad = MITER_LIMIT * lineWidth;
+    const pad = miterLimit * lineWidth;
     const scaled =
       scaleX === 1 && scaleY === 1
         ? shapeGeom.lines

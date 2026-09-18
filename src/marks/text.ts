@@ -7,9 +7,11 @@ import { TextAtlas, type GlyphSlot } from '../util/textAtlas.js';
 import {
   NO_TURN,
   drawGlyph,
+  driftShift,
   glyphMetrics,
   rasterizeText,
   textAnchor,
+  type Drift,
   textCacheKey,
   turnOf,
   upright,
@@ -17,7 +19,8 @@ import {
   type Turn,
 } from '../util/textTexture.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import { getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
+import { blendKey } from '../util/blend.js';
+import { blendPipelines, getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
 
 const drawName = 'Text';
 
@@ -39,6 +42,8 @@ interface TextResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
+  /** The same pipeline with a blend mode baked in, one per mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
   sampler: GPUSampler;
   atlas: TextAtlas;
   /** Whether a rotated label is still worth rasterizing at its angle. */
@@ -53,6 +58,8 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager([], LABEL_LAYOUT);
     const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    // a blend is baked into the pipeline state, so each mode needs its own
+    const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
     const sampler = device.createSampler({
       label: 'Text Sampler',
       magFilter: 'linear',
@@ -67,6 +74,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       bufferManager,
       vertexManager,
       pipeline,
+      pipelineFor,
       sampler,
       atlas,
       exact: true,
@@ -147,10 +155,16 @@ function place(
  * glyphMetrics already chose the anchor offset that lands the turned corner on
  * a whole device pixel.
  */
-function labelRect(vb: Bounds, dpi: number, item: SceneTextItem, m: GlyphMetrics): [number, number, number, number] {
+function labelRect(
+  vb: Bounds,
+  dpi: number,
+  item: SceneTextItem,
+  m: GlyphMetrics,
+  shift: Drift,
+): [number, number, number, number] {
   const [ax, ay] = textAnchor(item);
-  const originPhysX = (ax - vb.x1) * dpi - m.anchorTexX;
-  const originPhysY = (ay - vb.y1) * dpi - m.anchorTexY;
+  const originPhysX = (ax - vb.x1) * dpi - m.anchorTexX + shift[0];
+  const originPhysY = (ay - vb.y1) * dpi - m.anchorTexY + shift[1];
   return [
     vb.x1 + originPhysX / dpi,
     vb.y1 + originPhysY / dpi,
@@ -173,6 +187,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
   const clip = markClip(ctx, scene);
   const dpi = ctx._uniforms.dpi || 1;
+  const drift = ctx._textDrift?.get(scene);
 
   // Atlas coordinates stay in pixels until the batch closes: the first
   // allocation may grow the atlas, and every slot in a batch shares its size.
@@ -198,7 +213,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     deferred ||= placed !== null && placed.turn !== NO_TURN;
     if (placed) {
       const { slot } = placed;
-      const [x1, y1, x2, y2] = labelRect(vb, dpi, item, slot);
+      const [x1, y1, x2, y2] = labelRect(vb, dpi, item, slot, driftShift(ctx, item, vb, placed.turn, drift));
       packed.push(
         x1,
         y1,
@@ -227,7 +242,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     const tex = rasterizeText(device, res.scratch, res.scratchCtx, dpi, raster, metrics);
     ctx._renderer?.deferDestroy(tex.texture);
-    const [x1, y1, x2, y2] = labelRect(vb, dpi, item, metrics);
+    const [x1, y1, x2, y2] = labelRect(vb, dpi, item, metrics, driftShift(ctx, item, vb, spun ? turn : NO_TURN, drift));
     const [cos, sin] = spun ? turn : NO_TURN;
     oversized.push({
       texture: tex.texture,
@@ -253,18 +268,24 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   const uniformBuffer = res.bufferManager.sharedUniformBuffer();
-  const uniformBindGroup = createUniformBindGroup(drawName, device, res.pipeline, uniformBuffer);
+  // a pipeline with a default layout owns its bind group layout, so both groups
+  // have to come from the blend variant this mark draws with
+  const textPipeline = res.pipelineFor(blendKey(items[0]?.blend));
+  const uniformBindGroup = createUniformBindGroup(drawName, device, textPipeline, uniformBuffer);
 
+  // One draw covers every label sharing a texture, and a blend belongs to the
+  // pipeline, so this takes the mark's blend rather than each item's. The line
+  // mark reads it the same way, and vega sets it per mark in practice.
   const enqueue = (texture: GPUTexture, data: Float32Array) => {
     ctx._renderQueue.enqueue({
-      pipeline: res.pipeline,
+      pipeline: textPipeline,
       drawCounts: [6, data.length / LABEL_STRIDE],
       vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
       bindGroups: [
         uniformBindGroup,
         device.createBindGroup({
           label: 'Text Texture Bind Group',
-          layout: res.pipeline.getBindGroupLayout(1),
+          layout: textPipeline.getBindGroupLayout(1),
           entries: [
             { binding: 0, resource: res.sampler },
             { binding: 1, resource: texture.createView() },

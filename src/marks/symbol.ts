@@ -3,6 +3,7 @@ import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneGradient, SceneItem, SceneSymbolExt } from '../types/scene.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { symbol as symbolShapeGeometry } from '../path/shapes.js';
+import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
@@ -12,11 +13,18 @@ import { createGradientBindGroup, getGradientResources } from '../util/gradient.
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
+  outlinePipelines,
+  type OutlinePipelines,
+  dashPatternOf,
+  enqueueOutline,
+  strokeOutline,
   geometryVertexData,
   getMarkResources,
   gradientBounds,
   markClip,
+  blendPipelines,
   markPipeline,
+  strokeEnds,
   whiteCarrier,
   type MarkModule,
 } from './util.js';
@@ -43,7 +51,10 @@ interface SymbolResources {
   circleGeometry: GPUBuffer;
   // Triangulated shapes, instanced per (shape, size).
   shapePipeline: GPURenderPipeline;
+  shapePipelineFor: (blend: string) => GPURenderPipeline;
   shapeCache: Map<string, ShapeGeometry>;
+  /** Pipelines for an outline drawn through the segment shader. */
+  outline: OutlinePipelines;
   sdfVertexManager: VertexBufferManager;
   sdfPipelines: Map<string, GPURenderPipeline>;
   quadGeometry: GPUBuffer;
@@ -68,6 +79,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x4', 'float32'], // instance center, color, angle
     );
     const shapePipeline = markPipeline(ctx, device, `${drawName}Shape`, 'SymbolShape', shapeVertexManager);
+    const shapePipelineFor = blendPipelines(ctx, device, `${drawName}Shape`, 'SymbolShape', shapeVertexManager);
     const circleGeometry = bufferManager.createGeometryBuffer(createCircleGeometry(), undefined, true);
     const sdfVertexManager = new VertexBufferManager(
       ['float32x2'], // unit quad position
@@ -81,20 +93,11 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     );
     const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
     const solidPipeline = markPipeline(ctx, device, `${drawName}Solid`, 'SolidFill', colorVertexManager);
-    const gradientPipeline = markPipeline(ctx, device, `${drawName}Gradient`, 'GradientFill', colorVertexManager);
+    // a dashed outline draws as segments, the way a dashed line and a dashed
+    // group border already do
+    const outline = outlinePipelines(ctx, device, `${drawName}Dash`);
     // a gradient fill under a blend needs its own pipeline too
-    const gradientPipelineFor = (blend: string) =>
-      blend === 'normal'
-        ? gradientPipeline
-        : markPipeline(
-            ctx,
-            device,
-            `${drawName}Gradient ${blend}`,
-            'GradientFill',
-            colorVertexManager,
-            undefined,
-            blend,
-          );
+    const gradientPipelineFor = blendPipelines(ctx, device, `${drawName}Gradient`, 'GradientFill', colorVertexManager);
     return {
       device,
       bufferManager,
@@ -102,7 +105,9 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       circlePipeline,
       circleGeometry,
       shapePipeline,
+      shapePipelineFor,
       shapeCache: new Map(),
+      outline,
       sdfVertexManager,
       sdfPipelines: new Map(),
       quadGeometry,
@@ -125,8 +130,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   let runKind: string | null = null;
   let run: SceneSymbolExt[] = [];
-  let circleBindGroup: GPUBindGroup | null = null;
-  let shapeBindGroup: GPUBindGroup | null = null;
+  let circleBindGroup: { group: GPUBindGroup; pipeline: GPURenderPipeline } | null = null;
 
   const flushRun = () => {
     if (run.length === 0 || runKind === null) {
@@ -146,13 +150,20 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
               undefined,
               runBlend,
             );
-      circleBindGroup ??= createUniformBindGroup(drawName, device, circlePipeline, uniformBuffer);
+      // A bind group belongs to the layout it was made from, so a mark whose
+      // items carry different blends cannot hold one across the change.
+      if (circleBindGroup === null || circleBindGroup.pipeline !== circlePipeline) {
+        circleBindGroup = {
+          group: createUniformBindGroup(drawName, device, circlePipeline, uniformBuffer),
+          pipeline: circlePipeline,
+        };
+      }
       const instanceBuffer = res.bufferManager.createInstanceBuffer(createCircleAttributes(run));
       ctx._renderQueue.enqueue({
         pipeline: circlePipeline,
         drawCounts: [6, run.length],
         vertexBuffers: [res.circleGeometry, instanceBuffer],
-        bindGroups: [circleBindGroup],
+        bindGroups: [circleBindGroup.group],
         clip,
       });
     } else if (kindPart.startsWith('sdf|')) {
@@ -167,30 +178,42 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         clip,
       });
     } else {
-      shapeBindGroup ??= createUniformBindGroup(`${drawName}Shape`, device, res.shapePipeline, uniformBuffer);
-      drawShapeGroup(device, ctx, res, shapeBindGroup, kindPart, run, clip);
+      drawShapeGroup(device, ctx, res, uniformBuffer, kindPart, runBlend, run, clip);
     }
     run = [];
     runKind = null;
   };
 
   for (const item of items) {
+    // A dashed outline cannot come from a shader that draws the whole ring, so
+    // the shape is walked and dashed. The fill still goes through the normal
+    // run, with the stroke taken off it so it is not drawn solid underneath.
+    const dash = dashPatternOf(item);
+    // A ramp cannot come out of the distance function either, so a gradient
+    // stroke takes the same walk a dash does.
+    const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
+    if (dash || strokeGradient) {
+      flushRun();
+      // The fill first, which is the order canvas paints them in. Drawn after
+      // the dash it covers the inner half of every run.
+      const filled = { ...item, stroke: undefined } as SceneSymbolExt;
+      if (isGradient(item.fill)) {
+        drawGradientSymbol(device, ctx, res, filled, clip);
+      } else if (item.fill) {
+        run.push(filled);
+        runKind = runKindOf(filled);
+        flushRun();
+      }
+      drawSymbolOutline(device, ctx, res, item, dash, strokeGradient, clip);
+      continue;
+    }
     // Gradient fills need the gradient pipeline and are drawn one at a time.
     if (isGradient(item.fill)) {
       flushRun();
       drawGradientSymbol(device, ctx, res, item, clip);
       continue;
     }
-    const shape = item.shape || 'circle';
-    // Shapes with a distance function are one instanced quad each, so a run can
-    // hold any mix of sizes, stroke widths and angles.
-    const blend = blendKey(item.blend);
-    const kind =
-      (shape === 'circle'
-        ? 'circle'
-        : hasSdf(shape)
-          ? `sdf|${shape}`
-          : `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`) + `!${blend}`;
+    const kind = runKindOf(item);
     if (kind !== runKind) {
       flushRun();
       runKind = kind;
@@ -200,16 +223,90 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   flushRun();
 }
 
+/**
+ * What an item can share a draw with. Shapes with a distance function are one
+ * instanced quad each, so a run can hold any mix of sizes, stroke widths and
+ * angles. A triangulated shape shares its geometry, so those have to agree.
+ */
+function runKindOf(item: SceneSymbolExt): string {
+  const shape = item.shape || 'circle';
+  const core =
+    shape === 'circle'
+      ? 'circle'
+      : hasSdf(shape)
+        ? `sdf|${shape}`
+        : `${shape}|${item.size ?? 64}|${item.stroke ? (item.strokeWidth ?? 1) : 0}`;
+  return `${core}!${blendKey(item.blend)}`;
+}
+
+/**
+ * A symbol's outline, dashed. Its shape is a path like any other, so the same
+ * contour walk serves. Scale is already baked in by `size`, so only the item's
+ * rotation and position apply. A line legend's swatch is a `symbol` with
+ * `shape: 'stroke'` and a dash, which is where this shows.
+ */
+function drawSymbolOutline(
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  res: SymbolResources,
+  item: SceneSymbolExt,
+  pattern: number[] | null,
+  gradient: SceneGradient | null,
+  clip: ReturnType<typeof markClip>,
+): void {
+  if (!item.stroke) {
+    return;
+  }
+  // A dash is measured along the contour, so it takes the coarse one whatever
+  // the ratio. A solid outline is only drawn on it and takes the fine one.
+  const geom = symbolShapeGeometry(ctx, item.shape || 'circle', item.size ?? 64, pattern ? DASH_FLATNESS : undefined);
+  const data = strokeOutline(
+    geom.lines,
+    pattern,
+    gradient
+      ? whiteCarrier(item.opacity, item.strokeOpacity)
+      : Color.from2(item.stroke, item.opacity, item.strokeOpacity),
+    item.strokeWidth ?? 1,
+    item.strokeDashOffset ?? 0,
+    item.x || 0,
+    item.y || 0,
+    { angle: (item.angle || 0) * DEG_TO_RAD, scaleX: 1, scaleY: 1 },
+    strokeEnds(item),
+  );
+  if (!data) {
+    return;
+  }
+  enqueueOutline(
+    {
+      ...res.outline,
+      ctx,
+      device,
+      bufferManager: res.bufferManager,
+      uniformBuffer: res.bufferManager.createUniformBuffer(),
+      clip,
+    },
+    data,
+    blendKey(item.blend),
+    gradient,
+    item.bounds,
+  );
+}
+
 function drawShapeGroup(
   device: GPUDevice,
   ctx: GPUVegaCanvasContext,
   res: SymbolResources,
-  bindGroup: GPUBindGroup,
+  uniformBuffer: GPUBuffer,
   key: string,
+  blend: string,
   group: SceneSymbolExt[],
   clip: ReturnType<typeof markClip>,
 ): void {
   const first = group[0];
+  // A shape with no distance function is triangulated, and this used to draw it
+  // through the one pipeline whatever the item asked for, so it never blended.
+  const pipeline = res.shapePipelineFor(blend);
+  const bindGroup = createUniformBindGroup(`${drawName}Shape`, device, pipeline, uniformBuffer);
   const geom = getShapeGeometry(res, ctx, key, first.shape || 'circle', first.size ?? 64, first.strokeWidth ?? 1);
 
   if (geom.fill && geom.fillCount > 0) {
@@ -220,7 +317,7 @@ function drawShapeGroup(
     );
     if (instances.count > 0) {
       ctx._renderQueue.enqueue({
-        pipeline: res.shapePipeline,
+        pipeline,
         drawCounts: [geom.fillCount, instances.count],
         vertexBuffers: [geom.fill, res.bufferManager.createInstanceBuffer(instances.data)],
         bindGroups: [bindGroup],
@@ -237,7 +334,7 @@ function drawShapeGroup(
     );
     if (instances.count > 0) {
       ctx._renderQueue.enqueue({
-        pipeline: res.shapePipeline,
+        pipeline,
         drawCounts: [geom.strokeCount, instances.count],
         vertexBuffers: [geom.stroke, res.bufferManager.createInstanceBuffer(instances.data)],
         bindGroups: [bindGroup],
@@ -331,15 +428,27 @@ function getShapeGeometry(
   const pathGeom = symbolShapeGeometry(ctx, shape, size);
   // Origin-centered fill + stroke triangles (dx/dy default to 0).
   const geometry = geometryForItem(ctx, { fill: '#000', stroke: '#000', strokeWidth, opacity: 1 }, pathGeom);
+  // Held across frames, so these stay out of the frame pool: a pooled buffer is
+  // destroyed when the frame that made it ends, and the cache then handed out a
+  // destroyed one. `[Buffer "Symbol Geometry Buffer"] used in submit while
+  // destroyed` on the next frame that reached this shape.
+  // Held across frames, so these stay out of the frame pool. A pooled buffer is
+  // destroyed two frames after the one that made it, and the cache went on
+  // handing out the destroyed one: `[Buffer "Symbol Geometry Buffer"] used in
+  // submit while destroyed` on every frame after the third.
   const entry: ShapeGeometry = {
     fill:
       geometry.fillCount > 0
-        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.fillTriangles, geometry.fillCount))
+        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.fillTriangles, geometry.fillCount), undefined, true)
         : null,
     fillCount: geometry.fillCount,
     stroke:
       geometry.strokeCount > 0
-        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.strokeTriangles, geometry.strokeCount))
+        ? res.bufferManager.createGeometryBuffer(
+            stripZ(geometry.strokeTriangles, geometry.strokeCount),
+            undefined,
+            true,
+          )
         : null,
     strokeCount: geometry.strokeCount,
   };

@@ -126,9 +126,8 @@ export default [
       ...vegaExternals,
       'd3-color',
       'extrude-polyline',
-      'parse-svg-path',
+      'adaptive-bezier-curve',
       'simplify-path',
-      'svg-path-contours',
       'triangulate-contours',
     ],
     output: {

@@ -64,7 +64,9 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     let half_sw = in.stroke_width * 0.5;
     let outer = clamp(0.5 - (d - in.radius - half_sw) * scale, 0.0, 1.0);
     let inner = clamp(0.5 - (d - in.radius + half_sw) * scale, 0.0, 1.0);
-    return fillStrokeShare(in.fill, in.stroke_color, inner, outer);
+    // the fill reaches the nominal radius, which is where canvas fills to
+    let fillCov = clamp(0.5 - (d - in.radius) * scale, 0.0, 1.0);
+    return fillStrokeShare(in.fill, in.stroke_color, fillCov, max(outer - inner, 0.0));
 }
 
 ${fragmentTail(blend)}

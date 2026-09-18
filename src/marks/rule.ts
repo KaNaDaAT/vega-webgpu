@@ -1,13 +1,27 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneItem, SceneRule } from '../types/scene.js';
+import type { SceneGradient, SceneItem, SceneRule } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
-import { Color } from '../util/color.js';
+import { Color, isGradient } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import { SEGMENT_LAYOUT, getMarkResources, markClip, markPipeline, segmentInstance, type MarkModule } from './util.js';
+import { dashPolyline, type Point } from '../util/dash.js';
+import type { RGBA } from '../util/color.js';
+import {
+  outlinePipelines,
+  type OutlinePipelines,
+  enqueueOutline,
+  getMarkResources,
+  markClip,
+  markPipeline,
+  segmentInstance,
+  segmentInstances,
+  strokeEnds,
+  whiteCarrier,
+  type MarkModule,
+} from './util.js';
 
 const drawName = 'Rule';
 
@@ -16,7 +30,8 @@ interface RuleResources {
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
   pipeline: GPURenderPipeline;
-  diagonalPipeline: GPURenderPipeline;
+  /** Pipelines for an outline drawn through the segment shader. */
+  outline: OutlinePipelines;
   geometryBuffer: GPUBuffer;
 }
 
@@ -32,11 +47,84 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     // A rule with both x2 and y2 set is a diagonal segment, which an
     // axis-aligned quad cannot express. Those go through the single-segment
     // line shader instead.
-    const diagonalVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const diagonalPipeline = markPipeline(ctx, device, `${drawName}Diagonal`, 'SLine', diagonalVertexManager);
+    const outline = outlinePipelines(ctx, device, `${drawName}Diagonal`);
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
-    return { device, bufferManager, vertexManager, pipeline, diagonalPipeline, geometryBuffer };
+    return {
+      device,
+      bufferManager,
+      vertexManager,
+      pipeline,
+      outline,
+      geometryBuffer,
+    };
   });
+}
+
+/** The dash pattern of a rule, or null when it draws solid. */
+function dashPattern(item: SceneRule): number[] | null {
+  const dash = (item as SceneRule & { strokeDash?: number[] }).strokeDash;
+  return Array.isArray(dash) && dash.some(d => d > 0) ? dash : null;
+}
+
+/**
+ * A dashed rule as its drawn runs. The rule is two points, so the same walk the
+ * line mark uses covers it, and the runs go through the segment shader the
+ * diagonal case already uses. An axis-aligned rule takes this path too when it
+ * is dashed, since the rect it would otherwise draw has no way to express one.
+ */
+function dashedAttributes(item: SceneRule, pattern: number[], color: RGBA): Float32Array | null {
+  // The raw ends: writeSegments lengthens a square capped run itself, and the
+  // dash cuts it into runs whose inner ends are not caps at all.
+  const x = item.x || 0;
+  const y = item.y || 0;
+  const ex = item.x2 == null ? x : item.x2 || 0;
+  const ey = item.y2 == null ? y : item.y2 || 0;
+  const line: Point[] = [
+    [x, y],
+    [ex, ey],
+  ];
+  const ends = strokeEnds(item);
+  const runs = dashPolyline(
+    line,
+    pattern,
+    (item as SceneRule & { strokeDashOffset?: number }).strokeDashOffset ?? 0,
+    ends.bridge,
+  );
+  return segmentInstances(runs, color, item.strokeWidth ?? 1, ends.caps, undefined, ends.square);
+}
+
+/**
+ * The rule's two ends, with a square cap folded in. The segment shader draws a
+ * butt or a round end, and a square one is a butt end on a segment half a
+ * stroke longer at each end, which is the same shape.
+ */
+function capped(item: SceneRule): [Point, Point] {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  const ex = item.x2 == null ? x : item.x2 || 0;
+  const ey = item.y2 == null ? y : item.y2 || 0;
+  if (item.strokeCap !== 'square') {
+    return [
+      [x, y],
+      [ex, ey],
+    ];
+  }
+  const dx = ex - x;
+  const dy = ey - y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) {
+    return [
+      [x, y],
+      [ex, ey],
+    ];
+  }
+  const half = (item.strokeWidth ?? 1) / 2;
+  const ux = (dx / len) * half;
+  const uy = (dy / len) * half;
+  return [
+    [x - ux, y - uy],
+    [ex + ux, ey + uy],
+  ];
 }
 
 /** True when the rule runs at an angle, so it cannot be drawn as a rect. */
@@ -84,19 +172,31 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       flushRun();
     }
     runBlend = blend;
-    if (!isDiagonal(item)) {
+    const pattern = dashPattern(item);
+    // The rect shader draws a rule with a butt end and a solid colour, so a cap
+    // or a ramp takes the segment path the diagonal and dashed ones take.
+    const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
+    const shaped = item.strokeCap === 'round' || item.strokeCap === 'square';
+    if (!pattern && !isDiagonal(item) && !strokeGradient && !shaped) {
       run.push(item);
       continue;
     }
     flushRun();
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(createDiagonalAttributes(item));
-    ctx._renderQueue.enqueue({
-      pipeline: res.diagonalPipeline,
-      drawCounts: [6, 1],
-      vertexBuffers: [instanceBuffer],
-      bindGroups: [createUniformBindGroup(`${drawName}Diagonal`, device, res.diagonalPipeline, uniformBuffer)],
-      clip,
-    });
+    const color = strokeGradient
+      ? whiteCarrier(item.opacity, item.strokeOpacity)
+      : Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+    const dashed = pattern ? dashedAttributes(item, pattern, color) : null;
+    if (pattern && !dashed) {
+      continue; // the pattern left nothing drawn
+    }
+    const data = dashed ?? createDiagonalAttributes(item, color);
+    enqueueOutline(
+      { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip },
+      data,
+      blend,
+      strokeGradient,
+      item.bounds,
+    );
   }
   flushRun();
 }
@@ -121,12 +221,9 @@ function createAttributes(items: SceneItem[]): Float32Array {
   );
 }
 
-function createDiagonalAttributes(item: SceneRule): Float32Array {
-  const { x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
-  const x = item.x || 0;
-  const y = item.y || 0;
-  const col = Color.from2(stroke, opacity, strokeOpacity);
-  return segmentInstance(x, y, x2 == null ? x : x2 || 0, y2 == null ? y : y2 || 0, col, strokeWidth);
+function createDiagonalAttributes(item: SceneRule, color: RGBA): Float32Array {
+  const [[x, y], [ex, ey]] = capped(item);
+  return segmentInstance(x, y, ex, ey, color, item.strokeWidth ?? 1, strokeEnds(item).caps);
 }
 
 export default {

@@ -1,8 +1,10 @@
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { ShaderBuilder } from './common.js';
+import { blendCompositeShader } from './blendComposite.js';
 import { curveShader } from './curve.js';
 import { gradientFillShader } from './gradientFill.js';
 import { imageShader } from './image.js';
+import { maskCompositeShader } from './maskComposite.js';
 import { rectShader } from './rect.js';
 import { ruleShader } from './rule.js';
 import { slineShader } from './sline.js';
@@ -14,9 +16,11 @@ import { textShader } from './text.js';
 
 /** Every shader source, by the name marks ask for. */
 const BUILDERS = {
+  BlendComposite: blendCompositeShader,
   Curve: curveShader,
   GradientFill: gradientFillShader,
   Image: imageShader,
+  MaskComposite: maskCompositeShader,
   Rect: rectShader,
   Rule: ruleShader,
   SLine: slineShader,

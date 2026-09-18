@@ -56,6 +56,16 @@ export function textAnchor(item: SceneTextItem): [number, number] {
  * only move the anchor in scene space and cancel out of the anchor-relative
  * offset. `angle` is, and is zero for a glyph the quad will turn instead.
  */
+/**
+ * A paint as a key. A gradient is an object and every object stringifies the
+ * same way, so joining one straight into the key made every gradient on text
+ * collide: two labels with different gradients shared a raster, and the second
+ * took the first one's colours.
+ */
+function paintKey(paint: unknown): string {
+  return paint !== null && typeof paint === 'object' ? JSON.stringify(paint) : String(paint);
+}
+
 export function textCacheKey(item: SceneTextItem): string {
   const text = Array.isArray(item.text) ? item.text.join('') : String(item.text ?? '');
   return [
@@ -70,9 +80,9 @@ export function textCacheKey(item: SceneTextItem): string {
     item.angle,
     item.dx,
     item.dy,
-    item.fill,
+    paintKey(item.fill),
     item.fillOpacity,
-    item.stroke,
+    paintKey(item.stroke),
     item.strokeOpacity,
     item.strokeWidth,
     item.lineBreak,
@@ -110,6 +120,60 @@ export function glyphMetrics(
     return null;
   }
   return { physWidth, physHeight, anchorTexX, anchorTexY };
+}
+
+/**
+ * How far canvas's own matrix has drifted where this label draws, in device
+ * pixels. Zero unless `canvasTextDrift` is on: see util/canvasDrift.ts.
+ */
+export type Drift = readonly [dx: number, dy: number];
+
+export const NO_DRIFT: Drift = [0, 0];
+
+/** How near a half pixel a baseline has to be for canvas to disagree with us. */
+const TIE_WINDOW = 1e-3;
+
+/**
+ * Whole device pixels the canvas renderer would put this label away from where
+ * its own coordinates say, which is 0 unless its baseline sits on a half pixel.
+ *
+ * Two things move it, and both are canvas arithmetic rather than geometry. Its
+ * matrix has drifted (see util/canvasDrift.ts), and it is a float32 matrix, so
+ * a baseline our double puts at 157.49999999999994 is exactly 157.5 to it and
+ * rounds the other way. Both are reproduced by computing the baseline the way
+ * canvas does and comparing which whole pixel each lands on.
+ *
+ * The shift is kept apart from the sub-pixel phase on purpose. It is the only
+ * thing that can move a label, and folding the difference into the phase
+ * instead re-rasterizes labels it cannot move: a re-rasterization at a
+ * hair-different phase can still flip a hinted stem, and every axis label in
+ * `scatter-brush-panzoom` went to worst channel 255 that way. Rotated labels
+ * are left exact, since the snap this crosses is the upright one.
+ */
+export function driftShift(
+  ctx: GPUVegaCanvasContext,
+  item: SceneTextItem,
+  vb: Bounds,
+  turn: Turn,
+  translation: number | undefined,
+): Drift {
+  if (turn !== NO_TURN || translation === undefined) {
+    return NO_DRIFT;
+  }
+  const dpi = ctx._uniforms.dpi || 1;
+  const local = textAnchor(item)[1];
+  const ours = (local - vb.y1) * dpi;
+  // Only a baseline on the half pixel has anything to decide, and holding the
+  // rest to exactly what they were is what keeps this from touching labels it
+  // cannot move. The window covers the drift and the float32 step both.
+  if (Math.abs(ours - Math.floor(ours) - 0.5) > TIE_WINDOW) {
+    return NO_DRIFT;
+  }
+  // The matrix is float32 and the point is not, so only the translation is
+  // rounded: taking the baseline to float32 as well reads 146.49999999999994 as
+  // exactly 146.5 and moves labels canvas leaves alone.
+  const theirs = translation + local * dpi;
+  return [0, Math.round(theirs) - Math.round(ours)];
 }
 
 /** Cosine and sine of a label's angle. */

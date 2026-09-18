@@ -25,6 +25,8 @@ export interface StrokeStyle {
   strokeWidth?: number;
   strokeOpacity?: number;
   strokeCap?: CanvasLineCap;
+  strokeJoin?: CanvasLineJoin;
+  strokeMiterLimit?: number;
   strokeDash?: number[];
   strokeDashOffset?: number;
 }

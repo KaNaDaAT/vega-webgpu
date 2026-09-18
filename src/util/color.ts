@@ -25,7 +25,14 @@ function parse(value: string): RGBA {
     return TRANSPARENT;
   }
   const rgb = c.rgb();
-  return [rgb.r / 255, rgb.g / 255, rgb.b / 255, rgb.opacity];
+  // d3 gives a fully transparent colour NaN channels, whatever was written, and
+  // those reach a clear value and a vertex buffer exactly as they are: a spec
+  // with a transparent background failed the frame outright.
+  return [channel(rgb.r), channel(rgb.g), channel(rgb.b), Number.isFinite(rgb.opacity) ? rgb.opacity : 0];
+}
+
+function channel(value: number): number {
+  return Number.isFinite(value) ? value / 255 : 0;
 }
 
 export class Color {

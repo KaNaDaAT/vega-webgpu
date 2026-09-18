@@ -1,9 +1,9 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneLinePoint } from '../types/scene.js';
+import type { SceneGradient, SceneLinePoint } from '../types/scene.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
-import { Color } from '../util/color.js';
+import { Color, isGradient } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { dashPolyline, type Point } from '../util/dash.js';
@@ -11,13 +11,19 @@ import { CURVE_SUBDIVISIONS } from '../shaders/curve.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry, lineSpans } from '../path/shapes.js';
 import {
-  SEGMENT_LAYOUT,
+  outlinePipelines,
+  type OutlinePipelines,
   SEGMENT_STRIDE,
+  enqueueOutline,
   geometryVertexData,
   getMarkResources,
   markClip,
+  blendPipelines,
   markPipeline,
   segmentInstances,
+  strokeEnds,
+  whiteCarrier,
+  writeSegments,
   type MarkModule,
 } from './util.js';
 
@@ -26,14 +32,16 @@ const drawName = 'Line';
 interface LineResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  segmentVertexManager: VertexBufferManager;
-  segmentPipeline: GPURenderPipeline;
-  segmentBindGroup: { group: GPUBindGroup; buffer: GPUBuffer } | null;
+  /** Pipelines for a segment stroke, which is what a plain line is drawn as. */
+  outline: OutlinePipelines;
+  segmentBindGroup: { group: GPUBindGroup; buffer: GPUBuffer; pipeline: GPURenderPipeline } | null;
   curveVertexManager: VertexBufferManager;
   curvePipeline: GPURenderPipeline;
   /** basis and bezier share this layout and differ only in the shader. */
   spanVertexManager: VertexBufferManager;
-  spanBindGroups: Map<CurveKind, { group: GPUBindGroup; buffer: GPUBuffer }>;
+  spanBindGroups: Map<string, { group: GPUBindGroup; buffer: GPUBuffer; pipeline: GPURenderPipeline }>;
+  /** SolidFill for a tessellated curve, one per blend. */
+  curvePipelineFor: (blend: string) => GPURenderPipeline;
 }
 
 /**
@@ -50,8 +58,7 @@ type CurveKind = keyof typeof CURVES;
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
   return getMarkResources(ctx, 'line', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-    const segmentVertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const segmentPipeline = markPipeline(ctx, device, drawName, 'SLine', segmentVertexManager);
+    const outline = outlinePipelines(ctx, device, drawName);
     const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
     const spanVertexManager = new VertexBufferManager(
       [],
@@ -59,22 +66,19 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2', 'float32x2', 'float32x2', 'float32x2', 'float32x4', 'float32', 'float32'],
     );
     const curvePipeline = markPipeline(ctx, device, `${drawName}Curve`, 'SolidFill', curveVertexManager);
+    const curvePipelineFor = blendPipelines(ctx, device, `${drawName}Curve`, 'SolidFill', curveVertexManager);
     return {
       curveVertexManager,
       curvePipeline,
+      curvePipelineFor,
       spanVertexManager,
       spanBindGroups: new Map(),
       device,
       bufferManager,
-      segmentVertexManager,
-      segmentPipeline,
+      outline,
       segmentBindGroup: null,
     };
   });
-}
-
-function hasRoundCap(points: SceneLinePoint[]): boolean {
-  return points[0]?.strokeCap === 'round';
 }
 
 function dashPattern(points: SceneLinePoint[]): number[] | undefined {
@@ -94,22 +98,27 @@ function queueSegments(
   clip: ReturnType<typeof markClip>,
   blend = 'normal',
 ): void {
-  const pipeline =
-    blend === 'normal'
-      ? res.segmentPipeline
-      : markPipeline(ctx, device, `${drawName} ${blend}`, 'SLine', res.segmentVertexManager, undefined, blend);
+  const pipeline = res.outline.pipelineFor(blend);
   const buffer = res.bufferManager.sharedUniformBuffer();
-  if (res.segmentBindGroup === null || res.segmentBindGroup.buffer !== buffer) {
-    res.segmentBindGroup = { group: createUniformBindGroup(drawName, device, pipeline, buffer), buffer };
-  }
+  // Keyed by the pipeline as well as the buffer. A bind group belongs to the
+  // layout it was made from, so holding one across a change of blend set a
+  // group from the normal pipeline on the blended one, which invalidates the
+  // whole command buffer: a scene mixing a blended line with an unblended one
+  // came out empty, every mark of it.
+  const held = res.segmentBindGroup;
+  const entry =
+    held !== null && held.buffer === buffer && held.pipeline === pipeline
+      ? held
+      : { group: createUniformBindGroup(drawName, device, pipeline, buffer), buffer, pipeline };
+  res.segmentBindGroup = entry;
   ctx._renderQueue.setupBatch({
     device,
-    vertexManager: res.segmentVertexManager,
+    vertexManager: res.outline.vertexManager,
     pipeline,
     clip,
-    bindGroups: [res.segmentBindGroup.group],
+    bindGroups: [entry.group],
   });
-  ctx._renderQueue.queueBatchInstance(Array.from(rows));
+  ctx._renderQueue.queueBatchInstance(rows);
 }
 
 /** True when the points can be drawn as they are, with no curve and no gaps. */
@@ -158,12 +167,14 @@ function lineRoute(points: SceneLinePoint[]): LineRoute {
  * segments. Curved lines are flattened through the path tessellation first, so
  * the same code covers both.
  */
-function drawDashed(
+function drawOutline(
   device: GPUDevice,
   ctx: GPUVegaCanvasContext,
   res: LineResources,
   points: SceneLinePoint[],
-  pattern: number[],
+  pattern: number[] | null,
+  gradient: SceneGradient | null,
+  bounds: Bounds | undefined,
   clip: ReturnType<typeof markClip>,
 ): void {
   const first = points[0];
@@ -173,15 +184,35 @@ function drawDashed(
     ? [points.map(p => [p.x || 0, p.y || 0] as Point)]
     : lineGeometry(ctx, points).lines.map(line => line.map(p => [p[0], p[1]] as Point));
 
-  const runs = polylines.flatMap(line => dashPolyline(line, pattern, offset));
+  const { caps, join, bridge, square } = strokeEnds(first);
+  const runs = pattern ? polylines.flatMap(line => dashPolyline(line, pattern, offset, bridge)) : polylines;
 
-  const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
-  const data = segmentInstances(runs, col, first.strokeWidth ?? 1);
+  const col = gradient
+    ? whiteCarrier(first.opacity, first.strokeOpacity)
+    : Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const data = segmentInstances(runs, col, first.strokeWidth ?? 1, caps, join, square);
   if (!data) {
     return;
   }
 
-  queueSegments(device, ctx, res, data, clip, blendKey(first.blend));
+  if (!gradient) {
+    queueSegments(device, ctx, res, data, clip, blendKey(first.blend));
+    return;
+  }
+  enqueueOutline(
+    {
+      ...res.outline,
+      ctx,
+      device,
+      bufferManager: res.bufferManager,
+      uniformBuffer: res.bufferManager.sharedUniformBuffer(),
+      clip,
+    },
+    data,
+    blendKey(first.blend),
+    gradient,
+    bounds,
+  );
 }
 
 /**
@@ -310,14 +341,25 @@ function drawCurve(
   if (rows.length === 0) {
     return;
   }
-  const pipeline = markPipeline(ctx, device, `${drawName} ${kind}`, CURVES[kind].shader, res.spanVertexManager);
+  const blend = blendKey(first.blend);
+  const pipeline = markPipeline(
+    ctx,
+    device,
+    `${drawName} ${kind} ${blend}`,
+    CURVES[kind].shader,
+    res.spanVertexManager,
+    undefined,
+    blend,
+  );
   // The batch only merges draws whose bind groups are the same object, so this
-  // is held rather than rebuilt per curve.
+  // is held rather than rebuilt per curve. Keyed by the pipeline as well, since
+  // a bind group belongs to the layout it was made from.
   const buffer = res.bufferManager.sharedUniformBuffer();
-  let held = res.spanBindGroups.get(kind);
-  if (!held || held.buffer !== buffer) {
-    held = { group: createUniformBindGroup(`${drawName} ${kind}`, device, pipeline, buffer), buffer };
-    res.spanBindGroups.set(kind, held);
+  const cacheKey = `${kind}|${blend}`;
+  let held = res.spanBindGroups.get(cacheKey);
+  if (!held || held.buffer !== buffer || held.pipeline !== pipeline) {
+    held = { group: createUniformBindGroup(`${drawName} ${kind}`, device, pipeline, buffer), buffer, pipeline };
+    res.spanBindGroups.set(cacheKey, held);
   }
   ctx._renderQueue.setupBatch({
     device,
@@ -346,13 +388,12 @@ function drawPath(
   if (strokeData.length === 0) {
     return;
   }
+  const pipeline = res.curvePipelineFor(blendKey(first.blend));
   ctx._renderQueue.enqueue({
-    pipeline: res.curvePipeline,
+    pipeline,
     drawCounts: [strokeData.length / res.curveVertexManager.getVertexLength()],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
-    bindGroups: [
-      createUniformBindGroup(`${drawName}Curve`, device, res.curvePipeline, res.bufferManager.sharedUniformBuffer()),
-    ],
+    bindGroups: [createUniformBindGroup(`${drawName}Curve`, device, pipeline, res.bufferManager.sharedUniformBuffer())],
     clip,
   });
 }
@@ -369,8 +410,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const clip = markClip(ctx, scene);
 
   const pattern = dashPattern(points);
-  if (pattern) {
-    drawDashed(device, ctx, res, points, pattern, clip);
+  // A ramp cannot come out of the curve or the extruded path either, so a
+  // gradient stroke walks the contour the way a dash does.
+  const bounds = scene.bounds ?? points[0]?.bounds;
+  const strokeGradient = isGradient(points[0]?.stroke) && bounds ? (points[0].stroke as SceneGradient) : null;
+  if (pattern || strokeGradient) {
+    drawOutline(device, ctx, res, points, pattern ?? null, strokeGradient, bounds, clip);
     return;
   }
 
@@ -391,10 +436,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 }
 
 /**
- * Segments of one polyline. Only the earlier segment of an interior vertex
- * rounds its end: that half disc is the round join, and rounding the later
- * segment's start too would blend the same disc twice. A round stroke cap
- * rounds the two outer ends as well.
+ * Segments of one polyline, with a join at every vertex between the two ends.
+ * Both segments at a vertex are cut against the same bisector, so the corner is
+ * mitered and neither draws over the other.
  */
 function createAttributes(points: SceneLinePoint[]): Float32Array {
   const result = new Float32Array((points.length - 1) * SEGMENT_STRIDE);
@@ -403,23 +447,12 @@ function createAttributes(points: SceneLinePoint[]): Float32Array {
   // largest single cost on a spec with many short lines.
   const first = points[0];
   const col = Color.from2(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
-  const strokeWidth = first.strokeWidth ?? 1;
-  const round = hasRoundCap(points) ? 1 : 0;
-  const last = points.length - 2;
-  for (let i = 0; i <= last; i++) {
-    const index = i * SEGMENT_STRIDE;
-    result[index] = points[i].x || 0;
-    result[index + 1] = points[i].y || 0;
-    result[index + 2] = points[i + 1].x || 0;
-    result[index + 3] = points[i + 1].y || 0;
-    result[index + 4] = col[0];
-    result[index + 5] = col[1];
-    result[index + 6] = col[2];
-    result[index + 7] = col[3];
-    result[index + 8] = strokeWidth;
-    result[index + 9] = i === 0 ? round : 0;
-    result[index + 10] = i < last ? 1 : round;
+  const run: Point[] = new Array(points.length);
+  for (let i = 0; i < points.length; i++) {
+    run[i] = [points[i].x || 0, points[i].y || 0];
   }
+  const { caps, join } = strokeEnds(first);
+  writeSegments(result, 0, [run], col, first.strokeWidth ?? 1, caps, join);
   return result;
 }
 
