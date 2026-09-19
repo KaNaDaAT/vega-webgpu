@@ -2,6 +2,7 @@ import { color as parseColor } from 'd3-color';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneGradient } from '../types/scene.js';
 import { getMarkResources } from '../marks/util.js';
+import { bufferPool } from './bufferManager.js';
 
 /** Texels in a baked gradient stop ramp. */
 const RAMP_SIZE = 256;
@@ -57,7 +58,7 @@ export function getStopRamp(res: GradientResources, gradient: SceneGradient): GP
 
   const data = new Uint8Array(RAMP_SIZE * 4);
   for (let i = 0; i < RAMP_SIZE; i++) {
-    const t = i / (RAMP_SIZE - 1);
+    const t = (i + 0.5) / RAMP_SIZE;
     let lo = stops[0];
     let hi = stops[stops.length - 1];
     for (let s = 0; s < stops.length - 1; s++) {
@@ -114,11 +115,14 @@ export function createGradientBindGroup(
   gradient: SceneGradient,
   bounds: [x: number, y: number, w: number, h: number],
 ): GPUBindGroup {
-  const paramsBuffer = res.device.createBuffer({
-    label: 'Gradient Params',
-    size: 48,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
+  // one per gradient draw, so it goes in the frame pool like every other
+  const paramsBuffer = bufferPool(res.device).hold(
+    res.device.createBuffer({
+      label: 'Gradient Params',
+      size: 48,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    }),
+  );
   res.device.queue.writeBuffer(paramsBuffer, 0, gradientParams(gradient, bounds));
 
   return res.device.createBindGroup({

@@ -22,3 +22,5 @@ renderModule('webgpu', {
 });
 
 export { WebGPURenderer };
+/** Every value this renderer accepts for a mark's `blend`. */
+export { BLEND_MODES } from './src/shaders/blendComposite.js';

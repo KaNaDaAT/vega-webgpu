@@ -6,7 +6,7 @@ import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey } from '../util/blend.js';
-import { blendPipelines, getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
+import { blendPipelines, getMarkResources, markClip, type MarkModule } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Image';
@@ -20,9 +20,7 @@ interface TextureEntry {
 interface ImageResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  vertexManager: VertexBufferManager;
-  pipeline: GPURenderPipeline;
-  /** The same pipeline with a blend mode baked in, one per mode. */
+  /** The quad, one pipeline per blend mode. */
   pipelineFor: (blend: string) => GPURenderPipeline;
   geometryBuffer: GPUBuffer;
   smoothSampler: GPUSampler;
@@ -38,7 +36,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       ['float32x2'], // position
       ['float32x2', 'float32x2', 'float32'], // origin, size, opacity
     );
-    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
     // a blend is baked into the pipeline state, so each mode needs its own
     const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
     const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
@@ -63,8 +60,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     return {
       device,
       bufferManager,
-      vertexManager,
-      pipeline,
       pipelineFor,
       geometryBuffer,
       smoothSampler,

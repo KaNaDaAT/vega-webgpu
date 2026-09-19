@@ -16,8 +16,7 @@ struct VertexInput {
 
 struct VertexOutput {
   @builtin(position) pos: vec4<f32>,
-  @location(0) uv: vec2<f32>,
-  @location(1) fill: vec4<f32>,
+  @location(0) fill: vec4<f32>,
 }
 
 @vertex
@@ -25,7 +24,6 @@ fn main_vertex(model: VertexInput) -> VertexOutput {
     let ndc = toNdc(model.position.xy - uniforms.offset, uniforms.resolution);
     var output: VertexOutput;
     output.pos = vec4<f32>(ndc, model.position.z + 0.5, 1.0);
-    output.uv = ndc;
     output.fill = model.fill_color;
     return output;
 }

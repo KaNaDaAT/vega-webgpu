@@ -6,6 +6,12 @@
 declare module 'vega-scenegraph' {
   import type { CurveFactory, SymbolType } from 'd3-shape';
 
+  /** Visits scene items in paint order, honoring per-item zindex. */
+  export function sceneVisit<T extends { zindex?: number; index?: number }>(
+    scene: { items?: T[]; zdirty?: boolean; zitems?: T[] },
+    visitor: (item: T) => void,
+  ): void;
+
   export class Bounds {
     x1: number;
     y1: number;

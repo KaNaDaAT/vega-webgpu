@@ -10,13 +10,14 @@ import { createUniformBindGroup } from '../util/webgpu.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import type { RGBA } from '../util/color.js';
 import {
+  dashPatternOf,
   outlinePipelines,
   type OutlinePipelines,
   enqueueOutline,
+  outlineTargetOf,
   getMarkResources,
   markClip,
-  markPipeline,
-  segmentInstance,
+  blendPipelines,
   segmentInstances,
   strokeEnds,
   whiteCarrier,
@@ -28,8 +29,8 @@ const drawName = 'Rule';
 interface RuleResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  vertexManager: VertexBufferManager;
-  pipeline: GPURenderPipeline;
+  /** The quad, one pipeline per blend mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
   /** Pipelines for an outline drawn through the segment shader. */
   outline: OutlinePipelines;
   geometryBuffer: GPUBuffer;
@@ -43,7 +44,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, scale, color, half-thickness offset
       ['float32x2', 'float32x2', 'float32x4', 'float32x2'],
     );
-    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
+    const pipelineFor = blendPipelines(ctx, device, drawName, drawName, vertexManager);
     // A rule with both x2 and y2 set is a diagonal segment, which an
     // axis-aligned quad cannot express. Those go through the single-segment
     // line shader instead.
@@ -52,18 +53,11 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     return {
       device,
       bufferManager,
-      vertexManager,
-      pipeline,
+      pipelineFor,
       outline,
       geometryBuffer,
     };
   });
-}
-
-/** The dash pattern of a rule, or null when it draws solid. */
-function dashPattern(item: SceneRule): number[] | null {
-  const dash = (item as SceneRule & { strokeDash?: number[] }).strokeDash;
-  return Array.isArray(dash) && dash.some(d => d > 0) ? dash : null;
 }
 
 /**
@@ -93,40 +87,6 @@ function dashedAttributes(item: SceneRule, pattern: number[], color: RGBA): Floa
   return segmentInstances(runs, color, item.strokeWidth ?? 1, ends.caps, undefined, ends.square);
 }
 
-/**
- * The rule's two ends, with a square cap folded in. The segment shader draws a
- * butt or a round end, and a square one is a butt end on a segment half a
- * stroke longer at each end, which is the same shape.
- */
-function capped(item: SceneRule): [Point, Point] {
-  const x = item.x || 0;
-  const y = item.y || 0;
-  const ex = item.x2 == null ? x : item.x2 || 0;
-  const ey = item.y2 == null ? y : item.y2 || 0;
-  if (item.strokeCap !== 'square') {
-    return [
-      [x, y],
-      [ex, ey],
-    ];
-  }
-  const dx = ex - x;
-  const dy = ey - y;
-  const len = Math.hypot(dx, dy);
-  if (len === 0) {
-    return [
-      [x, y],
-      [ex, ey],
-    ];
-  }
-  const half = (item.strokeWidth ?? 1) / 2;
-  const ux = (dx / len) * half;
-  const uy = (dy / len) * half;
-  return [
-    [x - ux, y - uy],
-    [ex + ux, ey + uy],
-  ];
-}
-
 /** True when the rule runs at an angle, so it cannot be drawn as a rect. */
 function isDiagonal(item: SceneRule): boolean {
   const x = item.x || 0;
@@ -151,10 +111,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (run.length === 0) {
       return;
     }
-    const pipeline =
-      runBlend === 'normal'
-        ? res.pipeline
-        : markPipeline(ctx, device, `${drawName} ${runBlend}`, drawName, res.vertexManager, undefined, runBlend);
+    const pipeline = res.pipelineFor(runBlend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(run));
     ctx._renderQueue.enqueue({
       pipeline,
@@ -172,7 +129,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       flushRun();
     }
     runBlend = blend;
-    const pattern = dashPattern(item);
+    const pattern = dashPatternOf(item);
     // The rect shader draws a rule with a butt end and a solid colour, so a cap
     // or a ramp takes the segment path the diagonal and dashed ones take.
     const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
@@ -184,14 +141,17 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     flushRun();
     const color = strokeGradient
       ? whiteCarrier(item.opacity, item.strokeOpacity)
-      : Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+      : Color.from(item.stroke, item.opacity, item.strokeOpacity);
     const dashed = pattern ? dashedAttributes(item, pattern, color) : null;
     if (pattern && !dashed) {
       continue; // the pattern left nothing drawn
     }
     const data = dashed ?? createDiagonalAttributes(item, color);
+    if (!data) {
+      continue; // a zero length rule has no segment to draw
+    }
     enqueueOutline(
-      { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip },
+      outlineTargetOf(ctx, device, res, uniformBuffer, clip),
       data,
       blend,
       strokeGradient,
@@ -216,14 +176,30 @@ function createAttributes(items: SceneItem[]): Float32Array {
       const h = ay ? ay : strokeWidth;
       const offX = ax ? 0 : strokeWidth / 2;
       const offY = ay ? 0 : strokeWidth / 2;
-      return [Math.min(x, ex), Math.min(y, ey), w, h, ...col.rgba, offX, offY];
+      return [Math.min(x, ex), Math.min(y, ey), w, h, ...col, offX, offY];
     }),
   );
 }
 
-function createDiagonalAttributes(item: SceneRule, color: RGBA): Float32Array {
-  const [[x, y], [ex, ey]] = capped(item);
-  return segmentInstance(x, y, ex, ey, color, item.strokeWidth ?? 1, strokeEnds(item).caps);
+function createDiagonalAttributes(item: SceneRule, color: RGBA): Float32Array | null {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  const ex = item.x2 == null ? x : item.x2 || 0;
+  const ey = item.y2 == null ? y : item.y2 || 0;
+  const { caps, join, square } = strokeEnds(item);
+  return segmentInstances(
+    [
+      [
+        [x, y],
+        [ex, ey],
+      ],
+    ],
+    color,
+    item.strokeWidth ?? 1,
+    caps,
+    join,
+    square,
+  );
 }
 
 export default {

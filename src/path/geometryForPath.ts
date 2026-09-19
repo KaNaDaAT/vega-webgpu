@@ -6,7 +6,7 @@ import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { PathGeometry } from '../types/geometry.js';
 import type { Point } from '../util/dash.js';
 
-const EMPTY: PathGeometry = { lines: [], triangles: [], closed: false, z: 0 };
+const EMPTY: PathGeometry = { lines: [], triangles: [], z: 0 };
 
 let warnedPath = false;
 
@@ -132,16 +132,20 @@ function tessellate(lines: Point[][]): ReturnType<typeof triangulate> | null {
 // for even-odd, which leaves the middle of a self-intersecting path hollow.
 const WINDING_NONZERO = 1;
 
+/** What a contour about to be dashed is flattened at. See geometryForPath. */
+export const DASH_FLATNESS = 1;
+
+const CURVE_FLATNESS = 4;
+/** Douglas-Peucker tolerance in pixels. At 1.0 a gentle curve visibly facets. */
+const CURVE_TOLERANCE = 0.1;
+
 /**
  * Triangulates an SVG path string into fill triangles and outline contours.
  * Results are cached on the context, keyed by the path string.
  *
- * `threshold` is the Douglas-Peucker tolerance in pixels. At 1.0 a gentle
- * curve collapses into visible facets, which is what an isocontour is made of.
- *
- * `scale` is how finely a bezier is flattened before that. The default follows
- * the curve closely, which is what every consumer wants but one: `arc-shapes`
- * goes from 0.211% of pixels to 0.058%, `gradient-strokes` 0.161% to 0.054%,
+ * `scale` is how finely a bezier is flattened. The default follows the curve
+ * closely, which is what every consumer wants but one: `arc-shapes` goes from
+ * 0.211% of pixels to 0.058%, `gradient-strokes` 0.161% to 0.054%,
  * `path-shapes` 0.034% to 0.005% and `trail` 0.016% to 0.009%.
  *
  * Four rather than more. It is where the gain flattens out, and past it the
@@ -155,16 +159,9 @@ const WINDING_NONZERO = 1;
  * default here `mark-dashes` goes 0.037% to 0.055% and worst channel 115 to
  * 206, and a dashed rounded border 0.010% to 0.034%.
  */
-/** What a contour about to be dashed is flattened at. See the note above. */
-export const DASH_FLATNESS = 1;
-
-const CURVE_FLATNESS = 4;
-const CURVE_TOLERANCE = 0.1;
-
 export default function geometryForPath(
   context: GPUVegaCanvasContext,
   path: string | null | undefined,
-  threshold?: number,
   scale?: number,
 ): PathGeometry {
   if (!path) {
@@ -177,9 +174,8 @@ export default function geometryForPath(
   // since it is measured along the polyline rather than drawn on it.
   const dpi = context._uniforms.dpi || 1;
   const flatness = scale ?? CURVE_FLATNESS * dpi;
-  const tolerance = threshold ?? CURVE_TOLERANCE;
 
-  const cacheKey = `${tolerance}|${flatness}|${path}`;
+  const cacheKey = `${flatness}|${path}`;
   const cached = context._pathCache[cacheKey];
   if (cached !== undefined) {
     return cached;
@@ -187,7 +183,7 @@ export default function geometryForPath(
 
   // get a list of polylines/contours from svg contents
   const flat = contoursOf(path, flatness);
-  let lines = flat.map(contour => simplify(contour, tolerance));
+  let lines = flat.map(contour => simplify(contour, CURVE_TOLERANCE));
 
   // Simplifying can nudge a contour into a self intersection, which tess2
   // reaches an undefined identifier on and throws. Dropping the shape there
@@ -205,14 +201,14 @@ export default function geometryForPath(
     // missing off the choropleth that way: exact it throws at 19/9/18/137
     // points, and the flattener's own shape simplified to 19/9/18/143 gives 188
     // triangles. So the last try before giving up is that shape.
-    lines = contoursOf(path, flatness, true).map(contour => simplify(contour, tolerance));
+    lines = contoursOf(path, flatness, true).map(contour => simplify(contour, CURVE_TOLERANCE));
     tri = tessellate(lines);
   }
   for (let coarse = flatness / 2; tri === null && coarse >= flatness / 8; coarse /= 2) {
     // A coarser curve is a shape it takes where the fine one throws, and giving
     // up curve accuracy beats giving up the mark: the second ribbon of `trail`
     // went missing at dpr 2, where the flatness is twice what it is at dpr 1.
-    lines = contoursOf(path, coarse).map(contour => simplify(contour, tolerance));
+    lines = contoursOf(path, coarse).map(contour => simplify(contour, CURVE_TOLERANCE));
     tri = tessellate(lines);
   }
   if (tri === null) {
@@ -223,7 +219,7 @@ export default function geometryForPath(
     }
   }
 
-  const z = context._randomZ ? 0.25 * (Math.random() - 0.5) : 0;
+  const z = 0;
 
   const triangles: number[] = [];
   const { cells, positions } = tri;
@@ -238,7 +234,6 @@ export default function geometryForPath(
   const geom: PathGeometry = {
     lines,
     triangles,
-    closed: /z\s*$/i.test(path),
     z,
     key: path,
   };

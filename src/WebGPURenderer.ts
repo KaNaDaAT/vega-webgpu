@@ -48,6 +48,12 @@ interface PendingRender {
   settle?: boolean;
 }
 
+/** A texture the frame keeps, with the device it was made on. */
+interface TextureSlot {
+  texture: GPUTexture | null;
+  device: GPUDevice | null;
+}
+
 export default class WebGPURenderer extends Renderer {
   wgOptions: GPUVegaOptions = {
     debugLog: false,
@@ -67,18 +73,15 @@ export default class WebGPURenderer extends Renderer {
   private _pickContext: CanvasRenderingContext2D | null = null;
   private _ctx: GPUVegaCanvasContext | null = null;
   private _device: GPUDevice | null = null;
-  private _msaaTexture: GPUTexture | null = null;
-  private _msaaTextureDevice: GPUDevice | null = null;
+  private _msaa: TextureSlot = { texture: null, device: null };
   /** Whether the last frame had to draw off the frame. Read by the tests. */
   private _offFrame = false;
-  private _maskTexture: GPUTexture | null = null;
-  private _maskTextureDevice: GPUDevice | null = null;
+  private _mask: TextureSlot = { texture: null, device: null };
   private _layerTexture: GPUTexture | null = null;
   private _layerResolve: GPUTexture | null = null;
   private _backdropTexture: GPUTexture | null = null;
   private _blendTextureDevice: GPUDevice | null = null;
-  private _offscreenTexture: GPUTexture | null = null;
-  private _offscreenTextureDevice: GPUDevice | null = null;
+  private _offscreen: TextureSlot = { texture: null, device: null };
   private _queue = new RenderQueue();
   private _uniforms: RenderUniforms = { resolution: [0, 0], origin: [0, 0], dpi: 1 };
 
@@ -347,16 +350,13 @@ export default class WebGPURenderer extends Renderer {
   private _dropDevice(): void {
     this._device = null;
     this._gpuTimer = null;
-    this._msaaTexture = null;
-    this._msaaTextureDevice = null;
-    this._maskTexture = null;
-    this._maskTextureDevice = null;
+    this._msaa = { texture: null, device: null };
+    this._mask = { texture: null, device: null };
     this._layerTexture = null;
     this._layerResolve = null;
     this._backdropTexture = null;
     this._blendTextureDevice = null;
-    this._offscreenTexture = null;
-    this._offscreenTextureDevice = null;
+    this._offscreen = { texture: null, device: null };
     if (this._ctx) {
       this._ctx._shaderCache = {};
       this._ctx._pipelineCache = {};
@@ -445,13 +445,6 @@ export default class WebGPURenderer extends Renderer {
     return this;
   }
 
-  /**
-   * Releases the GPU device and everything built on it.
-   *
-   * vega's own View.finalize does not reach the renderer, so a page that
-   * creates and discards views leaks a device each time. Nothing recreates one
-   * after this, so call it when the view is going away for good.
-   */
   /** Drops the device and the timer, without marking the renderer finished. */
   private _releaseGpu(): void {
     if (this._settleTimer !== null) {
@@ -464,6 +457,13 @@ export default class WebGPURenderer extends Renderer {
     device?.destroy();
   }
 
+  /**
+   * Releases the GPU device and everything built on it.
+   *
+   * vega's own View.finalize does not reach the renderer, so a page that
+   * creates and discards views leaks a device each time. Nothing recreates one
+   * after this, so call it when the view is going away for good.
+   */
   finalize(): void {
     this._finalized = true;
     this._unwatchPixelRatio();
@@ -502,9 +502,8 @@ export default class WebGPURenderer extends Renderer {
     }
     ctx._sampleCount = requested;
     ctx._markCache = {};
-    this._msaaTexture?.destroy();
-    this._msaaTexture = null;
-    this._msaaTextureDevice = null;
+    this._msaa.texture?.destroy();
+    this._msaa = { texture: null, device: null };
     // the layer takes the frame's sample count, so it is stale too
     this._layerTexture?.destroy();
     this._layerTexture = null;
@@ -624,12 +623,6 @@ export default class WebGPURenderer extends Renderer {
   }
 
   /**
-   * Releases the render lock and flushes a coalesced request, if any.
-   *
-   * Every exit from a frame (completion, early return, or failure) must come
-   * through here, or `_isRendering` stays stuck and awaiting callers never wake.
-   */
-  /**
    * Renders a frame and reads the result straight off the GPU.
    *
    * Presentation is what makes canvas content visible to screenshots and to
@@ -737,6 +730,12 @@ export default class WebGPURenderer extends Renderer {
     this._pendingDestroy.push(resource);
   }
 
+  /**
+   * Releases the render lock and flushes a coalesced request, if any.
+   *
+   * Every exit from a frame (completion, early return, or failure) must come
+   * through here, or `_isRendering` stays stuck and awaiting callers never wake.
+   */
   private _finishFrame(): void {
     this._isRendering = false;
 
@@ -825,7 +824,6 @@ export default class WebGPURenderer extends Renderer {
     mark.draw.call(this, device, ctx, scene, bounds, markTypes);
   }
 
-  /** Multisampled color attachment, resolved into the canvas each frame. */
   /**
    * Single sampled coverage target, for a stroke that has to be composited as
    * one shape rather than band by band. One per frame is enough: each mask pass
@@ -833,30 +831,39 @@ export default class WebGPURenderer extends Renderer {
    * fills it again.
    */
   maskTexture(device?: GPUDevice): GPUTexture {
-    const gpu = device ?? this._device;
-    const canvas = this._canvas;
-    if (!gpu || !canvas) {
-      throw new Error('[vega-webgpu] Cannot create the mask texture before initialization.');
-    }
-    const existing = this._maskTexture;
-    if (
-      existing &&
-      this._maskTextureDevice === gpu &&
-      existing.width === canvas.width &&
-      existing.height === canvas.height
-    ) {
-      return existing;
-    }
-    existing?.destroy();
-    this._maskTexture = gpu.createTexture({
+    return this.canvasTexture(this._mask, device, 'mask texture', size => ({
       label: 'Coverage Mask Texture',
-      size: [canvas.width, canvas.height, 1],
+      size,
       format: 'r8unorm',
       dimension: '2d',
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-    });
-    this._maskTextureDevice = gpu;
-    return this._maskTexture;
+    }));
+  }
+
+  /**
+   * The texture in `slot`, rebuilt when the device or the canvas size changed.
+   * Three of the frame's targets are sized to the canvas and all three go
+   * stale on the same two conditions.
+   */
+  private canvasTexture(
+    slot: TextureSlot,
+    device: GPUDevice | undefined,
+    what: string,
+    describe: (size: [number, number, number]) => GPUTextureDescriptor,
+  ): GPUTexture {
+    const gpu = device ?? this._device;
+    const canvas = this._canvas;
+    if (!gpu || !canvas) {
+      throw new Error(`[vega-webgpu] Cannot create the ${what} before initialization.`);
+    }
+    const existing = slot.texture;
+    if (existing && slot.device === gpu && existing.width === canvas.width && existing.height === canvas.height) {
+      return existing;
+    }
+    existing?.destroy();
+    slot.texture = gpu.createTexture(describe([canvas.width, canvas.height, 1]));
+    slot.device = gpu;
+    return slot.texture;
   }
 
   /**
@@ -920,32 +927,16 @@ export default class WebGPURenderer extends Renderer {
     return this._offFrame;
   }
 
+  /** Multisampled color attachment, resolved into the canvas each frame. */
   msaaTexture(device?: GPUDevice): GPUTexture {
-    const gpu = device ?? this._device;
-    const canvas = this._canvas;
-    if (!gpu || !canvas) {
-      throw new Error('[vega-webgpu] Cannot create the MSAA texture before initialization.');
-    }
-    const existing = this._msaaTexture;
-    if (
-      existing &&
-      this._msaaTextureDevice === gpu &&
-      existing.width === canvas.width &&
-      existing.height === canvas.height
-    ) {
-      return existing;
-    }
-    existing?.destroy();
-    this._msaaTexture = gpu.createTexture({
+    return this.canvasTexture(this._msaa, device, 'MSAA texture', size => ({
       label: 'MSAA Color Texture',
-      size: [canvas.width, canvas.height, 1],
+      size,
       format: preferredColorFormat(),
       dimension: '2d',
       sampleCount: this._ctx?._sampleCount ?? defaultSampleCount,
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-    this._msaaTextureDevice = gpu;
-    return this._msaaTexture;
+    }));
   }
 
   /**
@@ -958,35 +949,23 @@ export default class WebGPURenderer extends Renderer {
     if (!canvas) {
       throw new Error('[vega-webgpu] Cannot create the offscreen texture before initialization.');
     }
-    const existing = this._offscreenTexture;
-    if (
-      existing &&
-      this._offscreenTextureDevice === device &&
-      existing.width === canvas.width &&
-      existing.height === canvas.height
-    ) {
-      return existing;
-    }
-    existing?.destroy();
-    this._offscreenTexture = device.createTexture({
+    return this.canvasTexture(this._offscreen, device, 'offscreen texture', size => ({
       label: 'Offscreen Color Texture',
-      size: [canvas.width, canvas.height, 1],
+      size,
       format: preferredColorFormat(),
       dimension: '2d',
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    });
-    this._offscreenTextureDevice = device;
-    return this._offscreenTexture;
+    }));
   }
 
   clearColor(): GPUColor {
-    const bg = this._bgcolor ? Color.from(this._bgcolor) : null;
-    if (!bg) {
+    if (!this._bgcolor) {
       // canvas clears to transparent and only fills when a background is set
       return { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
     }
+    const [r, g, b, a] = Color.from(this._bgcolor);
     // The surface is configured alphaMode premultiplied, so a translucent
     // background has to be premultiplied here too or it composites too bright.
-    return { r: bg.r * bg.a, g: bg.g * bg.a, b: bg.b * bg.a, a: bg.a };
+    return { r: r * a, g: g * a, b: b * a, a };
   }
 }

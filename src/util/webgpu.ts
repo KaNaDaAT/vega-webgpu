@@ -35,13 +35,12 @@ export function createRenderPipeline(
   format: GPUTextureFormat,
   sampleCount: number,
   buffers: GPUVertexBufferLayout[],
-  layout?: GPUPipelineLayout,
+  blend: GPUBlendState,
   fragmentEntryPoint = 'main_fragment',
-  blend?: GPUBlendState,
 ): GPURenderPipeline {
   return device.createRenderPipeline({
     label: `${name} Render Pipeline`,
-    layout: layout ?? 'auto',
+    layout: 'auto',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -50,23 +49,7 @@ export function createRenderPipeline(
     fragment: {
       module: shader,
       entryPoint: fragmentEntryPoint,
-      targets: [
-        {
-          format,
-          blend: blend ?? {
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-          },
-        },
-      ],
+      targets: [{ format, blend }],
     },
     primitive: {
       topology: 'triangle-list',
@@ -82,14 +65,13 @@ export function createUniformBindGroup(
   device: GPUDevice,
   pipeline: GPURenderPipeline,
   uniforms: GPUBuffer,
-  binding = 0,
 ): GPUBindGroup {
   return device.createBindGroup({
     label: `${name} Uniform Bind Group`,
-    layout: pipeline.getBindGroupLayout(binding),
+    layout: pipeline.getBindGroupLayout(0),
     entries: [
       {
-        binding,
+        binding: 0,
         resource: {
           buffer: uniforms,
         },

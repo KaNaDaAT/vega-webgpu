@@ -1,4 +1,4 @@
-import { Bounds } from 'vega-scenegraph';
+import { Bounds, sceneVisit } from 'vega-scenegraph';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneGradient, SceneGroupExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
@@ -7,7 +7,6 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { blendKey } from '../util/blend.js';
 import { isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
-import { visit } from '../util/visit.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { rectAttributes } from './rect.js';
 import {
@@ -15,11 +14,10 @@ import {
   type OutlinePipelines,
   borderInstances,
   enqueueOutline,
-  type OutlineTarget,
+  outlineTargetOf,
   withStrokeOffset,
   getMarkResources,
   blendPipelines,
-  markPipeline,
   type MarkModule,
 } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
@@ -29,9 +27,7 @@ const drawName = 'Group';
 interface GroupResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  vertexManager: VertexBufferManager;
-  pipeline: GPURenderPipeline;
-  /** The same pipeline with a blend mode baked in, one per mode. */
+  /** The background rect, one pipeline per blend mode. */
   pipelineFor: (blend: string) => GPURenderPipeline;
   gradientPipelineFor: (blend: string) => GPURenderPipeline;
   /** Pipelines for an outline drawn through the segment shader. */
@@ -47,7 +43,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, dimensions, fill color, stroke color, stroke width, corner radii
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
-    const pipeline = markPipeline(ctx, device, drawName, 'Rect', vertexManager);
     // the background is a rect, and a blend is baked into the pipeline state
     const pipelineFor = blendPipelines(ctx, device, `${drawName}`, 'Rect', vertexManager);
     // a gradient fill under a blend needs its own pipeline too
@@ -65,8 +60,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     return {
       device,
       bufferManager,
-      vertexManager,
-      pipeline,
       pipelineFor,
       gradientPipelineFor,
       outline,
@@ -125,14 +118,7 @@ function draw(
   const dashed: { data: Float32Array; gradient: SceneGradient | null; bounds: Bounds | undefined; blend: string }[] =
     [];
   /** Where a border that carries its own ramp is enqueued, one draw each. */
-  const outlineTarget = (clip: ClipRect | undefined): OutlineTarget => ({
-    ...res.outline,
-    ctx,
-    device,
-    bufferManager: res.bufferManager,
-    uniformBuffer,
-    clip,
-  });
+  const outlineTarget = (clip: ClipRect | undefined) => outlineTargetOf(ctx, device, res, uniformBuffer, clip);
   // A group asking for strokeForeground has its border held back and enqueued
   // after its own children, which is where vega draws it.
   const held = new Map<
@@ -197,7 +183,7 @@ function draw(
     flushDashed();
   }
 
-  visit(scene, (group: SceneGroupExt) => {
+  sceneVisit(scene, (group: SceneGroupExt) => {
     if (interleaved) {
       paintBackdrop(group);
       flushRun();
@@ -221,7 +207,7 @@ function draw(
       vb.translate(-gx, -gy);
     }
 
-    visit(group, (item: GPUVegaScene) => {
+    sceneVisit(group, (item: GPUVegaScene) => {
       if (item.marktype === 'group' || markTypes == null || markTypes.includes(item.marktype)) {
         this.draw(device, ctx, item, vb, markTypes);
       }

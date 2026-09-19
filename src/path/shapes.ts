@@ -23,26 +23,36 @@ const cr = (item: SceneArcItem) => item.cornerRadius || 0;
 const pa = (item: SceneArcItem) => item.padAngle || 0;
 const def = (item: AreaPoint) => item.defined !== false;
 
-const arcShape = d3_arc<SceneArcItem>().cornerRadius(cr).padAngle(pa);
+// Every accessor, the way vega's own generator sets them. d3 defaults these to
+// fields on the datum, and vega puts no defaults on a scenegraph item, so an
+// arc that does not encode innerRadius reached d3 with it undefined: the
+// closing point came out NaN and cornerRadius went with it.
+const arcShape = d3_arc<SceneArcItem>()
+  .startAngle(item => item.startAngle || 0)
+  .endAngle(item => item.endAngle || 0)
+  .innerRadius(item => item.innerRadius || 0)
+  .outerRadius(item => item.outerRadius || 0)
+  .cornerRadius(cr)
+  .padAngle(pa);
 const areavShape = d3_area<AreaPoint>().x(x).y1(y).y0(yh).defined(def);
 const areahShape = d3_area<AreaPoint>().y(y).x1(x).x0(xw).defined(def);
 const trailShape = pathTrail<AreaPoint>().x(x).y(y).defined(def).size(ts);
 const lineShape = d3_line<AreaPoint>().x(x).y(y).defined(def);
 
 export function arc(context: GPUVegaCanvasContext, item: SceneArcItem, scale?: number): PathGeometry {
-  return geometryForPath(context, arcShape.context(null)(item) ?? '', undefined, scale);
+  return geometryForPath(context, arcShape.context(null)(item) ?? '', scale);
 }
 
 export function area(context: GPUVegaCanvasContext, items: AreaPoint[], scale?: number): PathGeometry {
   const item = items[0];
   const interp = item.interpolate || 'linear';
-  const path =
-    interp === 'trail'
-      ? trailShape.context(null)(items)
-      : (item.orient === 'horizontal' ? areahShape : areavShape)
-          .curve(pathCurves(interp, item.orient, item.tension))
-          .context(null)(items);
-  return geometryForPath(context, path ?? '', undefined, scale);
+  if (interp === 'trail') {
+    return trail(context, items, scale);
+  }
+  const path = (item.orient === 'horizontal' ? areahShape : areavShape)
+    .curve(pathCurves(interp, item.orient, item.tension))
+    .context(null)(items);
+  return geometryForPath(context, path ?? '', scale);
 }
 
 /**
@@ -50,7 +60,7 @@ export function area(context: GPUVegaCanvasContext, items: AreaPoint[], scale?: 
  * point's `size`, which is what vega's own trail mark draws.
  */
 export function trail(context: GPUVegaCanvasContext, items: AreaPoint[], scale?: number): PathGeometry {
-  return geometryForPath(context, trailShape.context(null)(items) ?? '', undefined, scale);
+  return geometryForPath(context, trailShape.context(null)(items) ?? '', scale);
 }
 
 /**
@@ -84,7 +94,7 @@ export function lineSpans(items: AreaPoint[], sink: PathSink): void {
 
 export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem, scale?: number): PathGeometry {
   const generator = ((item.mark as { shape?: unknown }).shape ?? item.shape) as ShapeGenerator;
-  return geometryForPath(context, generator.context(null)(item) ?? '', undefined, scale);
+  return geometryForPath(context, generator.context(null)(item) ?? '', scale);
 }
 
 /**
@@ -96,5 +106,5 @@ export function shape(context: GPUVegaCanvasContext, item: SceneShapeItem, scale
 export function symbol(context: GPUVegaCanvasContext, shapeName: string, size: number, scale?: number): PathGeometry {
   const type = pathSymbols(shapeName || 'circle') as unknown as SymbolType;
   const path = d3_symbol(type, size).context(null)() ?? '';
-  return geometryForPath(context, path, undefined, scale);
+  return geometryForPath(context, path, scale);
 }

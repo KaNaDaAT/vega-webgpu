@@ -15,6 +15,7 @@ import {
   type OutlinePipelines,
   SEGMENT_STRIDE,
   enqueueOutline,
+  outlineTargetOf,
   geometryVertexData,
   getMarkResources,
   markClip,
@@ -36,7 +37,6 @@ interface LineResources {
   outline: OutlinePipelines;
   segmentBindGroup: { group: GPUBindGroup; buffer: GPUBuffer; pipeline: GPURenderPipeline } | null;
   curveVertexManager: VertexBufferManager;
-  curvePipeline: GPURenderPipeline;
   /** basis and bezier share this layout and differ only in the shader. */
   spanVertexManager: VertexBufferManager;
   spanBindGroups: Map<string, { group: GPUBindGroup; buffer: GPUBuffer; pipeline: GPURenderPipeline }>;
@@ -65,11 +65,9 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // p0, p1, p2, p3, color, stroke width, kind
       ['float32x2', 'float32x2', 'float32x2', 'float32x2', 'float32x4', 'float32', 'float32'],
     );
-    const curvePipeline = markPipeline(ctx, device, `${drawName}Curve`, 'SolidFill', curveVertexManager);
     const curvePipelineFor = blendPipelines(ctx, device, `${drawName}Curve`, 'SolidFill', curveVertexManager);
     return {
       curveVertexManager,
-      curvePipeline,
       curvePipelineFor,
       spanVertexManager,
       spanBindGroups: new Map(),
@@ -140,23 +138,21 @@ const CURVE_OF: Record<string, CurveKind> = {
 type LineRoute = CurveKind | 'path' | 'segments';
 
 /**
- * Where an undashed line draws. A square cap needs the tessellated path, since
- * only extrude-polyline draws one, and it outranks the rest. A recognised cubic
- * goes to the GPU as its own control points, so the stroke follows the real
- * curve instead of a flattened polyline. linear and the step family tessellate,
- * which is what gives their corners a join, and so does a line with gaps.
+ * Where an undashed line draws. A recognised cubic goes to the GPU as its own
+ * control points, so the stroke follows the real curve instead of a flattened
+ * polyline. linear and the step family tessellate, which is what gives their
+ * corners a join, and so does a line with gaps. The curve shaders draw no cap,
+ * so a square capped curve takes the tessellated path instead.
  */
 function lineRoute(points: SceneLinePoint[]): LineRoute {
-  if (points[0]?.strokeCap === 'square') {
-    return 'path';
-  }
   const interpolate = points[0]?.interpolate;
   const curve = interpolate === undefined ? undefined : CURVE_OF[interpolate];
   const whole = points.every(p => p.defined !== false);
-  if (curve === 'basis' && points.length >= 3 && whole) {
+  const square = points[0]?.strokeCap === 'square';
+  if (!square && curve === 'basis' && points.length >= 3 && whole) {
     return 'basis';
   }
-  if (curve === 'bezier' && points.length >= 2) {
+  if (!square && curve === 'bezier' && points.length >= 2) {
     return 'bezier';
   }
   return isPolyline(points) ? 'segments' : 'path';
@@ -189,7 +185,7 @@ function drawOutline(
 
   const col = gradient
     ? whiteCarrier(first.opacity, first.strokeOpacity)
-    : Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+    : Color.from(first.stroke, first.opacity, first.strokeOpacity);
   const data = segmentInstances(runs, col, first.strokeWidth ?? 1, caps, join, square);
   if (!data) {
     return;
@@ -200,14 +196,7 @@ function drawOutline(
     return;
   }
   enqueueOutline(
-    {
-      ...res.outline,
-      ctx,
-      device,
-      bufferManager: res.bufferManager,
-      uniformBuffer: res.bufferManager.sharedUniformBuffer(),
-      clip,
-    },
+    outlineTargetOf(ctx, device, res, res.bufferManager.sharedUniformBuffer(), clip),
     data,
     blendKey(first.blend),
     gradient,
@@ -247,7 +236,7 @@ function basisInstances(points: SceneLinePoint[]): number[] {
     }
   }
 
-  const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const col = Color.from(first.stroke, first.opacity, first.strokeOpacity);
   const width = first.strokeWidth ?? 1;
   // controls, doubled at both ends
   const cx = [xs[0], ...xs, xs[n - 1]];
@@ -297,7 +286,7 @@ function basisInstances(points: SceneLinePoint[]): number[] {
 function bezierInstances(points: SceneLinePoint[]): number[] {
   const out: number[] = [];
   const first = points[0];
-  const col = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const col = Color.from(first.stroke, first.opacity, first.strokeOpacity);
   const width = first.strokeWidth ?? 1;
   let cx = 0;
   let cy = 0;
@@ -383,7 +372,7 @@ function drawPath(
   const first = points[0];
   const shapeGeom = lineGeometry(ctx, points);
   const geometry = geometryForItem(ctx, { ...first, fill: undefined }, shapeGeom, true);
-  const stroke = Color.from2(first.stroke, first.opacity, first.strokeOpacity);
+  const stroke = Color.from(first.stroke, first.opacity, first.strokeOpacity);
   const [, strokeData] = geometryVertexData(geometry, [0, 0, 0, 0], stroke);
   if (strokeData.length === 0) {
     return;
@@ -446,13 +435,13 @@ function createAttributes(points: SceneLinePoint[]): Float32Array {
   // the whole path with it. Resolving the colour per segment showed up as the
   // largest single cost on a spec with many short lines.
   const first = points[0];
-  const col = Color.from2(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
+  const col = Color.from(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
   const run: Point[] = new Array(points.length);
   for (let i = 0; i < points.length; i++) {
     run[i] = [points[i].x || 0, points[i].y || 0];
   }
-  const { caps, join } = strokeEnds(first);
-  writeSegments(result, 0, [run], col, first.strokeWidth ?? 1, caps, join);
+  const { caps, join, square } = strokeEnds(first);
+  writeSegments(result, 0, [run], col, first.strokeWidth ?? 1, caps, join, square);
   return result;
 }
 

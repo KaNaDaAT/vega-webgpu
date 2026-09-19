@@ -1,102 +1,33 @@
-export function formatElementCount(format: GPUVertexFormat): number {
-  switch (format) {
-    case 'float32':
-    case 'uint32':
-    case 'sint32':
-      return 1;
-    case 'uint8x2':
-    case 'sint8x2':
-    case 'unorm8x2':
-    case 'snorm8x2':
-    case 'uint16x2':
-    case 'sint16x2':
-    case 'unorm16x2':
-    case 'snorm16x2':
-    case 'float16x2':
-    case 'float32x2':
-    case 'uint32x2':
-    case 'sint32x2':
-      return 2;
-    case 'float32x3':
-    case 'uint32x3':
-    case 'sint32x3':
-      return 3;
-    case 'uint8x4':
-    case 'sint8x4':
-    case 'unorm8x4':
-    case 'snorm8x4':
-    case 'uint16x4':
-    case 'sint16x4':
-    case 'unorm16x4':
-    case 'snorm16x4':
-    case 'float16x4':
-    case 'float32x4':
-    case 'uint32x4':
-    case 'sint32x4':
-      return 4;
-    default:
-      return 0; // Unsupported format
+/**
+ * Every name in the WebGPU vertex format list is its component type followed
+ * by a bit width and an optional `xN`, so the width and the count come out of
+ * the name rather than a table that has to be kept in step with it. The two
+ * packed formats are the exception and are listed.
+ */
+const PACKED: Partial<Record<GPUVertexFormat, readonly [bytes: number, count: number]>> = {
+  'unorm10-10-10-2': [4, 4],
+  'unorm8x4-bgra': [4, 4],
+};
+
+function parts(format: GPUVertexFormat): readonly [bytes: number, count: number] {
+  const packed = PACKED[format];
+  if (packed) {
+    return packed;
   }
+  const match = /(8|16|32)(?:x([234]))?$/.exec(format);
+  if (!match) {
+    return [0, 0];
+  }
+  const count = Number(match[2] ?? 1);
+  return [(Number(match[1]) / 8) * count, count];
 }
 
+/** Bytes one attribute of this format takes in a vertex buffer. */
 export function formatSize(format: GPUVertexFormat): number {
-  switch (format) {
-    case 'float16x2':
-      return 2 * 2;
-    case 'float16x4':
-      return 2 * 4;
-    case 'float32':
-      return Float32Array.BYTES_PER_ELEMENT;
-    case 'float32x2':
-      return Float32Array.BYTES_PER_ELEMENT * 2;
-    case 'float32x3':
-      return Float32Array.BYTES_PER_ELEMENT * 3;
-    case 'float32x4':
-      return Float32Array.BYTES_PER_ELEMENT * 4;
-    case 'sint8x2':
-    case 'snorm8x2':
-      return Int8Array.BYTES_PER_ELEMENT * 2;
-    case 'sint8x4':
-    case 'snorm8x4':
-      return Int8Array.BYTES_PER_ELEMENT * 4;
-    case 'sint16x2':
-    case 'snorm16x2':
-      return Int16Array.BYTES_PER_ELEMENT * 2;
-    case 'sint16x4':
-    case 'snorm16x4':
-      return Int16Array.BYTES_PER_ELEMENT * 4;
-    case 'sint32':
-      return Int32Array.BYTES_PER_ELEMENT;
-    case 'sint32x2':
-      return Int32Array.BYTES_PER_ELEMENT * 2;
-    case 'sint32x3':
-      return Int32Array.BYTES_PER_ELEMENT * 3;
-    case 'sint32x4':
-      return Int32Array.BYTES_PER_ELEMENT * 4;
-    case 'uint32':
-      return Uint32Array.BYTES_PER_ELEMENT;
-    case 'uint32x2':
-      return Uint32Array.BYTES_PER_ELEMENT * 2;
-    case 'uint32x3':
-      return Uint32Array.BYTES_PER_ELEMENT * 3;
-    case 'uint32x4':
-      return Uint32Array.BYTES_PER_ELEMENT * 4;
+  return parts(format)[0];
+}
 
-    case 'uint8x2':
-    case 'unorm8x2':
-      return Uint8Array.BYTES_PER_ELEMENT * 2;
-    case 'uint8x4':
-    case 'unorm8x4':
-      return Uint8Array.BYTES_PER_ELEMENT * 4;
-    case 'uint16x2':
-    case 'unorm16x2':
-      return Uint16Array.BYTES_PER_ELEMENT * 2;
-    case 'uint16x4':
-    case 'unorm16x4':
-      return Uint16Array.BYTES_PER_ELEMENT * 4;
-    case 'unorm10-10-10-2':
-      return 4; // (10 + 10 + 10 + 2) / 8
-    default:
-      return 0;
-  }
+/** How many components one attribute of this format supplies to the shader. */
+export function formatElementCount(format: GPUVertexFormat): number {
+  return parts(format)[1];
 }

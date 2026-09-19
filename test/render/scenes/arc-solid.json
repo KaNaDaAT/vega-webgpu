@@ -1,0 +1,90 @@
+{
+  "description": "Arcs with no innerRadius, which is what a spec that does not encode one hands the renderer. d3 defaults that accessor to a field on the datum rather than to zero, so leaving it off produced a NaN closing point and dropped cornerRadius with it.",
+  "width": 340,
+  "height": 340,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 340,
+                "height": 340,
+                "fill": "#f6f3ea"
+              }
+            ]
+          },
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 90,
+                "y": 90,
+                "startAngle": 0,
+                "endAngle": 1.9,
+                "outerRadius": 70,
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 90,
+                "y": 90,
+                "startAngle": 2.2,
+                "endAngle": 4,
+                "outerRadius": 70,
+                "cornerRadius": 12,
+                "fill": "#e45756"
+              },
+              {
+                "x": 250,
+                "y": 90,
+                "startAngle": 0,
+                "endAngle": 2.4,
+                "outerRadius": 70,
+                "cornerRadius": 18,
+                "fill": "#54a24b"
+              },
+              {
+                "x": 250,
+                "y": 90,
+                "startAngle": 2.6,
+                "endAngle": 6,
+                "outerRadius": 60,
+                "padAngle": 0.08,
+                "fill": "#eeca3b"
+              },
+              {
+                "x": 170,
+                "y": 250,
+                "startAngle": 0,
+                "endAngle": 6.28,
+                "outerRadius": 80,
+                "fill": "#b279a2",
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

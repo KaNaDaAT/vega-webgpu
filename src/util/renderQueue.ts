@@ -148,23 +148,14 @@ export class RenderQueue {
     this.batch = [];
     this.batchLength = 0;
 
-    if (info.geometryBuffer == null) {
-      this.enqueue({
-        pipeline: info.pipeline,
-        drawCounts: [info.vertexCount ?? 6, instanceCount],
-        vertexBuffers: [data],
-        bindGroups: info.bindGroups,
-        clip: info.clip,
-      });
-    } else {
-      this.enqueue({
-        pipeline: info.pipeline,
-        drawCounts: [info.geometryCount ?? 1, instanceCount],
-        vertexBuffers: [info.geometryBuffer, data],
-        bindGroups: info.bindGroups,
-        clip: info.clip,
-      });
-    }
+    const geometry = info.geometryBuffer;
+    this.enqueue({
+      pipeline: info.pipeline,
+      drawCounts: [geometry ? (info.geometryCount ?? 1) : (info.vertexCount ?? 6), instanceCount],
+      vertexBuffers: geometry ? [geometry, data] : [data],
+      bindGroups: info.bindGroups,
+      clip: info.clip,
+    });
   }
 
   /**

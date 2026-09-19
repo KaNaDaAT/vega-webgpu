@@ -77,7 +77,10 @@ test.describe('scenes', () => {
           mean: sceneMeanDeltaOverrides[name] ?? SCENE_MEAN_DELTA_DEFAULT,
           bias: sceneBiasDeltaOverrides[name] ?? SCENE_BIAS_DELTA_DEFAULT,
           flat: sceneFlatMeanOverrides[name] ?? SCENE_FLAT_MEAN_DEFAULT,
-          max: onCi ? (ciMaxChannelDeltaOverrides[name] ?? ownDelta) : ownDelta,
+          // The CI table is measured at dpr 1, so it cannot speak for a fine
+          // grid: applying it there held gradient-strokes to 140 where the
+          // grid alone puts it at 191, which is the one fixture in both tables.
+          max: onCi && !onFineGrid ? (ciMaxChannelDeltaOverrides[name] ?? ownDelta) : ownDelta,
         },
       });
     });

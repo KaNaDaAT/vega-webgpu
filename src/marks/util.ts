@@ -135,7 +135,7 @@ export function whiteCarrier(opacity = 1, fillOpacity = 1): RGBA {
 }
 
 /** What a mark needs to paint triangulated geometry from a gradient ramp. */
-export interface GradientTarget {
+export interface DrawTarget {
   ctx: GPUVegaCanvasContext;
   device: GPUDevice;
   name: string;
@@ -161,7 +161,7 @@ export function gradientTargetOf(
   },
   uniformBuffer: GPUBuffer,
   clip: ClipRect | undefined,
-): GradientTarget {
+): DrawTarget {
   return {
     ctx,
     device,
@@ -175,8 +175,73 @@ export function gradientTargetOf(
 }
 
 /** Draws geometry whose color comes from a ramp rather than its vertices. */
+/**
+ * One scratch array every instance builder writes into, so a mark does not
+ * mint a new one each frame. createInstanceBuffer copies through writeBuffer
+ * before it returns, so the next builder is free to overwrite it. At 300k
+ * symbols this is 13.7 MB a frame that no longer has to be allocated and
+ * collected. A batched draw holds its chunk instead, so it keeps its own.
+ */
+let scratch = new Float32Array(0);
+
+export function instanceScratch(length: number): Float32Array {
+  if (scratch.length < length) {
+    scratch = new Float32Array(length);
+  }
+  return scratch.subarray(0, length);
+}
+
+/** Where a mark's outline is enqueued, solid or from a ramp. */
+export function outlineTargetOf(
+  ctx: GPUVegaCanvasContext,
+  device: GPUDevice,
+  res: { outline: OutlinePipelines; bufferManager: BufferManager },
+  uniformBuffer: GPUBuffer,
+  clip: ClipRect | undefined,
+): OutlineTarget {
+  return { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip };
+}
+
+/** The same target, drawing a flat colour rather than sampling a ramp. */
+export function solidTargetOf(
+  ctx: GPUVegaCanvasContext,
+  device: GPUDevice,
+  name: string,
+  res: {
+    pipelineFor: (blend: string) => GPURenderPipeline;
+    bufferManager: BufferManager;
+    vertexManager: VertexBufferManager;
+  },
+  uniformBuffer: GPUBuffer,
+  clip: ClipRect | undefined,
+): DrawTarget {
+  return {
+    ctx,
+    device,
+    name,
+    pipelineFor: res.pipelineFor,
+    bufferManager: res.bufferManager,
+    uniformBuffer,
+    vertexLength: res.vertexManager.getVertexLength(),
+    clip,
+  };
+}
+
+/** Queues one buffer of triangles at a flat colour. */
+export function enqueueSolid(target: DrawTarget, data: Float32Array, blend = 'normal'): void {
+  const { ctx, device } = target;
+  const pipeline = target.pipelineFor(blend);
+  ctx._renderQueue.enqueue({
+    pipeline,
+    drawCounts: [data.length / target.vertexLength],
+    vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
+    bindGroups: [createUniformBindGroup(target.name, device, pipeline, target.uniformBuffer)],
+    clip: target.clip,
+  });
+}
+
 export function enqueueGradient(
-  target: GradientTarget,
+  target: DrawTarget,
   data: Float32Array,
   gradient: SceneGradient,
   bounds: Bounds,
@@ -231,12 +296,6 @@ export class GeometryBatch {
 }
 
 /**
- * Rect and group strokes are drawn analytically in the fragment shader, which
- * cannot express a dash pattern. When `strokeDash` is set the border is walked
- * as a closed polyline instead and emitted as single-segment line instances.
- * Returns null when the item has no dashed border to draw.
- */
-/**
  * Builds a mark pipeline. The colour format and sample count must match the
  * frame's attachments, and getting either wrong silently breaks MSAA, so they
  * are filled in here rather than repeated at every call site.
@@ -250,11 +309,10 @@ export function markPipeline(
   fragmentEntryPoint?: string,
   blend = 'normal',
 ): GPURenderPipeline {
-  const buffers = vertexManager.getBuffers();
   // The backdrop decides how a blend is drawn and it can change between frames,
   // so it belongs in the key: a pipeline built for one is wrong for the other.
   const opaque = ctx._opaqueBackdrop;
-  const key = `${shaderKey}|${fragmentEntryPoint ?? ''}|${ctx._sampleCount}|${blend}|${opaque}|${JSON.stringify(buffers)}`;
+  const key = `${shaderKey}|${fragmentEntryPoint ?? ''}|${ctx._sampleCount}|${blend}|${opaque}|${vertexManager.layoutKey}`;
   const cached = ctx._pipelineCache[key];
   if (cached) {
     return cached;
@@ -266,10 +324,9 @@ export function markPipeline(
     shaderModule(ctx, device, shaderKey, built.blend),
     preferredColorFormat(),
     ctx._sampleCount,
-    buffers,
-    undefined,
-    fragmentEntryPoint,
+    vertexManager.getBuffers(),
     blendState(built.blend),
+    fragmentEntryPoint,
   );
   built.record(pipeline);
   ctx._pipelineCache[key] = pipeline;
@@ -282,7 +339,6 @@ export function dashPatternOf(item: { strokeDash?: number[] | null }): number[] 
   return Array.isArray(dash) && dash.some(d => d > 0) ? dash : null;
 }
 
-/** What a mark needs to draw an outline, from a ramp when one is set. */
 /**
  * What a mark that triangulates its shape needs: a solid fill, the same taking
  * its colour from a ramp, and an outline drawn through the segment shader.
@@ -295,7 +351,6 @@ export interface FillResources {
   device: GPUDevice;
   bufferManager: BufferManager;
   vertexManager: VertexBufferManager;
-  pipeline: GPURenderPipeline;
   /** The fill, one pipeline per blend mode. */
   pipelineFor: (blend: string) => GPURenderPipeline;
   /** The same, taking the colour from a ramp. */
@@ -316,7 +371,6 @@ export function fillResources(
     device,
     bufferManager,
     vertexManager,
-    pipeline: markPipeline(ctx, device, name, 'SolidFill', vertexManager),
     pipelineFor: blendPipelines(ctx, device, name, 'SolidFill', vertexManager),
     gradientPipelineFor: blendPipelines(ctx, device, `${name}Gradient`, 'GradientFill', vertexManager),
     outline: outlinePipelines(ctx, device, outlineName),
@@ -342,6 +396,7 @@ export interface OutlinePipelines {
   gradientPipelineFor: (blend: string) => GPURenderPipeline;
 }
 
+/** What a mark needs to draw an outline, from a ramp when one is set. */
 export function outlinePipelines(ctx: GPUVegaCanvasContext, device: GPUDevice, name: string): OutlinePipelines {
   const vertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
   return {
@@ -375,7 +430,7 @@ export function blendPipelines(
   vertexManager: VertexBufferManager,
   fragmentEntryPoint?: string,
 ): (blend: string) => GPURenderPipeline {
-  return blend => markPipeline(ctx, device, `${name} ${blend}`, shader, vertexManager, fragmentEntryPoint, blend);
+  return blend => markPipeline(ctx, device, name, shader, vertexManager, fragmentEntryPoint, blend);
 }
 
 export interface OutlineTarget extends OutlinePipelines {
@@ -447,12 +502,11 @@ function getMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext): MaskRes
       MASK_FORMAT,
       1,
       vertexManager.getBuffers(),
-      undefined,
-      'main_fragment_mask',
       {
         color: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
         alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
       },
+      'main_fragment_mask',
     );
     const composites = new Map<string, GPURenderPipeline>();
     const compositeFor = (blend: string): GPURenderPipeline => {
@@ -471,8 +525,6 @@ function getMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext): MaskRes
         preferredColorFormat(),
         ctx._sampleCount,
         [],
-        undefined,
-        'main_fragment',
         blendState(built.blend),
       );
       built.record(pipeline);
@@ -504,8 +556,6 @@ function getBlendResources(device: GPUDevice, ctx: GPUVegaCanvasContext): BlendR
         preferredColorFormat(),
         ctx._sampleCount,
         [],
-        undefined,
-        'main_fragment',
         REPLACE,
       );
       composites.set(blend, pipeline);
@@ -629,25 +679,6 @@ export function enqueueMaskedOutline(
 }
 
 /**
- * Whether a triangulated mark walks its own contours and draws them through the
- * segment shader rather than extruding a ribbon.
- *
- * Almost always, and not only for what the ribbon cannot express at all, which
- * is a dash pattern and a round cap. A ribbon takes its edge coverage from
- * MSAA, which can only reach quarter steps, and it overlaps itself at every
- * joint. Segments are analytic across the stroke and cut against a shared
- * bisector at each vertex, so they neither quantize nor double blend. Measured
- * on the playground against canvas, the same marks drawn each way: path 0.559%
- * of pixels to 0.121%, area 0.397% to 0.122%, arc 0.810% to 0.408% and trail
- * 1.376% to 0.542%.
- *
- * A square cap is the exception, since only extrude-polyline draws one.
- */
-export function strokeAsSegments(item: { strokeCap?: string }): boolean {
-  return item.strokeCap !== 'square';
-}
-
-/**
  * A mark's outline as segment instances, dashed when a pattern is given.
  *
  * The contours are the same ones the stroke is extruded from, so this follows
@@ -750,19 +781,6 @@ export function strokeEnds(item: {
   const square = item.strokeCap === 'square';
   const bridge = square ? (item.strokeWidth ?? 1) : 0;
   return { caps: [cap, cap], join: joinStyleOf(item), bridge, square };
-}
-
-/** Packs one segment as start, end, colour, width, and how each end finishes. */
-export function segmentInstance(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  color: RGBA,
-  width: number,
-  caps: readonly [JoinEnd, JoinEnd] = BUTT_CAPS,
-): Float32Array {
-  return Float32Array.from([x1, y1, x2, y2, ...color, width, ...caps[0], ...caps[1], 0, 0]);
 }
 
 /** Packs every segment of every polyline, or null when there is nothing to draw. */
@@ -1002,12 +1020,11 @@ export function borderInstances(
       [x, y],
     ] as Point[],
   ];
-  const ends = strokeEnds(item);
-  const runs = pattern ? outline.flatMap(line => dashPolyline(line, pattern, offset, ends.bridge)) : outline;
+  const { caps, join, bridge, square } = strokeEnds(item);
+  const runs = pattern ? outline.flatMap(line => dashPolyline(line, pattern, offset, bridge)) : outline;
   const color = gradient
     ? whiteCarrier(item.opacity, item.strokeOpacity)
-    : Color.from2(item.stroke, item.opacity, item.strokeOpacity);
-  const { caps, join, square } = strokeEnds(item);
+    : Color.from(item.stroke, item.opacity, item.strokeOpacity);
   return segmentInstances(runs, color, item.strokeWidth ?? 1, caps, join, square);
 }
 
@@ -1039,7 +1056,7 @@ function roundedBorder(
     return null;
   }
   const path = borderPath.width(w).height(h).cornerRadius(tl, tr, br, bl)(item, x, y);
-  return path ? (geometryForPath(ctx, path, undefined, DASH_FLATNESS).lines as Point[][]) : null;
+  return path ? (geometryForPath(ctx, path, DASH_FLATNESS).lines as Point[][]) : null;
 }
 
 /**
@@ -1060,7 +1077,7 @@ export interface CacheableItem {
   id?: unknown;
 }
 
-type BoundsSnapshot = { x1: number; y1: number; x2: number; y2: number };
+export type BoundsSnapshot = { x1: number; y1: number; x2: number; y2: number };
 
 export interface GeometryCacheEntry {
   fill: RGBA;
@@ -1098,23 +1115,32 @@ function cacheKey(item: CacheableItem): unknown {
  * Vega mutates a Bounds in place as the view pans or zooms, so comparing by
  * identity never sees a change. Snapshot the numbers and compare those.
  */
-function copyBounds(b?: Bounds): BoundsSnapshot | undefined {
+export function copyBounds(b?: Bounds): BoundsSnapshot | undefined {
   return b ? { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 } : undefined;
 }
 
-function sameBounds(b: Bounds | undefined, snap: BoundsSnapshot | undefined): boolean {
+/**
+ * A projection can send a shape outside its domain and leave NaN in its
+ * bounds. Compared with `===` those items never match their own snapshot and
+ * rebuild on every frame.
+ */
+export function sameBounds(b: Bounds | undefined, snap: BoundsSnapshot | undefined): boolean {
   if (!b || !snap) {
     return b === undefined && snap === undefined;
   }
-  return b.x1 === snap.x1 && b.y1 === snap.y1 && b.x2 === snap.x2 && b.y2 === snap.y2;
+  return sameEdge(b.x1, snap.x1) && sameEdge(b.y1, snap.y1) && sameEdge(b.x2, snap.x2) && sameEdge(b.y2, snap.y2);
 }
 
-function sameColor(a: RGBA, b: RGBA): boolean {
+function sameEdge(a: number, b: number): boolean {
+  return a === b || (Number.isNaN(a) && Number.isNaN(b));
+}
+
+export function sameColor(a: RGBA, b: RGBA): boolean {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
 }
 
 /** Copies positions from `source` and writes `color` into every vertex. */
-function recolor(data: Float32Array, source: Float32Array, color: RGBA): void {
+export function recolor(data: Float32Array, source: Float32Array, color: RGBA): void {
   for (let i = 0; i < data.length; i += 7) {
     data[i] = source[i];
     data[i + 1] = source[i + 1];

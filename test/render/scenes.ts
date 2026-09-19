@@ -79,7 +79,8 @@ export const sceneMeanDeltaOverrides: Record<string, number> = {
 
 /**
  * Worst-channel budgets for the CI rasterizer. See the note in specs.ts: these
- * are read only on the runner, so a local run keeps the tight numbers.
+ * are read only on the runner, so a local run keeps the tight numbers. They
+ * were all measured at dpr 1, so a finer grid takes the table below instead.
  */
 export const ciMaxChannelDeltaOverrides: Record<string, number> = {
   'gradient-strokes': 140, // 132 there
@@ -146,6 +147,7 @@ export const maxChannelDeltaOverrides: Record<string, number> = {
   // where canvas fills the pixel. rect, rule, symbol and segments are analytic,
   // these are not.
   'arc-shapes': 130,
+  'arc-solid': 90, // 66, and 89 at dpr 2
   'arc-sweeps': 90, // 67
   'area-shapes': 80,
   'path-shapes': 180,

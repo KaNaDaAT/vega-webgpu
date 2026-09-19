@@ -1,7 +1,6 @@
 import type { GPUVegaScene } from '../types/context.js';
 import type { SceneItem } from '../types/scene.js';
 
-const f32 = Math.fround;
 
 /** Marks whose canvas draw translates to each item and back by the negated offset. */
 const PER_ITEM = new Set(['arc', 'shape', 'symbol', 'path']);
@@ -50,12 +49,12 @@ function ordered<T extends { zindex?: number }>(items: readonly T[]): readonly T
  */
 export function canvasTextDrift(root: GPUVegaScene, origin: readonly number[], ratio: number): TextDrift | null {
   const out: TextDrift = new Map();
-  const scale = f32(ratio);
-  let fy = f32(origin[1] * ratio);
+  const scale = Math.fround(ratio);
+  let fy = Math.fround(origin[1] * ratio);
   let modelled = true;
 
   const move = (y: number): void => {
-    fy = f32(fy + f32(f32(y) * scale));
+    fy = Math.fround(fy + Math.fround(Math.fround(y) * scale));
   };
 
   const walk = (mark: GPUVegaScene): void => {

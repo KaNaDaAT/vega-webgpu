@@ -4,7 +4,6 @@ export interface PathGeometry {
   lines: [number, number][][];
   /** Flat [x, y, z] triples forming fill triangles. */
   triangles: number[];
-  closed: boolean;
   z: number;
   key?: string;
 }

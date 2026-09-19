@@ -13,10 +13,11 @@ import {
   type OutlinePipelines,
   borderInstances,
   enqueueOutline,
+  outlineTargetOf,
   getMarkResources,
+  instanceScratch,
   markClip,
   blendPipelines,
-  markPipeline,
   whiteCarrier,
   type MarkModule,
 } from './util.js';
@@ -26,8 +27,6 @@ const drawName = 'Rect';
 interface RectResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  vertexManager: VertexBufferManager;
-  pipeline: GPURenderPipeline;
   gradientPipelineFor: (blend: string) => GPURenderPipeline;
   geometryBuffer: GPUBuffer;
   /** The background, one pipeline per blend mode. */
@@ -44,7 +43,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       // center, dimensions, fill color, stroke color, stroke width, corner radii
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
-    const pipeline = markPipeline(ctx, device, drawName, 'Rect', vertexManager);
     // a gradient fill under a blend needs its own pipeline too
     const gradientPipelineFor = blendPipelines(
       ctx,
@@ -63,8 +61,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     return {
       device,
       bufferManager,
-      vertexManager,
-      pipeline,
       gradientPipelineFor,
       geometryBuffer,
       pipelineFor: blendPipelines(ctx, device, drawName, 'Rect', vertexManager),
@@ -113,115 +109,118 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         ? ((item as SceneRectExt).stroke as SceneGradient)
         : null;
     const border = borderInstances(ctx, item as SceneRectExt, strokeGradient);
-    if (border) {
-      // The fill first, which is the order canvas paints them in, with the
-      // stroke taken off it so the analytic one is not drawn solid underneath.
-      if (blend !== runBlend && run.length > 0) {
-        flushRun();
-      }
-      runBlend = blend;
-      const filled: SceneRectExt = { ...(item as SceneRectExt), stroke: undefined };
-      run.push(filled);
+    // A dash or a ramp takes the border off the analytic path, and the stroke
+    // comes off the fill with it so it is not drawn solid underneath.
+    const filled: SceneRectExt = border ? { ...(item as SceneRectExt), stroke: undefined } : (item as SceneRectExt);
+
+    // The fill first, which is the order canvas paints them in. How the border
+    // draws does not decide this: a ramp needs the gradient pipeline either
+    // way, and through the plain one it resolves to the placeholder colour.
+    if (isGradient(fill)) {
       flushRun();
-      enqueueOutline(
-        { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip },
-        border,
-        blend,
-        strokeGradient,
-        item.bounds,
-      );
-      continue;
-    }
-    if (!isGradient(fill)) {
+      runBlend = blend;
+      const gradientPipeline = res.gradientPipelineFor(blend);
+      const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([filled], true));
+      ctx._renderQueue.enqueue({
+        pipeline: gradientPipeline,
+        drawCounts: [6, 1],
+        vertexBuffers: [res.geometryBuffer, instanceBuffer],
+        bindGroups: [
+          createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
+          // rect gradients evaluate in uv space, bounds are the unit square
+          createGradientBindGroup(gradientResources(), gradientPipeline, fill, [0, 0, 1, 1]),
+        ],
+        clip,
+      });
+    } else {
       // a run shares one pipeline, so a change of blend starts a new one
       if (blend !== runBlend && run.length > 0) {
         flushRun();
       }
       runBlend = blend;
-      run.push(item);
-      // canvas composites each mark against what is already there, so two of
-      // these overlapping have to meet the frame one at a time
-      if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
+      run.push(filled);
+      // The border draws after the fill, so the run closes here. canvas also
+      // composites each mark against what is already there, so two blended
+      // ones overlapping have to meet the frame one at a time.
+      if (border || needsBackdrop(blend, ctx._opaqueBackdrop)) {
         flushRun();
       }
-      continue;
     }
-    flushRun();
-    runBlend = blend;
-    const gradientPipeline = res.gradientPipelineFor(blend);
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([item as SceneRectExt], true));
-    ctx._renderQueue.enqueue({
-      pipeline: gradientPipeline,
-      drawCounts: [6, 1],
-      vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [
-        createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
-        // rect gradients evaluate in uv space, bounds are the unit square
-        createGradientBindGroup(gradientResources(), gradientPipeline, fill, [0, 0, 1, 1]),
-      ],
-      clip,
-    });
+
+    if (border) {
+      enqueueOutline(
+        outlineTargetOf(ctx, device, res, uniformBuffer, clip),
+        border,
+        blend,
+        strokeGradient,
+        item.bounds,
+      );
+    }
   }
   flushRun();
 }
 
+/** Floats per rect instance: box, fill, stroke, stroke width, four radii. */
+const RECT_STRIDE = 17;
+
 export function rectAttributes(items: SceneItem[], whiteGradientFill = false): Float32Array {
-  return Float32Array.from(
-    items.flatMap(rect => {
-      const {
-        opacity = 1,
-        fill,
-        fillOpacity = 1,
-        stroke,
-        strokeOpacity = 1,
-        strokeWidth,
-        cornerRadius = 0,
-        cornerRadiusBottomLeft,
-        cornerRadiusBottomRight,
-        cornerRadiusTopRight,
-        cornerRadiusTopLeft,
-      } = rect as SceneRectExt;
-      const item = rect as SceneRectExt;
-      // canvas's fillRect flips a negative extent and paints the rectangle on
-      // the other side of x or y, so a quad built from the raw numbers would be
-      // inverted and draw nothing where canvas draws a box.
-      let x = item.x || 0;
-      let y = item.y || 0;
-      let width = item.width || 0;
-      let height = item.height || 0;
-      if (width < 0) {
-        x += width;
-        width = -width;
-      }
-      if (height < 0) {
-        y += height;
-        height = -height;
-      }
-      const col =
-        whiteGradientFill && isGradient(fill)
-          ? whiteCarrier(opacity, fillOpacity)
-          : Color.from2(fill, opacity, fillOpacity);
-      const scol = Color.from2(stroke, opacity, strokeOpacity);
-      // Only reserve stroke width when a stroke is actually painted. Vega marks
-      // may carry a strokeWidth with no stroke (e.g. stroke set on hover only);
-      // canvas ignores it, so we must too. Otherwise the transparent stroke
-      // band insets the fill and the rect renders ~strokeWidth/2 px too small.
-      const swidth = stroke ? (strokeWidth ?? 1) : 0;
-      return [
-        x,
-        y,
-        width,
-        height,
-        ...col,
-        ...scol,
-        swidth,
-        cornerRadiusTopRight ?? cornerRadius,
-        cornerRadiusBottomRight ?? cornerRadius,
-        cornerRadiusBottomLeft ?? cornerRadius,
-        cornerRadiusTopLeft ?? cornerRadius,
-      ];
-    }),
-  );
+  const out = instanceScratch(items.length * RECT_STRIDE);
+  for (let i = 0, len = items.length; i < len; i++) {
+    const item = items[i] as SceneRectExt;
+    const {
+      opacity = 1,
+      fill,
+      fillOpacity = 1,
+      stroke,
+      strokeOpacity = 1,
+      strokeWidth,
+      cornerRadius = 0,
+      cornerRadiusBottomLeft,
+      cornerRadiusBottomRight,
+      cornerRadiusTopRight,
+      cornerRadiusTopLeft,
+    } = item;
+    // canvas's fillRect flips a negative extent and paints the rectangle on
+    // the other side of x or y, so a quad built from the raw numbers would be
+    // inverted and draw nothing where canvas draws a box.
+    let x = item.x || 0;
+    let y = item.y || 0;
+    let width = item.width || 0;
+    let height = item.height || 0;
+    if (width < 0) {
+      x += width;
+      width = -width;
+    }
+    if (height < 0) {
+      y += height;
+      height = -height;
+    }
+    const base = i * RECT_STRIDE;
+    out[base] = x;
+    out[base + 1] = y;
+    out[base + 2] = width;
+    out[base + 3] = height;
+    if (whiteGradientFill && isGradient(fill)) {
+      const [r, g, b, a] = whiteCarrier(opacity, fillOpacity);
+      out[base + 4] = r;
+      out[base + 5] = g;
+      out[base + 6] = b;
+      out[base + 7] = a;
+    } else {
+      Color.write(out, base + 4, fill, opacity, fillOpacity);
+    }
+    Color.write(out, base + 8, stroke, opacity, strokeOpacity);
+    // Only reserve stroke width when a stroke is actually painted. Vega marks
+    // may carry a strokeWidth with no stroke (e.g. stroke set on hover only);
+    // canvas ignores it, so we must too. Otherwise the transparent stroke
+    // band insets the fill and the rect renders ~strokeWidth/2 px too small.
+    out[base + 12] = stroke ? (strokeWidth ?? 1) : 0;
+    out[base + 13] = cornerRadiusTopRight ?? cornerRadius;
+    out[base + 14] = cornerRadiusBottomRight ?? cornerRadius;
+    out[base + 15] = cornerRadiusBottomLeft ?? cornerRadius;
+    out[base + 16] = cornerRadiusTopLeft ?? cornerRadius;
+  }
+  return out;
 }
 
 export default {

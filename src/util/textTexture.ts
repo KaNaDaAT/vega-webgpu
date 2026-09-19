@@ -2,6 +2,7 @@ import { Bounds, Marks } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneTextItem } from '../types/scene.js';
 
+
 const HALF_PI = Math.PI / 2;
 const textMark = Marks.text;
 
@@ -51,12 +52,6 @@ export function textAnchor(item: SceneTextItem): [number, number] {
 }
 
 /**
- * Cache key over everything that affects the rasterized pixels (not opacity,
- * which the shader applies). `radius`/`theta` are not included, because they
- * only move the anchor in scene space and cancel out of the anchor-relative
- * offset. `angle` is, and is zero for a glyph the quad will turn instead.
- */
-/**
  * A paint as a key. A gradient is an object and every object stringifies the
  * same way, so joining one straight into the key made every gradient on text
  * collide: two labels with different gradients shared a raster, and the second
@@ -66,6 +61,12 @@ function paintKey(paint: unknown): string {
   return paint !== null && typeof paint === 'object' ? JSON.stringify(paint) : String(paint);
 }
 
+/**
+ * Cache key over everything that affects the rasterized pixels (not opacity,
+ * which the shader applies). `radius`/`theta` are not included, because they
+ * only move the anchor in scene space and cancel out of the anchor-relative
+ * offset. `angle` is, and is zero for a glyph the quad will turn instead.
+ */
 export function textCacheKey(item: SceneTextItem): string {
   const text = Array.isArray(item.text) ? item.text.join('') : String(item.text ?? '');
   return [
@@ -169,11 +170,15 @@ export function driftShift(
   if (Math.abs(ours - Math.floor(ours) - 0.5) > TIE_WINDOW) {
     return NO_DRIFT;
   }
-  // The matrix is float32 and the point is not, so only the translation is
-  // rounded: taking the baseline to float32 as well reads 146.49999999999994 as
-  // exactly 146.5 and moves labels canvas leaves alone.
+  // Both sides narrow to float32 before the snap, because that is what the
+  // quad does on its way to the gpu. Narrowing one and not the other is what
+  // left `Wicker Park` behind: its baseline is 146.49999999999994, which reads
+  // as 146 in double and as exactly 146.5, so 147, once narrowed. The model
+  // compared 146 against a drifted 146 and moved nothing while the label sat a
+  // row below canvas. Narrowed the same way they agree when there is no drift
+  // and differ by the row when there is.
   const theirs = translation + local * dpi;
-  return [0, Math.round(theirs) - Math.round(ours)];
+  return [0, Math.round(Math.fround(theirs)) - Math.round(Math.fround(ours))];
 }
 
 /** Cosine and sine of a label's angle. */

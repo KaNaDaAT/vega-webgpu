@@ -116,5 +116,4 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   _geometryCacheSize: number;
 
   /** Adds random depth jitter to path geometry (unused by default). */
-  _randomZ?: boolean;
 };

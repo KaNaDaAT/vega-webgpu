@@ -122,8 +122,7 @@ export class BufferManager {
    * costs one JS ArrayBuffer per buffer and a frame creates a buffer per mark,
    * which exhausts that allocation on a memory-constrained runner: every
    * create then throws "size (32) is too large for the implementation".
-   */
-  /**
+   *
    * `lasting` keeps the buffer out of the frame pool, for the few that are held
    * across frames rather than rebuilt.
    */
@@ -149,21 +148,9 @@ export class BufferManager {
     return buffer;
   }
 
-  getDevice(): GPUDevice {
-    return this.device;
-  }
 
-  getBufferName(): string {
-    return this.bufferName;
-  }
 
-  getResolution(): [width: number, height: number] {
-    return this.resolution;
-  }
 
-  getOffset(): [x: number, y: number] {
-    return this.offset;
-  }
 
   setResolution(resolution: [width: number, height: number]): void {
     this.resolution = resolution;

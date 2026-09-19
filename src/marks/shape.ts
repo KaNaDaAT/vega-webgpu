@@ -15,11 +15,19 @@ import {
   segmentInstances,
   writeSegments,
   enqueueOutline,
+  outlineTargetOf,
   geometryVertexData,
   getMarkResources,
   gradientTargetOf,
+  solidTargetOf,
   enqueueGradient,
+  enqueueSolid,
   markClip,
+  copyBounds,
+  recolor,
+  sameBounds,
+  sameColor,
+  type BoundsSnapshot,
   fillResources,
   type FillResources,
   dashPatternOf,
@@ -77,8 +85,8 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const useCache = ctx._renderer.wgOptions.cacheShapes ?? true;
   const clip = markClip(ctx, scene);
-  const vertexLength = res.vertexManager.getVertexLength();
   const gradientTarget = gradientTargetOf(ctx, device, `${drawName}Gradient`, res, uniformBuffer, clip);
+  const solidTarget = solidTargetOf(ctx, device, drawName, res, uniformBuffer, clip);
 
   // Solid fills and strokes share one pipeline and are accumulated in paint
   // order into a single buffer/draw. Gradient fills interrupt the batch.
@@ -100,14 +108,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const flushBatch = () => {
     const data = batch.flush();
     if (data) {
-      const pipeline = res.pipelineFor(batchBlend);
-      ctx._renderQueue.enqueue({
-        pipeline,
-        drawCounts: [data.length / vertexLength],
-        vertexBuffers: [res.bufferManager.createGeometryBuffer(data)],
-        bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
-        clip,
-      });
+      enqueueSolid(solidTarget, data, batchBlend);
     }
   };
 
@@ -148,7 +149,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       if (own) {
         flushBatch();
         enqueueOutline(
-          { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip },
+          outlineTargetOf(ctx, device, res, uniformBuffer, clip),
           own,
           blendKey(item.blend),
           strokeGradient,
@@ -197,14 +198,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
  */
 function pushOutline(out: OutlineBuffer, item: SceneShapeItem, lines: Point[][]): void {
   const width = item.strokeWidth ?? 1;
-  const color = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+  const color = Color.from(item.stroke, item.opacity, item.strokeOpacity);
   const runs = outlineRuns(item, lines);
   if (!runs || color[3] <= 0) {
     return;
   }
   const needed = segmentCount(runs) * SEGMENT_STRIDE;
-  const { caps, join } = strokeEnds(item);
-  out.length = writeSegments(out.reserve(needed), out.length, runs, color, width, caps, join);
+  const { caps, join, square } = strokeEnds(item);
+  out.length = writeSegments(out.reserve(needed), out.length, runs, color, width, caps, join, square);
 }
 
 /** The drawn runs of one item's outline, or null when it has none. */
@@ -295,22 +296,6 @@ function cacheKey(item: SceneShapeItem): unknown {
   return item;
 }
 
-function sameColor(a: RGBA, b: RGBA): boolean {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
-}
-
-function recolor(data: Float32Array, source: Float32Array, color: RGBA): void {
-  for (let i = 0; i < data.length; i += 7) {
-    data[i] = source[i];
-    data[i + 1] = source[i + 1];
-    data[i + 2] = source[i + 2];
-    data[i + 3] = color[0];
-    data[i + 4] = color[1];
-    data[i + 5] = color[2];
-    data[i + 6] = color[3];
-  }
-}
-
 function createGeometryData(
   ctx: GPUVegaCanvasContext,
   res: ShapeResources,
@@ -323,10 +308,10 @@ function createGeometryData(
   const key = cacheKey(item);
   const fill = hasGradient
     ? whiteCarrier(item.opacity, item.fillOpacity)
-    : Color.from2(item.fill, item.opacity, item.fillOpacity);
+    : Color.from(item.fill, item.opacity, item.fillOpacity);
   const stroke = strokeIsGradient
     ? whiteCarrier(item.opacity, item.strokeOpacity)
-    : Color.from2(item.stroke, item.opacity, item.strokeOpacity);
+    : Color.from(item.stroke, item.opacity, item.strokeOpacity);
 
   if (useCache) {
     const entry = res.cache.get(key);
@@ -386,27 +371,10 @@ function createGeometryData(
  * Vega mutates a Bounds in place as the view pans or zooms, so comparing by
  * identity never sees a change. Snapshot the numbers and compare those.
  */
-type BoundsSnapshot = { x1: number; y1: number; x2: number; y2: number };
-
-function copyBounds(b?: Bounds): BoundsSnapshot | undefined {
-  return b ? { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 } : undefined;
-}
-
-function sameBounds(b: Bounds | undefined, snap: BoundsSnapshot | undefined): boolean {
-  if (b === undefined || snap === undefined) {
-    return b === undefined && snap === undefined;
-  }
-  return sameEdge(b.x1, snap.x1) && sameEdge(b.y1, snap.y1) && sameEdge(b.x2, snap.x2) && sameEdge(b.y2, snap.y2);
-}
-
 /**
  * A projection can send a shape outside its domain and leave NaN in the bounds,
  * which never equals itself, so those items would rebuild on every frame.
  */
-function sameEdge(a: number, b: number): boolean {
-  return a === b || (Number.isNaN(a) && Number.isNaN(b));
-}
-
 export default {
   type: 'shape',
   draw,

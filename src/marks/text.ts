@@ -20,7 +20,7 @@ import {
 } from '../util/textTexture.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey } from '../util/blend.js';
-import { blendPipelines, getMarkResources, markClip, markPipeline, type MarkModule } from './util.js';
+import { blendPipelines, getMarkResources, markClip, type MarkModule } from './util.js';
 
 const drawName = 'Text';
 
@@ -40,9 +40,7 @@ const UPLOAD_BUDGET_MS = 2.5;
 interface TextResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  vertexManager: VertexBufferManager;
-  pipeline: GPURenderPipeline;
-  /** The same pipeline with a blend mode baked in, one per mode. */
+  /** The glyph quads, one pipeline per blend mode. */
   pipelineFor: (blend: string) => GPURenderPipeline;
   sampler: GPUSampler;
   atlas: TextAtlas;
@@ -57,7 +55,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   return getMarkResources(ctx, 'text', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     const vertexManager = new VertexBufferManager([], LABEL_LAYOUT);
-    const pipeline = markPipeline(ctx, device, drawName, drawName, vertexManager);
     // a blend is baked into the pipeline state, so each mode needs its own
     const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
     const sampler = device.createSampler({
@@ -72,8 +69,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     return {
       device,
       bufferManager,
-      vertexManager,
-      pipeline,
       pipelineFor,
       sampler,
       atlas,
@@ -189,8 +184,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const dpi = ctx._uniforms.dpi || 1;
   const drift = ctx._textDrift?.get(scene);
 
-  // Atlas coordinates stay in pixels until the batch closes: the first
-  // allocation may grow the atlas, and every slot in a batch shares its size.
   const settling = ctx._renderer?.settling === true;
   const exact = settling || res.exact;
   let deferred = false;
