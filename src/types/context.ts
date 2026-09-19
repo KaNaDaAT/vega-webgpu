@@ -8,6 +8,9 @@ import type { SceneGroupExt, SceneItem } from './scene.js';
 /** Scissor rectangle in physical (device) pixels: x, y, width, height. */
 export type ClipRect = [x: number, y: number, width: number, height: number];
 
+/** Corner radii of a clip, in device pixels, clockwise from the top left. */
+export type ClipRadii = [tl: number, tr: number, br: number, bl: number];
+
 export interface RenderUniforms {
   resolution: [width: number, height: number];
   origin: readonly [x: number, y: number];
@@ -85,6 +88,8 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   _textDrift?: TextDrift | null;
   /** Active scissor rect (physical pixels), if any. */
   _clip?: ClipRect;
+  /** Set alongside _clip when the clipping group has a corner radius. */
+  _clipRadii?: ClipRadii;
 
   _renderer: WebGPURenderer;
   _renderQueue: RenderQueue;

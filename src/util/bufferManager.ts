@@ -51,6 +51,8 @@ export class BufferManager {
   private resolution: [width: number, height: number];
   private offset: [x: number, y: number];
   private dpi = 1;
+  private clip: [number, number, number, number] = [0, 0, 0, 0];
+  private clipRadii: [number, number, number, number] = [0, 0, 0, 0];
 
   constructor(
     device: GPUDevice,
@@ -148,10 +150,6 @@ export class BufferManager {
     return buffer;
   }
 
-
-
-
-
   setResolution(resolution: [width: number, height: number]): void {
     this.resolution = resolution;
   }
@@ -164,8 +162,18 @@ export class BufferManager {
     this.dpi = dpi || 1;
   }
 
+  /**
+   * The clip every draw from this mark is held to. A scissor rect is exact for
+   * a plain box, so this is only read by the shader to cut the corners of a
+   * rounded one.
+   */
+  setClip(clip?: readonly number[], radii?: readonly number[]): void {
+    this.clip = [clip?.[0] ?? 0, clip?.[1] ?? 0, clip?.[2] ?? 0, clip?.[3] ?? 0];
+    this.clipRadii = [radii?.[0] ?? 0, radii?.[1] ?? 0, radii?.[2] ?? 0, radii?.[3] ?? 0];
+  }
+
   /** The shared uniform block: resolution, group offset and device pixel ratio. */
   private uniformValues(): Float32Array {
-    return new Float32Array([...this.resolution, ...this.offset, this.dpi, 0, 0, 0]);
+    return new Float32Array([...this.resolution, ...this.offset, ...this.clip, ...this.clipRadii, this.dpi, 0, 0, 0]);
   }
 }

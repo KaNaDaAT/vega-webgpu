@@ -63,6 +63,7 @@ export function getMarkResources<T extends { device: GPUDevice }>(
     buffers?.setResolution(ctx._uniforms.resolution);
     buffers?.setOffset([vb.x1, vb.y1]);
     buffers?.setDpi(ctx._uniforms.dpi);
+    buffers?.setClip(ctx._clip, ctx._clipRadii);
   }
   return res;
 }

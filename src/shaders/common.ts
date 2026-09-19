@@ -9,7 +9,14 @@
  * the trailing f32 fields a particular mark adds.
  */
 export function uniformBlock(...extra: string[]): string {
-  const fields = ['resolution: vec2<f32>', 'offset: vec2<f32>', ...extra.map(name => `${name}: f32`)];
+  const fields = [
+    'resolution: vec2<f32>',
+    'offset: vec2<f32>',
+    // the clipping box and its corner radii, both in device pixels
+    'clip: vec4<f32>',
+    'clipRadii: vec4<f32>',
+    ...extra.map(name => `${name}: f32`),
+  ];
   return `struct Uniforms {
   ${fields.join(',\n  ')},
 }
@@ -50,13 +57,57 @@ const SOURCE_COLOR: Record<string, string> = {
 function fragmentEntry(entryPoint: string, colorFn: string): string {
   return `@fragment
 fn ${entryPoint}(in: VertexOutput) -> @location(0) vec4<f32> {
-    let c = ${colorFn}(in);
+    let clipCov = clipCoverage(in.pos.xy);
+    if clipCov <= 0.0 {
+        discard;
+    }
+    let raw = ${colorFn}(in);
+    let c = vec4<f32>(raw.rgb, raw.a * clipCov);
     if c.a <= 0.0 {
         discard;
     }
     return blendAdjust(c);
 }`;
 }
+
+/**
+ * How much of a fragment the clip's rounded corners leave.
+ *
+ * A clip is a scissor rect, which is exact for a plain box and cannot express
+ * the rounded rectangle canvas clips a group to when it has a cornerRadius.
+ * The scissor still does the rejecting, so this only has to cut the four
+ * corners, and it is skipped outright when there is no radius to cut.
+ *
+ * Coverage rather than a discard, because canvas antialiases the edge of a
+ * clip path. Cutting on a test instead leaves the corner stepped, which reads
+ * 93 against canvas where the fraction reads 25.
+ */
+const INSIDE_CLIP = `fn clipCoverage(p: vec2<f32>) -> f32 {
+    let r = uniforms.clipRadii;
+    if r.x <= 0.0 && r.y <= 0.0 && r.z <= 0.0 && r.w <= 0.0 {
+        return 1.0;
+    }
+    let lo = uniforms.clip.xy;
+    let hi = lo + uniforms.clip.zw;
+    var c = vec2<f32>(0.0, 0.0);
+    var radius = 0.0;
+    if p.x < lo.x + r.x && p.y < lo.y + r.x {
+        c = lo + vec2<f32>(r.x, r.x);
+        radius = r.x;
+    } else if p.x > hi.x - r.y && p.y < lo.y + r.y {
+        c = vec2<f32>(hi.x - r.y, lo.y + r.y);
+        radius = r.y;
+    } else if p.x > hi.x - r.z && p.y > hi.y - r.z {
+        c = hi - vec2<f32>(r.z, r.z);
+        radius = r.z;
+    } else if p.x < lo.x + r.w && p.y > hi.y - r.w {
+        c = vec2<f32>(lo.x + r.w, hi.y - r.w);
+        radius = r.w;
+    } else {
+        return 1.0;
+    }
+    return clamp(radius + 0.5 - distance(p, c), 0.0, 1.0);
+}`;
 
 /**
  * Every shader ends this way: `blendAdjust` for the mode, then one fragment
@@ -71,7 +122,7 @@ export function fragmentTail(blend: string, entries: Record<string, string> = DE
   const prelude = `fn blendAdjust(c: vec4<f32>) -> vec4<f32> {
     return ${SOURCE_COLOR[blend] ?? SOURCE_COLOR.normal};
 }`;
-  return [prelude, ...Object.entries(entries).map(([name, fn]) => fragmentEntry(name, fn))].join('\n\n');
+  return [INSIDE_CLIP, prelude, ...Object.entries(entries).map(([name, fn]) => fragmentEntry(name, fn))].join('\n\n');
 }
 
 const DEFAULT_ENTRY = { main_fragment: 'fragmentColor' };

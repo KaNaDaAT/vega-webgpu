@@ -4,14 +4,16 @@ Every case renders the same scene with the canvas renderer and with this one and
 
 ## The measures
 
-Four, each answering a question the others cannot.
+Six, each answering a question the others cannot. A fixture is held to all six; a spec carries too much text for `quad`, so it is held to the other five.
 
-| measure | question                                           | default                                       |
-| ------- | -------------------------------------------------- | --------------------------------------------- |
-| `diff`  | how much of the frame moved                        | 0.2% of pixels for a fixture, 0.8% for a spec |
-| `quad`  | how wrong is the worst place, locally              | 70 channel levels                             |
-| `bias`  | is the whole render off in one direction           | 2 channel levels                              |
-| `mean`  | is the whole render off by a lot, either direction | 10 channel levels                             |
+| measure | question | default |
+| --- | --- | --- |
+| `diff` | how much of the frame moved | 0.2% of pixels for a fixture, 0.8% for a spec |
+| `quad` | how wrong is the worst place, locally | 70 channel levels |
+| `bias` | is the whole render off in one direction | 2 channel levels |
+| `mean` | is the whole render off by a lot, either direction | 10 channel levels |
+| `flat` | is the colour wrong away from any edge | 3 channel levels, where 1000 interior pixels can be sampled |
+| `tile` | is one small region badly wrong | 35% of a 32px square |
 
 `diff` counts pixels past a colour threshold, so it sees a mark in the wrong place and is blind to a render that is uniformly a few levels dark.
 
@@ -20,6 +22,10 @@ Four, each answering a question the others cannot.
 `bias` is the signed mean over inked pixels. It is the only measure that sees a systematic error: `gate.spec.ts` darkens a render by four levels and shows the pixel count and the unsigned mean both report a pass while this fires.
 
 `mean` is the unsigned mean over inked pixels, for an error too large to be antialiasing but too scattered to be one-sided.
+
+`flat` is the mean over inked pixels whose neighbourhood is flat in both renders, so neither a moved edge nor one the two rasterizers merely disagree about. What is left is the colour itself. Text and thin lines have no interior to sample, so it only applies where 1000 such pixels exist.
+
+`tile` is the worst 32 pixel square, as a fraction of that square. The whole-image count is diluted by however much of a case is empty, so a small region that is badly wrong reads as a faint haze over everything.
 
 ## Overrides
 

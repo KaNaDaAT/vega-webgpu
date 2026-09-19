@@ -459,8 +459,8 @@ function blockDelta(imgA: PNG, imgB: PNG, side: number): number {
  *
  * `quad` is the local measure. Comparing single pixels reads 255 wherever one
  * antialiased edge pixel lands on the other side of a rounding boundary, which
- * happens all over a legitimate render: 35 fixtures needed a budget of their
- * own for it, and a finer grid needed a second one on top. Averaging each
+ * happens all over a legitimate render: 28 fixtures needed a budget of their
+ * own for it, 17 more for a finer grid and 4 more for CI. Averaging each
  * block before comparing leaves a moved edge alone and still catches a mark
  * drawn in the wrong place or the wrong colour, and with the block sized in
  * scene units rather than device pixels it reads the same at either ratio.

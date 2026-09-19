@@ -1,5 +1,5 @@
 import { Bounds, sceneVisit } from 'vega-scenegraph';
-import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { ClipRadii, ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneGradient, SceneGroupExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
@@ -199,9 +199,13 @@ function draw(
     ctx._ty += gy;
 
     const oldClip = ctx._clip;
+    const oldRadii = ctx._clipRadii;
     if (group.clip) {
       const dpi = ctx._uniforms.dpi;
       ctx._clip = [(ctx._origin[0] + ctx._tx) * dpi, (ctx._origin[1] + ctx._ty) * dpi, gw * dpi, gh * dpi];
+      // canvas clips a group to its rounded rectangle, which a scissor cannot
+      // express, so the corners are cut in the fragment stage instead
+      ctx._clipRadii = clipRadii(group, dpi);
     }
     if (vb) {
       vb.translate(-gx, -gy);
@@ -218,6 +222,7 @@ function draw(
     }
     if (group.clip) {
       ctx._clip = oldClip;
+      ctx._clipRadii = oldRadii;
     }
     ctx._tx -= gx;
     ctx._ty -= gy;
@@ -292,3 +297,22 @@ export default {
   type: 'group',
   draw,
 } satisfies MarkModule;
+/**
+ * A clipping group's corner radii in device pixels, clockwise from top left.
+ *
+ * Clamped to half the shorter side, as vega's own rectangle generator does.
+ * Past that the four corner arcs overlap, and the shader would cut with the
+ * first one that matches rather than the nearer of the two.
+ */
+function clipRadii(group: SceneGroupExt, dpi: number): ClipRadii | undefined {
+  const base = group.cornerRadius ?? 0;
+  const limit = (Math.min(group.width || 0, group.height || 0) / 2) * dpi;
+  const at = (corner: number | undefined): number => Math.max(0, Math.min((corner ?? base) * dpi, limit));
+  const radii: ClipRadii = [
+    at(group.cornerRadiusTopLeft),
+    at(group.cornerRadiusTopRight),
+    at(group.cornerRadiusBottomRight),
+    at(group.cornerRadiusBottomLeft),
+  ];
+  return radii.some(r => r > 0) ? radii : undefined;
+}

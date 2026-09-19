@@ -26,15 +26,9 @@ export const SCENE_CHECK_DEFAULT = 0.002;
 
 /** Per-fixture budgets. `null` skips the comparison. */
 export const sceneCheckOverrides: Record<string, number | null> = {
-  // Dense outlines on triangulated marks, whose edge coverage comes from MSAA.
-  // Almost every differing pixel is one of those edges.
-  'arc-shapes': 0.004,
-  'path-shapes': 0.012,
-  // thick strokes on rings and curves, so the ribbon edge is most of the ink
-  'gradient-strokes': 0.005,
   // Six dashed and capped borders on a corner radius, which is where the dash
   // phase around a curve differs. group-corner-dash carries the same cause.
-  'group-variants': 0.004,
+  'group-variants': 0.004, // 0.230%
 };
 
 /**
