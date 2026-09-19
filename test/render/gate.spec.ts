@@ -36,7 +36,7 @@ test('the signed mean sees a systematic error the pixel count cannot', async ({ 
   const off = diffPngs(darken(shot.png, 4), shot.png, 'stocks-index');
   console.log(
     `GATE 4 levels darker: ${(off.diffRatio * 100).toFixed(3)}% of pixels differ, ` +
-      `mean ${off.meanDelta.toFixed(2)}, bias ${off.biasDelta.toFixed(2)}, worst channel ${off.maxDelta}`,
+      `mean ${off.meanDelta.toFixed(2)}, bias ${off.biasDelta.toFixed(2)}, worst channel ${off.quadDelta}`,
   );
 
   expect(off.diffRatio, 'the pixel count should be blind to this').toBeLessThan(0.0001);

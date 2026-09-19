@@ -57,7 +57,7 @@ function drawList() {
     if (state.hasRecorded) {
       const flat = c.flatSample >= 1000 ? `flat ${c.flat.toFixed(2)}` : 'flat n/a';
       el.querySelector('.meta').textContent =
-        `${(c.diff * 100).toFixed(3)}%  mean ${c.mean.toFixed(2)}  bias ${(c.bias ?? 0).toFixed(2)}  ${flat}  max ${c.max}`;
+        `${(c.diff * 100).toFixed(3)}%  mean ${c.mean.toFixed(2)}  bias ${(c.bias ?? 0).toFixed(2)}  ${flat}  quad ${(c.quad ?? 0).toFixed(1)}`;
     } else {
       el.querySelector('.meta').remove();
     }
@@ -250,13 +250,13 @@ function recordedNote(c) {
         ? `The same average away from any edge, over ${c.flatSample.toLocaleString()} pixels`
         : 'Too few flat pixels here to measure over',
     ),
-    fact('worst channel', String(c.max), 'The single furthest-off channel in the frame'),
+    fact('worst block', (c.quad ?? 0).toFixed(1), 'The furthest-off 2 scene pixel block average, which a moved edge does not shift'),
   ];
   if (b) {
     const budget =
       `${b.diff === null ? 'count skipped' : `${(b.diff * 100).toFixed(1)}%`} / tile ${(b.tile * 100).toFixed(0)}%` +
       ` / mean ${b.mean}${b.bias === undefined ? '' : ` / bias ${b.bias}`} / flat ${b.flat}` +
-      `${b.max ? ` / channel ${b.max}` : ''}`;
+      `${b.quad ? ` / block ${b.quad}` : ''}`;
     facts.push(fact('budgets', budget, 'What the suite allows this case before it fails'));
   }
   if (s) {
@@ -520,7 +520,7 @@ async function loadCases() {
     // no run on disk, which is not an error
   }
   const names = await (await fetch('../specs-valid.json')).json();
-  const blank = { kind: 'spec', width: 0, height: 0, diff: 0, tile: 0, mean: 0, flat: 0, flatSample: 0, max: 0 };
+  const blank = { kind: 'spec', width: 0, height: 0, diff: 0, tile: 0, mean: 0, flat: 0, flatSample: 0, quad: 0 };
   return {
     cases: names.map(name => ({ ...blank, name, file: name, recorded: false })),
     settings: null,

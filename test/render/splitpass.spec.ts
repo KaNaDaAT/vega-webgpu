@@ -24,6 +24,7 @@ interface Harness {
   __renderError?: string;
   renderer: {
     device?: () => GPUDevice;
+    drewOffFrame?: () => boolean;
     _lastRender?: { scene: unknown };
     _ctx: { _sampleCount: number };
     wgOptions: { offscreen: boolean };
@@ -66,6 +67,7 @@ for (const { query, what } of SHAPES) {
           error: w.__renderError,
           gpu: seen,
           ink,
+          offFrame: r.drewOffFrame?.() ?? null,
           samples: r._ctx._sampleCount,
           offscreen: r.wgOptions.offscreen,
         };
@@ -73,6 +75,7 @@ for (const { query, what } of SHAPES) {
       expect(state.error, `${scene} ${what}`).toBeUndefined();
       expect(state.gpu, `${scene} ${what} reported a GPU error`).toEqual([]);
       expect(state.ink, `${scene} ${what} drew nothing`).toBeGreaterThan(1000);
+      expect(state.offFrame, `${scene} ${what} never split its pass`).toBe(true);
       if (query.includes('sampleCount=1')) {
         expect(state.samples, 'the sample count reached the renderer').toBe(1);
       }

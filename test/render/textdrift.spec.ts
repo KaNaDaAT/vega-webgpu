@@ -46,6 +46,6 @@ test('the canvas text drift option leaves a scene with no drift alone', async ({
     canvas.png,
     'bar',
   );
-  expect(on.maxDelta, 'nothing to reproduce here, so nothing should move').toBeLessThanOrEqual(off.maxDelta);
+  expect(on.quadDelta, 'nothing to reproduce here, so nothing should move').toBeLessThanOrEqual(off.quadDelta);
   expect(on.diffRatio).toBeLessThanOrEqual(off.diffRatio + 1e-6);
 });

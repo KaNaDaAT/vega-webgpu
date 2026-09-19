@@ -52,6 +52,12 @@ export interface GalleryCase {
   kind: string;
   /** Prefix of its three pngs, which is the name for a spec and `scene-<name>` for a fixture. */
   file: string;
+  /**
+   * The fixture or spec it was drawn from, where that is not the name. A
+   * variant renders an existing spec with an option set, so `label-drift` is
+   * drawn from `label` and there is no file of its own to look for.
+   */
+  source?: string;
   width: number;
   height: number;
   diff: number;
@@ -67,9 +73,9 @@ export interface GalleryCase {
   bias: number;
   flat: number;
   flatSample: number;
-  max: number;
+  quad: number;
   /** The budgets this case was held to, so the gallery can say what passing meant. */
-  budgets: { diff: number | null; tile: number; mean: number; bias: number; flat: number; max?: number };
+  budgets: { diff: number | null; tile: number; mean: number; bias: number; flat: number; quad?: number };
   /** What the case is for, from a fixture's own description. */
   note?: string;
 }
@@ -91,6 +97,22 @@ function runSettings() {
 }
 
 const MANIFEST = join(OUTPUT_DIR, 'index.json');
+const SCENES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'scenes');
+const SPECS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'specs-valid');
+
+/**
+ * Whether the case still exists to be drawn. A renamed or deleted one keeps
+ * its row otherwise: the pngs it was recorded with are still on disk, so the
+ * row stays and the gallery shows numbers from whatever the renderer did back
+ * then. `tmp-joinblend` sat there reading 100% of pixels differing long after
+ * the fixture was gone.
+ */
+function stillExists(c: GalleryCase): boolean {
+  const source = c.source ?? c.name;
+  return c.kind === 'fixture'
+    ? existsSync(join(SCENES_DIR, `${source}.json`)) || existsSync(`${SCENES_DIR}-hostile/${source}.json`)
+    : existsSync(join(SPECS_DIR, `${source}.vg.json`));
+}
 let gallery: Map<string, GalleryCase> | null = null;
 
 /**
@@ -118,11 +140,10 @@ export function recordCase(entry: GalleryCase): void {
   }
   // Keyed by file, not name: symbol-shapes is both a spec and a fixture.
   gallery.set(entry.file, entry);
-  // A case that was renamed or deleted keeps its row otherwise, since a
-  // filtered run only rewrites what it touched. Its pngs are gone, so it is
-  // gone. A run that only covered some cases still keeps the rest.
+  // A run that only covered some cases still keeps the rest, so the rows are
+  // dropped on what is on disk rather than on what this run touched.
   const cases = [...gallery.values()]
-    .filter(c => existsSync(join(OUTPUT_DIR, `${c.file}-canvas.png`)))
+    .filter(c => existsSync(join(OUTPUT_DIR, `${c.file}-canvas.png`)) && stillExists(c))
     .sort((a, b) => a.file.localeCompare(b.file));
   writeFileSync(
     MANIFEST,
@@ -205,7 +226,8 @@ export interface DiffResult {
   width: number;
   height: number;
   /** Largest single channel difference anywhere. */
-  maxDelta: number;
+  /** Largest channel difference between block averages. See BLOCK_SCENE_PX. */
+  quadDelta: number;
   /** Mean channel difference over pixels either side inked. */
   meanDelta: number;
   /** Largest mean signed channel difference over inked pixels. */
@@ -232,7 +254,7 @@ export function diffPngs(a: Buffer, b: Buffer, name: string): DiffResult {
     includeAA: true,
   });
   const { ratio, at } = worstRegion(diff, imgA.width, imgA.height);
-  const { max, mean, bias, touched, flatMean, flatSample } = deltas(imgA, imgB);
+  const { quad, mean, bias, touched, flatMean, flatSample } = deltas(imgA, imgB);
   return {
     diffRatio: diffCount / (imgA.width * imgA.height),
     touched,
@@ -241,7 +263,7 @@ export function diffPngs(a: Buffer, b: Buffer, name: string): DiffResult {
     worstTile: ratio,
     worstTileAt: at,
     diff: PNG.sync.write(diff),
-    maxDelta: max,
+    quadDelta: quad,
     meanDelta: mean,
     biasDelta: bias,
     flatMeanDelta: flatMean,
@@ -303,8 +325,11 @@ export function maxChannelDelta(a: Buffer, b: Buffer): number {
 }
 
 export interface ChannelStats {
-  /** Largest single channel difference. */
-  max: number;
+  /**
+   * Largest channel difference between block averages, over blocks of
+   * `2 * dpi` pixels a side. See BLOCK_SCENE_PX.
+   */
+  quad: number;
   /** Mean channel difference over pixels either side inked. */
   mean: number;
   /** Fraction of pixels at least one channel differs on. */
@@ -385,6 +410,44 @@ function spread(img: PNG): Uint8Array {
 const FLAT_EPS = 6;
 
 /**
+ * Side of the block the local measure averages over, in scene pixels. Sized in
+ * scene units so a finer device grid divides the same area into more, smaller
+ * pixels and the reading does not move: `gradient-strokes` reads 52.0 at dpi 1
+ * and 52.1 at dpi 2, where the single-pixel worst reads 128 and 191.
+ */
+const BLOCK_SCENE_PX = 2;
+
+/** The device pixel ratio the suite is rendering at. */
+const renderRatio = (): number => Math.max(1, Math.round(Number(process.env.RENDER_DPR ?? 1)));
+
+/** Largest channel difference between block averages. */
+function blockDelta(imgA: PNG, imgB: PNG, side: number): number {
+  const { width: w, height: h } = imgA;
+  let worst = 0;
+  for (let y = 0; y + side <= h; y += side) {
+    for (let x = 0; x + side <= w; x += side) {
+      for (let c = 0; c < 3; c++) {
+        let sa = 0;
+        let sb = 0;
+        for (let dy = 0; dy < side; dy++) {
+          const row = (y + dy) * w;
+          for (let dx = 0; dx < side; dx++) {
+            const i = (row + x + dx) * 4 + c;
+            sa += imgA.data[i];
+            sb += imgB.data[i];
+          }
+        }
+        const delta = Math.abs(sa - sb) / (side * side);
+        if (delta > worst) {
+          worst = delta;
+        }
+      }
+    }
+  }
+  return worst;
+}
+
+/**
  * Per-channel error over two already flattened images.
  *
  * `mean` is the number worth gating on. The differing-pixel count ignores
@@ -394,14 +457,17 @@ const FLAT_EPS = 6;
  * catches exactly that, and stays near zero when the only difference is a
  * scattering of antialiased edge pixels, however far off any one of them is.
  *
- * `max` is the opposite trade: one edge pixel landing on the other side of a
- * rounding boundary reads 255. It is worth holding on small synthetic fixtures
- * where that cannot happen by accident, and useless across a full spec.
+ * `quad` is the local measure. Comparing single pixels reads 255 wherever one
+ * antialiased edge pixel lands on the other side of a rounding boundary, which
+ * happens all over a legitimate render: 35 fixtures needed a budget of their
+ * own for it, and a finer grid needed a second one on top. Averaging each
+ * block before comparing leaves a moved edge alone and still catches a mark
+ * drawn in the wrong place or the wrong colour, and with the block sized in
+ * scene units rather than device pixels it reads the same at either ratio.
  */
 function deltas(imgA: PNG, imgB: PNG): ChannelStats {
   const flatA = spread(imgA);
   const flatB = spread(imgB);
-  let max = 0;
   let sum = 0;
   let inked = 0;
   const signed = [0, 0, 0];
@@ -435,13 +501,10 @@ function deltas(imgA: PNG, imgB: PNG): ChannelStats {
     if (worst > 0) {
       touched++;
     }
-    if (worst > max) {
-      max = worst;
-    }
   }
   const pixels = imgA.data.length / 4;
   return {
-    max,
+    quad: blockDelta(imgA, imgB, BLOCK_SCENE_PX * renderRatio()),
     mean: inked ? sum / inked : 0,
     bias: inked ? Math.max(...signed.map(v => Math.abs(v / inked))) : 0,
     touched: touched / pixels,
@@ -465,8 +528,8 @@ export interface CaseBudgets {
   mean: number;
   bias: number;
   flat: number;
-  /** Fixtures gate the worst channel too. A spec carries too much text for it. */
-  max?: number;
+  /** Fixtures gate the worst block too. A spec carries too much text for it. */
+  quad?: number;
 }
 
 /**
@@ -484,6 +547,8 @@ export async function compareCase(
     kind: GalleryCase['kind'];
     /** Prefix for the artifact files, which the gallery reads back. */
     file: string;
+    /** The fixture or spec behind it, where a variant renders another one. */
+    source?: string;
     label?: string;
     note?: string;
     budgets: CaseBudgets;
@@ -508,6 +573,7 @@ export async function compareCase(
     name,
     kind: opts.kind,
     file,
+    source: opts.source,
     width: m.width,
     height: m.height,
     diff: m.diffRatio,
@@ -517,7 +583,7 @@ export async function compareCase(
     bias: m.biasDelta,
     flat: m.flatMeanDelta,
     flatSample: m.flatSample,
-    max: m.maxDelta,
+    quad: m.quadDelta,
     note: opts.note,
     budgets,
   });
@@ -527,17 +593,18 @@ export async function compareCase(
     console.log(
       `DIFF ${opts.label ?? name} ${(m.diffRatio * 100).toFixed(3)}% TILE ${(m.worstTile * 100).toFixed(1)}% ` +
         `at ${m.worstTileAt.join(',')} MEAN ${m.meanDelta.toFixed(2)} BIAS ${m.biasDelta.toFixed(2)} ` +
-        `MAX ${m.maxDelta} FLAT ${m.flatMeanDelta.toFixed(2)} over ${m.flatSample}px`,
+        `QUAD ${m.quadDelta.toFixed(1)} FLAT ${m.flatMeanDelta.toFixed(2)} over ${m.flatSample}px`,
     );
   }
 
   // The worst pixel, where the case is small enough for it to mean something.
-  if (budgets.max !== undefined) {
+  if (budgets.quad !== undefined) {
     expect(
-      m.maxDelta,
-      `worst channel is ${m.maxDelta} off canvas, over the ${budgets.max} allowed. The pixel count ` +
+      m.quadDelta,
+      `the worst ${BLOCK_SCENE_PX} scene pixel block averages ${m.quadDelta.toFixed(1)} channel levels off ` +
+        `canvas, over the ${budgets.quad} allowed. The pixel count ` +
         `below can miss this, since a coverage change stays under its colour threshold`,
-    ).toBeLessThanOrEqual(budgets.max);
+    ).toBeLessThanOrEqual(budgets.quad);
   }
 
   // Checked even where the pixel count is skipped, since the two measure

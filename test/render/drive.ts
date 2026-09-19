@@ -25,9 +25,3 @@ export function waitForRender(page: Page, timeout = 60_000): Promise<unknown> {
     { timeout },
   );
 }
-
-/** Opens a harness url and waits for its first render. */
-export async function openHarness(page: Page, url: string, timeout?: number): Promise<void> {
-  await page.goto(url);
-  await waitForRender(page, timeout);
-}

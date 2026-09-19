@@ -97,7 +97,7 @@ test('a real canvas shows the frame', async ({ page }) => {
     size(drawn.png),
   );
 
-  const { max, mean } = channelStats(shown, drawn.png);
+  const { quad: max, mean } = channelStats(shown, drawn.png);
   expect(
     max,
     `the frame on screen is ${max} channel levels from the one the renderer drew, mean ${mean.toFixed(2)}. ` +

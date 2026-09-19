@@ -1,0 +1,202 @@
+{
+  "description": "Every paint rule takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
+  "width": 680,
+  "height": 216,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rule",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 136,
+                "y": 36,
+                "x2": 220,
+                "y2": 36,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4
+              },
+              {
+                "x": 244,
+                "y": 36,
+                "x2": 328,
+                "y2": 36,
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4
+              },
+              {
+                "x": 352,
+                "y": 36,
+                "x2": 436,
+                "y2": 36,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 460,
+                "y": 36,
+                "x2": 544,
+                "y2": 36,
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 568,
+                "y": 36,
+                "x2": 652,
+                "y2": 36,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  11,
+                  9
+                ],
+                "strokeCap": "square",
+                "strokeJoin": "bevel"
+              },
+              {
+                "x": 136,
+                "y": 128,
+                "x2": 208,
+                "y2": 180,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4
+              },
+              {
+                "x": 244,
+                "y": 128,
+                "x2": 316,
+                "y2": 180,
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4
+              },
+              {
+                "x": 352,
+                "y": 128,
+                "x2": 424,
+                "y2": 180,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 460,
+                "y": 128,
+                "x2": 532,
+                "y2": 180,
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 568,
+                "y": 128,
+                "x2": 640,
+                "y2": 180,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  11,
+                  9
+                ],
+                "strokeCap": "square",
+                "strokeJoin": "bevel"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,292 @@
+{
+  "description": "A gradient filled symbol with a thick stroke under a blend. The fill takes a blended pipeline and the stroke took a fixed normal one, so the ring stayed unblended over both backdrops.",
+  "width": 360,
+  "height": 200,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 360,
+                "height": 100,
+                "fill": "#ffd92f"
+              },
+              {
+                "x": 0,
+                "y": 100,
+                "width": 360,
+                "height": 100,
+                "fill": "#54a24b"
+              }
+            ]
+          },
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 48,
+                "y": 55,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "multiply"
+              },
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 136,
+                "y": 55,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "screen"
+              },
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 224,
+                "y": 55,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "darken"
+              },
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 312,
+                "y": 55,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "difference"
+              },
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 48,
+                "y": 150,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "multiply"
+              },
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 136,
+                "y": 150,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "screen"
+              },
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 224,
+                "y": 150,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "darken"
+              },
+              {
+                "shape": "circle",
+                "size": 2600,
+                "x": 312,
+                "y": 150,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#f58518"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#54a24b"
+                    }
+                  ]
+                },
+                "stroke": "#7b2d8e",
+                "strokeWidth": 9,
+                "blend": "difference"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -222,6 +222,13 @@ export const ciTileOverrides: Record<string, number> = {
  * default as the underlying gap closes. `null` skips the comparison.
  */
 export const crossCheckOverrides: Record<string, number | null> = {
+  // The four labels of `label` that sit on a half pixel, which is what the
+  // drift option exists for. With it on they land on canvas's rows and what
+  // is left is the glyph fringe, so the two readings are gated apart rather
+  // than both sitting under the default.
+  label: 0.002, // 0.110%
+  'label-drift': 0.0002, // 0.003%
+
   // Curve construction still differs from canvas on these.
   'contour-scatter': 0.05, // ~2.5%
   'scatter-plot-contours': 0.015, // ~0.4%

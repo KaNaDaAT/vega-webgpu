@@ -1,0 +1,140 @@
+{
+  "description": "Every paint group takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
+  "width": 680,
+  "height": 124,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "group",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 26,
+                "y": 26,
+                "width": 76,
+                "height": 64,
+                "cornerRadius": 5,
+                "fill": "#9ecae9",
+                "items": []
+              },
+              {
+                "x": 134,
+                "y": 26,
+                "width": 76,
+                "height": 64,
+                "cornerRadius": 5,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "items": []
+              },
+              {
+                "x": 242,
+                "y": 26,
+                "width": 76,
+                "height": 64,
+                "cornerRadius": 5,
+                "fill": "#9ecae9",
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4,
+                "items": []
+              },
+              {
+                "x": 350,
+                "y": 26,
+                "width": 76,
+                "height": 64,
+                "cornerRadius": 5,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ],
+                "items": []
+              },
+              {
+                "x": 458,
+                "y": 26,
+                "width": 76,
+                "height": 64,
+                "cornerRadius": 5,
+                "fill": "#9ecae9",
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ],
+                "items": []
+              },
+              {
+                "x": 566,
+                "y": 26,
+                "width": 76,
+                "height": 64,
+                "cornerRadius": 5,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  11,
+                  9
+                ],
+                "strokeCap": "square",
+                "strokeJoin": "bevel",
+                "items": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

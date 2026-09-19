@@ -1,0 +1,346 @@
+{
+  "description": "Every paint symbol takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
+  "width": 680,
+  "height": 216,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 60,
+                "y": 58,
+                "size": 1800,
+                "shape": "square",
+                "fill": "#9ecae9"
+              },
+              {
+                "x": 168,
+                "y": 58,
+                "size": 1800,
+                "shape": "square",
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4
+              },
+              {
+                "x": 276,
+                "y": 58,
+                "size": 1800,
+                "shape": "square",
+                "fill": "#9ecae9",
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4
+              },
+              {
+                "x": 384,
+                "y": 58,
+                "size": 1800,
+                "shape": "square",
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 492,
+                "y": 58,
+                "size": 1800,
+                "shape": "square",
+                "fill": "#9ecae9",
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 600,
+                "y": 58,
+                "size": 1800,
+                "shape": "square",
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  11,
+                  9
+                ],
+                "strokeCap": "square",
+                "strokeJoin": "bevel"
+              },
+              {
+                "x": 60,
+                "y": 150,
+                "size": 1800,
+                "shape": "square",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#72b7b2"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                }
+              },
+              {
+                "x": 168,
+                "y": 150,
+                "size": 1800,
+                "shape": "square",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#72b7b2"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4
+              },
+              {
+                "x": 276,
+                "y": 150,
+                "size": 1800,
+                "shape": "square",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#72b7b2"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4
+              },
+              {
+                "x": 384,
+                "y": 150,
+                "size": 1800,
+                "shape": "square",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#72b7b2"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 492,
+                "y": 150,
+                "size": 1800,
+                "shape": "square",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#72b7b2"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#e45756"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#4c78a8"
+                    }
+                  ]
+                },
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
+              },
+              {
+                "x": 600,
+                "y": 150,
+                "size": 1800,
+                "shape": "square",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#72b7b2"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  11,
+                  9
+                ],
+                "strokeCap": "square",
+                "strokeJoin": "bevel"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

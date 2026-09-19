@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+// @ts-expect-error the playground's table is plain js, and is the thing under test
+import { FEATURES, SUPPORT } from '../../releases/marks.js';
 
 /**
  * The mark playground states, per mark, whether each of five properties is
@@ -22,42 +24,41 @@ interface Shot {
  */
 const SPLIT = 0.0035;
 
-/** A cell the table says we honour: the two renderers should agree. */
-const HONOURED: [mark: string, feature: string][] = [
-  ['group', 'blend'],
-  ['image', 'blend'],
-  ['symbol', 'gradientFill'],
-  ['symbol', 'gradientStroke'],
-  ['rect', 'gradientStroke'],
-  ['group', 'gradientStroke'],
-  ['line', 'gradientStroke'],
-  ['rule', 'gradientStroke'],
-  ['rule', 'strokeCap'],
-  ['rect', 'gradientFill'],
-  ['text', 'gradientFill'],
-  ['text', 'gradientStroke'],
-  ['line', 'strokeDash'],
-  ['rule', 'strokeDash'],
-  ['group', 'strokeDash'],
-  ['area', 'strokeDash'],
-  ['path', 'strokeDash'],
-  ['shape', 'strokeDash'],
-  ['symbol', 'strokeDash'],
-  ['trail', 'strokeDash'],
-  ['rect', 'strokeDash'],
-  ['arc', 'strokeDash'],
-  ['line', 'strokeCap'],
-  ['path', 'strokeCap'],
-  ['area', 'strokeCap'],
-  ['shape', 'strokeCap'],
-];
+/**
+ * Every cell of the table, read from the table itself, so a claim cannot be
+ * added to the page without being checked here.
+ *
+ * blend is left out of both: these examples are translucent and a blend over a
+ * translucent source is inexact by design, at up to 3% here.
+ */
+const CHECKED: string[] = (FEATURES as { key: string }[]).map(f => f.key).filter(key => key !== 'blend');
+
+const cells = (level: string): [mark: string, feature: string][] =>
+  Object.entries(SUPPORT as Record<string, Record<string, string>>).flatMap(([mark, row]) =>
+    CHECKED.filter(key => row[key] === level).map(key => [mark, key] as [string, string]),
+  );
+
+/** Cells the table says we honour: the two renderers should agree. */
+const HONOURED = cells('yes');
+
+/** Cells the table says we ignore: the two renderers should visibly differ. */
+const IGNORED = cells('no');
 
 /**
- * A cell the table says we ignore: the two renderers should visibly differ.
- * Empty, since the table has no `no` left in it. The loop stays, so a cell that
- * goes back to being ignored is checked in that direction too.
+ * Pairs, because one property at a time is what let a rect with both a
+ * gradient fill and a gradient stroke draw its fill in the placeholder colour
+ * for as long as it did. A walked border takes the fill down another path, so
+ * the two paints together are their own case.
  */
-const IGNORED: [mark: string, feature: string][] = [];
+const PAIRS: [mark: string, a: string, b: string][] = Object.entries(
+  SUPPORT as Record<string, Record<string, string>>,
+)
+  .filter(([, row]) => row.gradientFill === 'yes' && row.gradientStroke === 'yes')
+  .flatMap(([mark]) => [
+    [mark, 'gradientFill', 'gradientStroke'] as [string, string, string],
+    [mark, 'gradientFill', 'strokeDash'] as [string, string, string],
+  ])
+  .filter(([mark, , b]) => (SUPPORT as Record<string, Record<string, string>>)[mark][b] === 'yes');
 
 test('the playground matches what its table claims', async ({ page }) => {
   test.setTimeout(300_000);
@@ -68,15 +69,15 @@ test('the playground matches what its table claims', async ({ page }) => {
     timeout: 60_000,
   });
 
-  const shoot = (mark: string, feature: string): Promise<Shot> =>
+  const shoot = (mark: string, ...features: string[]): Promise<Shot> =>
     page.evaluate(
-      async ([m, f]) => {
+      async ([m, ...f]: string[]) => {
         const sel = document.getElementById('mark') as HTMLSelectElement;
         sel.value = m;
         sel.dispatchEvent(new Event('change'));
         await new Promise(r => setTimeout(r, 250));
         for (const box of [...document.querySelectorAll('#features input')] as HTMLInputElement[]) {
-          if (box.checked !== (box.dataset.key === f)) {
+          if (box.checked !== f.includes(box.dataset.key as string)) {
             box.click();
             await new Promise(r => setTimeout(r, 250));
           }
@@ -121,7 +122,7 @@ test('the playground matches what its table claims', async ({ page }) => {
         }
         return { diff: n / (a.w * a.h), size: `${a.w}x${a.h}` };
       },
-      [mark, feature],
+      [mark, ...features],
     );
 
   const pct = (d: number) => `${(d * 100).toFixed(3)}%`;
@@ -160,6 +161,12 @@ test('the playground matches what its table claims', async ({ page }) => {
     const { diff } = await shoot(mark, feature);
     report.push(`honoured ${mark}/${feature}: ${pct(diff)} of pixels differ, allowed ${pct(limit)}`);
     expect(diff, `${mark} with ${feature} is listed as honoured, so the two should agree`).toBeLessThan(limit);
+  }
+  for (const [mark, a, b] of PAIRS) {
+    const limit = await bar(mark);
+    const { diff } = await shoot(mark, a, b);
+    report.push(`pair     ${mark}/${a}+${b}: ${pct(diff)} of pixels differ, allowed ${pct(limit)}`);
+    expect(diff, `${mark} with ${a} and ${b} together should still agree`).toBeLessThan(limit);
   }
   for (const [mark, feature] of IGNORED) {
     const limit = await bar(mark);

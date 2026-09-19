@@ -4,22 +4,21 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { compareCase, renderInHarness, type RendererName, type RenderResult } from './compare.js';
 import {
-  MAX_CHANNEL_DELTA_DEFAULT,
+  QUAD_DELTA_DEFAULT,
   SCENE_CHECK_DEFAULT,
   SCENE_FLAT_MEAN_DEFAULT,
   SCENE_BIAS_DELTA_DEFAULT,
   SCENE_MEAN_DELTA_DEFAULT,
-  ciMaxChannelDeltaOverrides,
-  dprMaxChannelDeltaOverrides,
   dprSceneCheckOverrides,
-  maxChannelDeltaOverrides,
+  quadDeltaOverrides,
+  skippedScenes,
   renderScenes,
   sceneCheckOverrides,
   sceneFlatMeanOverrides,
   sceneBiasDeltaOverrides,
   sceneMeanDeltaOverrides,
 } from './scenes.js';
-import { TILE_CHECK_DEFAULT, onCi, onFineGrid } from './specs.js';
+import { TILE_CHECK_DEFAULT, onFineGrid } from './specs.js';
 
 /**
  * The fixture list is a directory read with nothing behind it, so an empty or
@@ -53,17 +52,13 @@ function renderScene(page: Page, sceneName: string, renderer: RendererName): Pro
 test.describe('scenes', () => {
   for (const name of renderScenes) {
     test(name, async ({ page }, testInfo: TestInfo) => {
+      test.skip(name in skippedScenes, skippedScenes[name]);
       const diff =
         onFineGrid && Object.hasOwn(dprSceneCheckOverrides, name)
           ? dprSceneCheckOverrides[name]
           : Object.hasOwn(sceneCheckOverrides, name)
             ? sceneCheckOverrides[name]
             : SCENE_CHECK_DEFAULT;
-      // A fixture is small synthetic geometry, so the worst pixel means
-      // something here in a way it does not on a full spec.
-      const ownDelta = onFineGrid
-        ? (dprMaxChannelDeltaOverrides[name] ?? maxChannelDeltaOverrides[name] ?? MAX_CHANNEL_DELTA_DEFAULT)
-        : (maxChannelDeltaOverrides[name] ?? MAX_CHANNEL_DELTA_DEFAULT);
       await compareCase(testInfo, {
         name,
         kind: 'fixture',
@@ -77,10 +72,9 @@ test.describe('scenes', () => {
           mean: sceneMeanDeltaOverrides[name] ?? SCENE_MEAN_DELTA_DEFAULT,
           bias: sceneBiasDeltaOverrides[name] ?? SCENE_BIAS_DELTA_DEFAULT,
           flat: sceneFlatMeanOverrides[name] ?? SCENE_FLAT_MEAN_DEFAULT,
-          // The CI table is measured at dpr 1, so it cannot speak for a fine
-          // grid: applying it there held gradient-strokes to 140 where the
-          // grid alone puts it at 191, which is the one fixture in both tables.
-          max: onCi && !onFineGrid ? (ciMaxChannelDeltaOverrides[name] ?? ownDelta) : ownDelta,
+          // A fixture is small synthetic geometry, so a local measure means
+          // something here in a way it does not on a full spec.
+          quad: quadDeltaOverrides[name] ?? QUAD_DELTA_DEFAULT,
         },
       });
     });

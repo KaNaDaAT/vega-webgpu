@@ -57,6 +57,7 @@ test.describe('WebGPU vs canvas', () => {
         name,
         kind: 'spec',
         file: name,
+        source: kase.spec,
         render: (renderer: RendererName) => renderSpec(page, kase, renderer),
         budgets: {
           diff: onCi && own !== null ? (ciCrossCheckOverrides[name] ?? own) : own,

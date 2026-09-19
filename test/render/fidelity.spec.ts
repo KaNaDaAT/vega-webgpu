@@ -37,7 +37,7 @@ async function measure(page: Page, name: string, kind: string, url: (n: string, 
   const canvas = await renderInHarness(page, url(name, 'canvas'), 'canvas');
   const { diffRatio } = diffPngs(webgpu.png, canvas.png, name);
   const stats = channelStats(webgpu.png, canvas.png);
-  return { name, kind, diff: diffRatio, max: stats.max, mean: stats.mean };
+  return { name, kind, diff: diffRatio, max: stats.quad, mean: stats.mean };
 }
 
 test('fidelity against canvas', async ({ page }) => {

@@ -1,0 +1,641 @@
+{
+  "description": "strokeCap square together with strokeDash, on the four marks that walk their own outline. Each drops the pattern and draws a solid stroke when the square cap sends it to the extruded ribbon instead of the segment shader. The line mark carries both already and is the control.",
+  "width": 420,
+  "height": 430,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 100,
+                "y": 80,
+                "startAngle": 0.0,
+                "endAngle": 4.2,
+                "innerRadius": 26,
+                "outerRadius": 62,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeCap": "square",
+                "strokeDash": [
+                  16,
+                  11
+                ]
+              },
+              {
+                "x": 300,
+                "y": 80,
+                "startAngle": 0.0,
+                "endAngle": 4.2,
+                "innerRadius": 26,
+                "outerRadius": 62,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeCap": "square"
+              }
+            ]
+          },
+          {
+            "marktype": "area",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24,
+                "y": 242.0,
+                "height": 8.0,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 46,
+                "y": 225.00198833043277,
+                "height": 24.998011669567237,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 68,
+                "y": 210.91257216576645,
+                "height": 39.08742783423356,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 90,
+                "y": 202.14264598706538,
+                "height": 47.85735401293462,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 112,
+                "y": 200.19286577442588,
+                "height": 49.807134225574124,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 134,
+                "y": 205.39686595946685,
+                "height": 44.60313404053315,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 156,
+                "y": 216.86416994763383,
+                "height": 33.135830052366174,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 178,
+                "y": 232.632563011599,
+                "height": 17.367436988401,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 200,
+                "y": 233.9961455592296,
+                "height": 16.003854440770386,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              }
+            ]
+          },
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "path": "M240,250L272,182L304,250L336,182L368,250",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 6,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              }
+            ]
+          },
+          {
+            "marktype": "trail",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24.0,
+                "y": 320.0,
+                "size": 2.0,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 37.84615384615385,
+                "y": 332.4650640037093,
+                "size": 2.3846153846153846,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 51.69230769230769,
+                "y": 341.8782456050053,
+                "size": 2.769230769230769,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 65.53846153846155,
+                "y": 345.9348696517054,
+                "size": 3.153846153846154,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 79.38461538461539,
+                "y": 343.64173309746775,
+                "size": 3.5384615384615383,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 93.23076923076924,
+                "y": 335.56027574670287,
+                "size": 3.9230769230769234,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 107.07692307692308,
+                "y": 323.6691202095565,
+                "size": 4.307692307692308,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 120.92307692307692,
+                "y": 310.8796360800699,
+                "size": 4.692307692307692,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 134.76923076923077,
+                "y": 300.32313512199386,
+                "size": 5.076923076923077,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 148.6153846153846,
+                "y": 294.5842169407075,
+                "size": 5.461538461538462,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 162.46153846153848,
+                "y": 295.0679688587584,
+                "size": 5.846153846153847,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 176.3076923076923,
+                "y": 301.65595153516983,
+                "size": 6.230769230769231,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 190.15384615384616,
+                "y": 312.7351970468279,
+                "size": 6.615384615384616,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              },
+              {
+                "x": 204.0,
+                "y": 325.59311969028323,
+                "size": 7.0,
+                "fill": "#c9dcf0",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 236.0,
+                "y": 320.0,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 248.30769230769232,
+                "y": 332.4650640037093,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 260.61538461538464,
+                "y": 341.8782456050053,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 272.9230769230769,
+                "y": 345.9348696517054,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 285.2307692307692,
+                "y": 343.64173309746775,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 297.53846153846155,
+                "y": 335.56027574670287,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 309.84615384615387,
+                "y": 323.6691202095565,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 322.15384615384613,
+                "y": 310.8796360800699,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 334.46153846153845,
+                "y": 300.32313512199386,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 346.7692307692308,
+                "y": 294.5842169407075,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 359.0769230769231,
+                "y": 295.0679688587584,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 371.38461538461536,
+                "y": 301.65595153516983,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 383.69230769230774,
+                "y": 312.7351970468279,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 396.0,
+                "y": 325.59311969028323,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  16,
+                  11
+                ],
+                "strokeCap": "square",
+                "interpolate": "linear"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 390,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 92,
+                "y": 400,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 130,
+                "y": 390,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 192,
+                "y": 396,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 230,
+                "y": 390,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 292,
+                "y": 392,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 330,
+                "y": 390,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              },
+              {
+                "x": 392,
+                "y": 388,
+                "stroke": "#e45756",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "interpolate": "linear"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
