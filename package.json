@@ -53,8 +53,10 @@
   ],
   "sideEffects": true,
   "scripts": {
-    "build": "npm run manifest && rollup -c && npm run build:types",
+    "build": "npm run manifest && npm run enums && rollup -c && npm run build:types",
     "manifest": "node scripts/specs-manifest.mjs",
+    "enums": "node scripts/vega-enums.mjs",
+    "variants": "node scripts/variant-scenes.mjs",
     "build:types": "tsc -p tsconfig.build.json",
     "pages": "node scripts/prepare-release.mjs --pages",
     "release": "node scripts/release.mjs",

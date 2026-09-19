@@ -4,19 +4,29 @@
     <title>Vega WebGPU Renderer Test</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./compare-ui.css" />
     <link rel="stylesheet" href="./index.css" />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>%E2%9A%A1</text></svg>"
-    />
+    <link rel="icon" href="../favicon.ico" sizes="any" />
     <script src="../releases/versions.js"></script>
     <script>
+      /** Loads the first source that answers, so a list is fallbacks in order. */
       function loadScript(src, callback) {
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.src = src;
-        script.onload = callback;
-        document.head.appendChild(script);
+        const urls = Array.isArray(src) ? src.slice() : [src];
+        const tried = [];
+        (function next() {
+          const url = urls.shift();
+          if (url === undefined) {
+            console.error(`[vega-webgpu] none of these loaded: ${tried.join(', ')}`);
+            return;
+          }
+          tried.push(url);
+          const script = document.createElement('script');
+          script.type = 'text/javascript';
+          script.src = url;
+          script.onload = callback;
+          script.onerror = next;
+          document.head.appendChild(script);
+        })();
       }
 
       function getQueryParam(param) {
@@ -49,13 +59,17 @@
       // bundles cannot subclass (they call Renderer.call(this)).
       // ?vega=<name> loads a local build from test/vendor/vega-<name>.js, for
       // comparing an upstream change against the released one. Not committed.
+      // The installed copy comes first, so a local run matches the render
+      // harness and needs no network. The hosted page has no node_modules and
+      // falls through to the cdn, pinned so a vega release cannot change this
+      // page under the tests that drive it.
       const vegaBuild = getQueryParam('vega');
       const vegaUrl =
         vegaBuild && /^[a-z-]+$/.test(vegaBuild)
-          ? `./vendor/vega-${vegaBuild}.js`
+          ? [`./vendor/vega-${vegaBuild}.js`]
           : major >= 2
-            ? 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'
-            : 'https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js';
+            ? ['../node_modules/vega/build/vega.min.js', 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js']
+            : ['https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js'];
 
       function boot() {
         loadScript(vegaUrl, function () {
@@ -74,74 +88,146 @@
   </head>
 
   <body>
-    <div id="header">
-      <span class="label">Vega Specification:</span>
-      <select id="specs">
-        <option value="">-----</option>
-      </select>
-      <span class="label">Renderer:</span>
-      <select id="render">
-        <option value="svg">svg</option>
-        <option value="canvas">canvas</option>
-        <option value="webgpu" selected>webgpu</option>
-      </select>
-      <span class="label">Version:</span>
-      <select id="versions"></select>
-      <label class="label"><input type="checkbox" id="compare" /> compare</label>
-      <label class="label"><input type="checkbox" id="diff" /> diff</label>
-      <label class="label" id="thresholdLabel" hidden>
-        ignore under
-        <input type="number" id="diffThreshold" min="0" max="255" step="1" value="3" />
-      </label>
-      <label class="label" id="styleLabel" hidden>
-        <select id="diffStyle">
-          <option value="mask" selected>marks only</option>
-          <option value="heat">green to red</option>
-          <option value="over">over webgpu</option>
-        </select>
-      </label>
-      <label class="label" id="colorLabel" hidden>
-        <input type="color" id="diffColor" value="#e4572e" aria-label="mark colour" />
-      </label>
-      <span id="fpsDisplay" class="label"></span>
-    </div>
-    <script src="./fps.js"></script>
-    <div>
-      <div id="vis"></div>
-    </div>
-    <div id="panels" hidden>
-      <div id="wipeRow" class="label">
-        <span>canvas</span>
-        <input
-          type="range"
-          id="wipe"
-          min="0"
-          max="100"
-          step="0.5"
-          value="50"
-          aria-label="wipe between canvas and webgpu"
-        />
-        <span>webgpu</span>
+    <aside>
+      <header>
+        <input id="specFilter" type="search" placeholder="filter specs" autocomplete="off" />
+      </header>
+      <div id="specList"></div>
+    </aside>
+
+    <main>
+      <div id="page">
+        <div id="header">
+          <span class="label">Renderer:</span>
+          <select id="render">
+            <option value="svg">svg</option>
+            <option value="canvas">canvas</option>
+            <option value="webgpu" selected>webgpu</option>
+          </select>
+          <span class="label">Version:</span>
+          <select id="versions"></select>
+          <label class="label" title="Draw the spec with both renderers, stacked in one place"
+            ><input type="checkbox" id="compare" /> compare</label
+          >
+          <label class="label" title="Mark what the two renderers put a different colour on"
+            ><input type="checkbox" id="diff" /> diff</label
+          >
+          <label class="label" id="thresholdLabel" hidden>
+            ignore under
+            <input type="number" id="diffThreshold" min="0" max="255" step="1" value="3" />
+          </label>
+          <label class="label" id="styleLabel" hidden>
+            <select id="diffStyle">
+              <option value="mask" selected>marks only</option>
+              <option value="heat">green to red</option>
+              <option value="over">over webgpu</option>
+            </select>
+          </label>
+          <label class="label" id="colorLabel" hidden>
+            <input type="color" id="diffColor" value="#e4572e" aria-label="mark colour" />
+          </label>
+          <label
+            class="label"
+            id="driveLabel"
+            hidden
+            title="Two views on one page take turns on one thread, so the slower one holds the faster one back. Run one at a time to see its own speed."
+          >
+            run
+            <select id="drive">
+              <option value="both" selected>both</option>
+              <option value="canvas">canvas only</option>
+              <option value="webgpu">webgpu only</option>
+            </select>
+          </label>
+          <span id="fpsDisplay" class="label"></span>
+        </div>
+        <script src="./fps.js"></script>
+        <script src="./compare-core.js"></script>
+        <div id="visStage" class="stage">
+          <div id="visSolo"><div id="vis"></div></div>
+        </div>
+        <div id="panels" hidden>
+          <div id="viewRow">
+            <div class="modes" id="viewModes">
+              <button
+                data-view="wipe"
+                aria-pressed="true"
+                title="Both in one place, with the divider deciding where canvas ends and webgpu begins"
+              >
+                wipe
+              </button>
+              <button
+                data-view="blink"
+                aria-pressed="false"
+                title="Both in one place, alternating once a second. A shift of a pixel is easier to catch in motion than across a divider"
+              >
+                blink
+              </button>
+              <button data-view="side" aria-pressed="false" title="The two next to each other, scrolling together">
+                side by side
+              </button>
+            </div>
+            <span id="wipeControls" class="label">
+              <input
+                type="range"
+                id="wipe"
+                min="0"
+                max="100"
+                step="0.5"
+                value="50"
+                aria-label="position of the divider between canvas and webgpu"
+              />
+              <span id="wipeReadout">canvas 50%</span>
+            </span>
+            <label class="label" id="blinkBox" title="How long each of the two stays on screen">
+              every
+              <select id="blinkRate">
+                <option value="0.3s">0.3s</option>
+                <option value="0.5s">0.5s</option>
+                <option value="1s" selected>1s</option>
+                <option value="2s">2s</option>
+                <option value="4s">4s</option>
+              </select>
+            </label>
+            <label class="label" title="Stop fitting each render to the column and show it at its own size"
+              ><input type="checkbox" id="actualSize" /> actual size</label
+            >
+          </div>
+          <!-- both renderers in the same box, the top one clipped to the wipe, so
+           anything out of place shows as a jump across the divider. Which one
+           is on which side is said on the render rather than beside the slider,
+           since the slider is the divider and at either end one of them has the
+           whole width -->
+          <div id="stage" class="stage">
+            <div id="overlay" class="overlay">
+              <div class="layer">
+                <span class="side">canvas</span>
+                <div id="visA"></div>
+              </div>
+              <div class="layer top">
+                <span class="side">webgpu</span>
+                <div id="visB"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="diffPanel" hidden>
+          <div id="diffSummary" class="label"></div>
+          <canvas id="diffCanvas"></canvas>
+        </div>
+        <!-- one set of bound inputs drives every view, so a diff compares the same state -->
+        <section id="bindPanel" hidden>
+          <h2>Spec controls</h2>
+          <div id="binds"></div>
+        </section>
       </div>
-      <!-- both renderers in the same box, the top one clipped to the wipe, so
-           anything out of place shows as a jump across the divider -->
-      <div id="overlay">
-        <div class="layer"><div id="visA"></div></div>
-        <div class="layer top"><div id="visB"></div></div>
-      </div>
-    </div>
-    <div id="diffPanel" hidden>
-      <div id="diffSummary" class="label"></div>
-      <canvas id="diffCanvas"></canvas>
-    </div>
-    <!-- one set of bound inputs drives every view, so a diff compares the same state -->
-    <div id="binds"></div>
-    <div id="external"></div>
-    <footer id="pagefoot">
-      <a href="../">Project page</a>
-      <a href="../releases/marks.html">Mark playground</a>
-      <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
-      <a href="../releases/impressum.html">Impressum</a>
-    </footer>
+      <footer id="pagefoot" class="foot">
+        <span class="who">vega-webgpu, an unofficial WebGPU renderer for Vega</span>
+        <a href="../">Project page</a>
+        <a href="../releases/marks.html">Mark playground</a>
+        <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+        <a href="../releases/impressum.html">Impressum</a>
+      </footer>
+    </main>
   </body>
 </html>

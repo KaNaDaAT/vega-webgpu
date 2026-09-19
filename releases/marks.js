@@ -9,28 +9,37 @@
 
 /** yes, no, partial or na, per mark, for the five properties the table covers. */
 const SUPPORT = {
-  arc: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
-  area: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
-  group: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
-  image: { gradientFill: 'na', gradientStroke: 'na', strokeDash: 'na', strokeCap: 'na', blend: 'yes' },
-  line: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
-  path: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
-  rect: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
-  rule: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
-  shape: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
-  symbol: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
-  text: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'na', strokeCap: 'na', blend: 'yes' },
-  trail: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
+  arc: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  area: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
+  group: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  image: { gradientFill: 'na', gradientStroke: 'na', strokeDash: 'na', strokeJoin: 'na', strokeCap: 'na', blend: 'yes' },
+  line: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
+  path: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
+  rect: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  rule: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'na', strokeCap: 'yes', blend: 'yes' },
+  shape: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
+  symbol: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  text: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'na', strokeJoin: 'na', strokeCap: 'na', blend: 'yes' },
+  trail: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
 };
+
+import { VEGA_ENUMS } from './vega-enums.js';
 
 const MARKS = Object.keys(SUPPORT);
 
+/**
+ * `values` makes a property a picker rather than a plain tick. The lists come
+ * from vega's own schema, so they are what a spec may legally say. A renderer
+ * that reports more than the schema does, which this one does for the
+ * compositing operators, has them added to the picker at load time.
+ */
 const FEATURES = [
   { key: 'gradientFill', label: 'Gradient fill' },
   { key: 'gradientStroke', label: 'Gradient stroke' },
   { key: 'strokeDash', label: 'strokeDash' },
-  { key: 'strokeCap', label: 'strokeCap' },
-  { key: 'blend', label: 'blend' },
+  { key: 'strokeCap', label: 'strokeCap', values: VEGA_ENUMS.strokeCap, fallback: 'round' },
+  { key: 'strokeJoin', label: 'strokeJoin', values: VEGA_ENUMS.strokeJoin, fallback: 'round' },
+  { key: 'blend', label: 'blend', values: VEGA_ENUMS.blend, fallback: 'multiply' },
 ];
 
 // `partial` is unused at the moment, so it says only that much: a cell that
@@ -58,6 +67,11 @@ const EXPLAIN = {
     yes: 'round and square ends are drawn; a line whose curve the GPU evaluates still draws butt',
     no: 'ignored, ends draw butt',
     na: 'this mark has no open ends',
+  },
+  strokeJoin: {
+    yes: 'the corners take the join, with strokeMiterLimit',
+    no: 'ignored, corners are mitered',
+    na: 'this mark has no corner to join',
   },
   blend: {
     yes: 'the blend mode is applied',
@@ -523,8 +537,9 @@ function eachEncoding(marks, fn) {
   }
 }
 
-/** Applies the ticked properties on top of the base scene. */
-function applyFeatures(spec, on) {
+/** Applies the ticked properties, at the values picked for them, on top of the base scene. */
+function applyFeatures(spec, on, pick = {}) {
+  const valueOf = key => pick[key] ?? FEATURES.find(f => f.key === key)?.fallback;
   eachEncoding(spec.marks, (enc, type) => {
     if (on.gradientFill && enc.fill && type !== 'image') {
       enc.fill = { value: LINEAR_GRADIENT };
@@ -533,14 +548,16 @@ function applyFeatures(spec, on) {
       enc.stroke = { value: STROKE_GRADIENT };
     }
     if (on.strokeDash && enc.stroke) {
-      enc.strokeDash = { value: [10, 6] };
+      enc.strokeDash = { value: [12, 14] };
     }
     if (on.strokeCap && enc.stroke) {
-      enc.strokeCap = { value: 'round' };
-      enc.strokeJoin = { value: 'round' };
+      enc.strokeCap = { value: valueOf('strokeCap') };
+    }
+    if (on.strokeJoin && enc.stroke) {
+      enc.strokeJoin = { value: valueOf('strokeJoin') };
     }
     if (on.blend) {
-      enc.blend = { value: 'multiply' };
+      enc.blend = { value: valueOf('blend') };
     }
   });
   return spec;

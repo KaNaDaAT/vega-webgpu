@@ -96,12 +96,20 @@
     <script type="module">
       import { SUPPORT, MARKS, FEATURES, CELL_CLASS, EXPLAIN, docsUrl, baseSpec, applyFeatures } from './marks.js';
 
+      const VEGA_BLEND = FEATURES.find(f => f.key === 'blend').values;
+
       const $ = id => document.getElementById(id);
       const params = new URLSearchParams(location.search);
       const state = {
         mark: MARKS.includes(params.get('mark')) ? params.get('mark') : 'symbol',
         view: ['both', 'webgpu', 'canvas'].includes(params.get('view')) ? params.get('view') : 'both',
         on: Object.fromEntries(FEATURES.map(f => [f.key, params.get(f.key) === '1'])),
+        pick: Object.fromEntries(
+          FEATURES.filter(f => f.values).map(f => {
+            const asked = params.get(`${f.key}Value`);
+            return [f.key, f.values.includes(asked) ? asked : f.fallback];
+          }),
+        ),
       };
       let views = [];
 
@@ -120,7 +128,52 @@
           render();
         });
         label.append(box, document.createTextNode(f.label));
+        if (f.values) {
+          const select = document.createElement('select');
+          select.className = 'value';
+          select.dataset.valueFor = f.key;
+          select.addEventListener('change', () => {
+            state.pick[f.key] = select.value;
+            if (!state.on[f.key]) {
+              state.on[f.key] = box.checked = true;
+            }
+            render();
+          });
+          label.append(select);
+        }
         $('features').append(label);
+      }
+
+      /**
+       * Fills the pickers. The lists are vega's, so a renderer reporting modes
+       * its schema does not name, which this one does for the compositing
+       * operators, has them added once the build is on the page.
+       */
+      function fillPickers() {
+        const extra = (window.vegaWebGPURenderer?.BLEND_MODES ?? []).filter(
+          m => m !== 'normal' && !VEGA_BLEND.includes(m),
+        );
+        for (const f of FEATURES) {
+          if (!f.values) {
+            continue;
+          }
+          const select = document.querySelector(`select[data-value-for="${f.key}"]`);
+          if (!select || select.options.length) {
+            continue;
+          }
+          for (const v of f.values) {
+            select.append(new Option(v, v));
+          }
+          if (f.key === 'blend' && extra.length) {
+            const group = document.createElement('optgroup');
+            group.label = 'beyond the vega schema';
+            for (const v of extra) {
+              group.append(new Option(v, v));
+            }
+            select.append(group);
+          }
+          select.value = state.pick[f.key];
+        }
       }
       $('mark').addEventListener('change', () => {
         state.mark = $('mark').value;
@@ -219,7 +272,7 @@
       }
 
       function buildSpec() {
-        return applyFeatures(baseSpec(state.mark), state.on);
+        return applyFeatures(baseSpec(state.mark), state.on, state.pick);
       }
 
       /** One line per ticked property, saying what this renderer does with it. */
@@ -268,8 +321,12 @@
 
         const spec = buildSpec();
         $('spec').textContent = JSON.stringify(spec, null, 2);
+        fillPickers();
         for (const f of FEATURES) {
           params.set(f.key, state.on[f.key] ? '1' : '0');
+          if (f.values) {
+            params.set(`${f.key}Value`, state.pick[f.key]);
+          }
         }
         params.set('mark', state.mark);
         params.set('view', state.view);

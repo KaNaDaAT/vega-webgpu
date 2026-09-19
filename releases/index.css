@@ -413,6 +413,24 @@ legend {
   white-space: nowrap;
 }
 
+.check .value {
+  margin-left: 2px;
+  font: inherit;
+  font-size: 13px;
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  max-width: 11em;
+}
+
+.check .value option,
+.check .value optgroup {
+  background: var(--bg);
+  color: var(--ink);
+}
+
 .callout {
   border: 1px solid var(--line);
   border-left-width: 3px;
