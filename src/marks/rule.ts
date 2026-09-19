@@ -17,6 +17,7 @@ import {
   outlineTargetOf,
   getMarkResources,
   markClip,
+  markItems,
   blendPipelines,
   segmentInstances,
   strokeEnds,
@@ -95,7 +96,7 @@ function isDiagonal(item: SceneRule): boolean {
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = scene.items as SceneRule[];
+  const items = markItems<SceneRule>(scene);
   if (!items?.length) {
     return;
   }

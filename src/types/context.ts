@@ -67,6 +67,9 @@ export interface GPUVegaScene {
   bounds?: Bounds;
   items?: SceneItem[];
   group?: SceneGroupExt;
+  /** vega's z-order memo, which sceneVisit reads and refreshes. */
+  zdirty?: boolean;
+  zitems?: SceneItem[];
 }
 
 /**

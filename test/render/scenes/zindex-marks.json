@@ -1,0 +1,124 @@
+{
+  "description": "Per item zindex, on the marks that are not group. vega draws the items with no zindex in list order and the raised ones after, so the blue shape is on top. Reading scene.items directly puts the red one there.",
+  "width": 460,
+  "height": 120,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 60,
+                "y": 60,
+                "size": 2600,
+                "shape": "circle",
+                "fill": "#4c78a8",
+                "zindex": 1
+              },
+              {
+                "x": 86,
+                "y": 60,
+                "size": 2600,
+                "shape": "circle",
+                "fill": "#e45756"
+              }
+            ],
+            "zdirty": true
+          },
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 130,
+                "y": 34,
+                "width": 52,
+                "height": 52,
+                "fill": "#4c78a8",
+                "zindex": 1
+              },
+              {
+                "x": 156,
+                "y": 48,
+                "width": 52,
+                "height": 52,
+                "fill": "#e45756"
+              }
+            ],
+            "zdirty": true
+          },
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 252,
+                "y": 60,
+                "startAngle": 0,
+                "endAngle": 6.28,
+                "innerRadius": 0,
+                "outerRadius": 28,
+                "fill": "#4c78a8",
+                "zindex": 1
+              },
+              {
+                "x": 278,
+                "y": 60,
+                "startAngle": 0,
+                "endAngle": 6.28,
+                "innerRadius": 0,
+                "outerRadius": 28,
+                "fill": "#e45756"
+              }
+            ],
+            "zdirty": true
+          },
+          {
+            "marktype": "rule",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 322,
+                "y": 60,
+                "x2": 388,
+                "y2": 60,
+                "stroke": "#4c78a8",
+                "strokeWidth": 18,
+                "zindex": 1
+              },
+              {
+                "x": 348,
+                "y": 40,
+                "x2": 348,
+                "y2": 80,
+                "stroke": "#e45756",
+                "strokeWidth": 18
+              }
+            ],
+            "zdirty": true
+          }
+        ]
+      }
+    ]
+  }
+}

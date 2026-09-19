@@ -1,4 +1,4 @@
-import { type Bounds, pathRectangle } from 'vega-scenegraph';
+import { sceneVisit, type Bounds, pathRectangle } from 'vega-scenegraph';
 import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { dashPolyline, type Point } from '../util/dash.js';
@@ -21,7 +21,7 @@ import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { QueueElement } from '../util/renderQueue.js';
 import type { ItemGeometry } from '../types/geometry.js';
-import type { SceneGroupExt, SceneRectExt } from '../types/scene.js';
+import type { SceneGroupExt, SceneRectExt, SceneItem } from '../types/scene.js';
 import { Color, type RGBA } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -189,6 +189,28 @@ export function instanceScratch(length: number): Float32Array {
     scratch = new Float32Array(length);
   }
   return scratch.subarray(0, length);
+}
+
+/**
+ * A mark's items in the order canvas paints them.
+ *
+ * vega draws the items carrying no zindex in list order and the raised ones
+ * after, and its canvas renderer gets that by routing every mark through
+ * sceneVisit. This one did it for group alone, so a raised item was picked as
+ * if it were on top and drawn as if it were not.
+ *
+ * The list is returned untouched unless vega has actually z-ordered the mark,
+ * which is the usual case and costs nothing. area, line and trail draw all
+ * their items as one shape, so they keep the list whatever it says.
+ */
+export function markItems<T extends SceneItem>(scene: GPUVegaScene): T[] {
+  const items = (scene.items ?? []) as T[];
+  if (!scene.zdirty && scene.zitems === undefined) {
+    return items;
+  }
+  const out: T[] = [];
+  sceneVisit(scene, (item: SceneItem) => out.push(item as T));
+  return out;
 }
 
 /** Where a mark's outline is enqueued, solid or from a ramp. */

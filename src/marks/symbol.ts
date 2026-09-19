@@ -26,6 +26,7 @@ import {
   getMarkResources,
   instanceScratch,
   markClip,
+  markItems,
   blendPipelines,
   markPipeline,
   strokeEnds,
@@ -115,7 +116,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = scene.items as SceneSymbolExt[];
+  const items = markItems<SceneSymbolExt>(scene);
   if (!items?.length) {
     return;
   }

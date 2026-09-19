@@ -17,6 +17,7 @@ import {
   getMarkResources,
   instanceScratch,
   markClip,
+  markItems,
   blendPipelines,
   whiteCarrier,
   type MarkModule,
@@ -70,7 +71,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = scene.items;
+  const items = markItems(scene);
   if (!items?.length) {
     return;
   }

@@ -23,6 +23,7 @@ import {
   enqueueGradient,
   enqueueSolid,
   markClip,
+  markItems,
   copyBounds,
   recolor,
   sameBounds,
@@ -75,7 +76,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = scene.items as SceneShapeItem[];
+  const items = markItems<SceneShapeItem>(scene);
   if (!items?.length) {
     return;
   }

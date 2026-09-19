@@ -6,7 +6,7 @@ import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey } from '../util/blend.js';
-import { blendPipelines, getMarkResources, markClip, type MarkModule } from './util.js';
+import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Image';
@@ -231,7 +231,7 @@ function draw(
   scene: GPUVegaScene,
   vb: Bounds,
 ): void {
-  const items = scene.items as SceneImageItem[];
+  const items = markItems<SceneImageItem>(scene);
   if (!items?.length) {
     return;
   }

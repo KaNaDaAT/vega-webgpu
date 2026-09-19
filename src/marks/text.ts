@@ -20,7 +20,7 @@ import {
 } from '../util/textTexture.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey } from '../util/blend.js';
-import { blendPipelines, getMarkResources, markClip, type MarkModule } from './util.js';
+import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
 
 const drawName = 'Text';
 
@@ -174,7 +174,7 @@ function labelRect(
  * resampling. The shader maps (position - vb) * dpi to device pixels.
  */
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = scene.items as SceneTextItem[];
+  const items = markItems<SceneTextItem>(scene);
   if (!items?.length) {
     return;
   }
