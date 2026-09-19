@@ -50,10 +50,6 @@ const MODES: Record<string, Mode> = {
 /** Every mode this can evaluate, which is every one canvas has. */
 export const BLEND_MODES: readonly string[] = Object.keys(MODES);
 
-/** Modes that touch the frame where the source does not reach. */
-export const ERASING_MODES: readonly string[] = Object.entries(MODES)
-  .filter(([, mode]) => mode.erases)
-  .map(([name]) => name);
 
 const BLEND_HELPERS = `fn blendHardLight(cb: vec3<f32>, cs: vec3<f32>) -> vec3<f32> {
     return select(1.0 - 2.0 * (1.0 - cb) * (1.0 - cs), 2.0 * cb * cs, cs <= vec3<f32>(0.5));

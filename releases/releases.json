@@ -32,13 +32,15 @@
     "summary": "Built for Vega 6. Every mark type is drawn, most edges are antialiased analytically rather than by MSAA, and text goes through a glyph atlas.",
     "features": [
       "Trail marks, so all twelve of vega mark types render",
-      "Blend modes: multiply, screen, darken and lighten, on nine of the twelve marks",
+      "Every value canvas takes in blend, the sixteen mix modes and the Porter Duff operators, on every mark",
+      "strokeDash on every mark that strokes",
+      "butt, round and square strokeCap, and miter, round and bevel strokeJoin with strokeMiterLimit",
       "Gradient fills on arc, area, group, path, rect, shape, symbol, text and trail",
-      "Gradient strokes on arc, area, path, shape, text and trail",
-      "Line dashes on line marks and group borders",
+      "Gradient strokes on every mark that strokes",
       "strokeForeground, so a group border can draw over its children",
       "sampleCount, to pick 4x MSAA or none",
       "redrawOnZoom, to follow browser zoom or hold the ratio the canvas was first sized at",
+      "canvasTextDrift, to place a label where the canvas renderer places it rather than where its own coordinates say",
       "The canvas fits itself to the GPU maximum texture size instead of failing"
     ],
     "performance": [
@@ -51,11 +53,20 @@
     ],
     "fixes": [
       "Rules, segments, rects, circles and the symbol shapes with a closed form take analytic edge coverage, so an abutting edge no longer leaves a seam",
+      "An svg path is read through vega own path renderer, so a path mark takes the commands canvas takes, including an arc past 240 degrees",
+      "A stroke joins and caps the way canvas does: both segments at a vertex keep their own side of one bisector, two facing round caps across a dash gap meet at the midpoint, and a dash cut near a corner no longer leaves the stroke cut off along the inside of it",
+      "A trail stroke is composited once rather than once per segment, so a translucent or blended one no longer darkens at every joint",
+      "A blend is exact at any source alpha and over any backdrop, including none",
+      "A reduced image takes a mip chain with anisotropy rather than four texels",
       "Glyphs land on the sub-pixel phase canvas puts them on",
       "A group border takes vega half pixel stroke offset",
       "A path stops flattening its curves into facets",
       "A path that will not tessellate falls back instead of vanishing",
-      "A NaN coordinate lands at the origin, the way vega reads it",
+      "An arc that sets no innerRadius keeps its cornerRadius, instead of closing the shape on a NaN",
+      "strokeCap square no longer drops strokeDash on arc, area, path and trail, and a shape keeps the cap when its stroke is solid",
+      "A gradient filled symbol takes its blend on the stroke as well as the fill",
+      "A NaN coordinate lands at the origin, the way vega reads it, and a fully transparent colour no longer reaches the frame as NaN",
+      "A line past six and a half thousand points draws instead of throwing",
       "Swapping renderers, or taking over an element, releases the GPU device that was held",
       "renderBatch and simpleLine are gone: the line mark batches unconditionally"
     ]

@@ -79,13 +79,9 @@ To browse what a run measured rather than what the page draws now:
 npm run gallery:record
 ```
 
-That renders every spec and fixture through the comparison suite and writes a canvas, webgpu and diff png for each to `test/render/output/`, with an `index.json` of every measurement and the settings that produced it. The gallery then lists all 134 cases ranked by any of the numbers, and says which budgets each case was held to. `npm run gallery:record -- --grep bar` does only the matching ones. Everything it writes is gitignored.
+That renders every spec and fixture through the comparison suite and writes a canvas, webgpu and diff png for each to `test/render/output/`, with an `index.json` of every measurement and the settings that produced it. The gallery then lists every case ranked by any of the numbers, and says which budgets each case was held to. `npm run gallery:record -- --grep bar` does only the matching ones. Everything it writes is gitignored.
 
-## The render gallery
-
-`npm run gallery` opens the render gallery, which compares the corpus one case at a time. It reads whatever a run left in `test/render/output`, so record one first with `npm run gallery:record`, or use its live mode, which renders the spec in the browser with both renderers there and then.
-
-`npm run gallery:snapshot -- 2.1.0` assembles a self-contained copy under `releases/2.1.0/gallery/`, which is useful for keeping a version around to look at. It is gitignored and local only. GitHub Pages serves this repository from `main`, so hosting one would mean committing about 20MB of pngs per release against a 19MB repository. Publishing them would need Pages moved to a workflow deployment, which is a separate decision.
+`npm run gallery:snapshot -- 2.1.0` assembles a self-contained copy under `releases/2.1.0/gallery/`, for keeping a version around to look at. That copy is gitignored: a gallery is about 20MB of pngs against a 19MB repository, so none of them are committed. The pages workflow builds one fresh and uploads it with the site, which is why the repository's Pages source has to be set to GitHub Actions rather than a branch.
 
 ## Regenerating the site without releasing
 

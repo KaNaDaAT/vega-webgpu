@@ -39,8 +39,18 @@ jobs:
           retention-days: 7
 
   test:
-    name: Render tests (WebGPU on SwiftShader)
+    # Both pixel ratios, because they are not the same test: a finer grid moves
+    # every analytic edge onto different sample positions, and eight fixtures
+    # carry a budget of their own for it. Only dpr 1 ran here, so a regression
+    # that showed at dpr 2 was one somebody had to find by hand.
+    name: Render tests at dpr ${{ matrix.dpr }} (WebGPU on SwiftShader)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dpr: [1, 2]
+    env:
+      RENDER_DPR: ${{ matrix.dpr }}
     steps:
       - uses: actions/checkout@v7
 
@@ -73,7 +83,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: render-report
+          name: render-report-dpr${{ matrix.dpr }}
           path: playwright-report/
           retention-days: 14
           if-no-files-found: ignore
@@ -83,7 +93,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: render-images
+          name: render-images-dpr${{ matrix.dpr }}
           path: test/render/output/
           retention-days: 14
           if-no-files-found: ignore
