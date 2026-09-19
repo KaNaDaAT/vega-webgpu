@@ -1,0 +1,112 @@
+{
+  "description": "One string, three different gradients. Everything the glyph cache keys on is identical here except the paint, and an object has no useful default string form, so all three once shared a raster and the last two wore the first one's colours.",
+  "width": 240,
+  "height": 190,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "text": "Gradient",
+                "x": 20,
+                "y": 40,
+                "align": "left",
+                "baseline": "middle",
+                "font": "sans-serif",
+                "fontSize": 34,
+                "fontWeight": "bold",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#d1495b"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#3b6fb6"
+                    }
+                  ]
+                }
+              },
+              {
+                "text": "Gradient",
+                "x": 20,
+                "y": 95,
+                "align": "left",
+                "baseline": "middle",
+                "font": "sans-serif",
+                "fontSize": 34,
+                "fontWeight": "bold",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#2e8b57"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e8c547"
+                    }
+                  ]
+                }
+              },
+              {
+                "text": "Gradient",
+                "x": 20,
+                "y": 150,
+                "align": "left",
+                "baseline": "middle",
+                "font": "sans-serif",
+                "fontSize": 34,
+                "fontWeight": "bold",
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#000000"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#000000"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "x": 0,
+        "y": 0,
+        "width": 240,
+        "height": 190
+      }
+    ]
+  }
+}

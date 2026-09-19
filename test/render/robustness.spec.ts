@@ -33,6 +33,25 @@ const MAX_COVERAGE: Record<string, number> = {
   'huge-values': 1,
 };
 
+/**
+ * Share of the frame a case must paint. The ceiling alone passes a mark that
+ * bails on bad input and draws nothing, which is the other way this goes wrong:
+ * a NaN coordinate is meant to land at the origin, not to delete the mark.
+ * Cases whose input really does draw nothing are listed at 0 with the reason.
+ */
+const MIN_COVERAGE: Record<string, number> = {
+  // the marks survive their NaN and draw at the origin
+  'nan-coords': 0.02,
+  'huge-values': 0.5,
+  // an empty item list and a shape below its minimum point count have nothing
+  // to draw, and canvas paints these blank too
+  'empty-and-missing': 0,
+  'single-point-shapes': 0,
+  // The negative width is flipped the way fillRect flips it, so the rect it
+  // asks for is painted rather than dropped, and that is 2.5% of this frame.
+  'degenerate-sizes': 0.02,
+};
+
 /** Share of pixels that are not the background. */
 function coverage(buffer: Buffer): number {
   const img = PNG.sync.read(buffer);
@@ -74,6 +93,12 @@ test.describe('hostile input', () => {
 
       const painted = coverage(out.png);
       const budget = MAX_COVERAGE[name] ?? 0.05;
+      const floor = MIN_COVERAGE[name] ?? 0;
+      expect(
+        painted,
+        `painted ${(painted * 100).toFixed(1)}% of the frame, under the ${(floor * 100).toFixed(0)}% expected. ` +
+          `A mark that bails on bad input rather than clamping it draws nothing and passes the ceiling below`,
+      ).toBeGreaterThanOrEqual(floor);
       expect(
         painted,
         `painted ${(painted * 100).toFixed(1)}% of the frame, over the ${(budget * 100).toFixed(0)}% allowed. ` +

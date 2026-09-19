@@ -41,6 +41,8 @@ test('bound inputs are shared between the two views', async ({ page }) => {
     'errs:',
     JSON.stringify(errs.slice(0, 3)),
   );
+  expect(errs, 'page errors').toEqual([]);
+  expect(dom.hasView, 'the page published the webgpu view').toBe(true);
   expect(dom.inHost, 'controls live in the shared host').toBeGreaterThan(3);
   expect(dom.elsewhere, 'and nowhere else').toBe(0);
   expect(mirrored.webgpu, 'the webgpu view took the new value').toBe(137);

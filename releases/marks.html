@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="../favicon.ico" sizes="any" />
     <link rel="stylesheet" href="./index.css" />
     <title>Mark playground</title>
     <meta
@@ -131,9 +132,13 @@
         render();
       });
 
+      // The installed copy comes first, so a local run matches the render
+      // harness and needs no network. The hosted page has no node_modules and
+      // falls through to the cdn, pinned so a vega release cannot change this
+      // page under the tests that drive it.
       const VEGA = {
-        5: 'https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js',
-        6: 'https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js',
+        5: ['https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js'],
+        6: ['../node_modules/vega/build/vega.min.js', 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'],
       };
 
       /** Builds before 2.0.0 were written against Vega 5 and throw on Vega 6. */
@@ -147,6 +152,15 @@
           el.onerror = () => resolve(false);
           document.head.append(el);
         });
+
+      const loadVega = async major => {
+        for (const url of VEGA[major]) {
+          if (await script(url)) {
+            return true;
+          }
+        }
+        return false;
+      };
 
       const reachable = async url => {
         try {
@@ -195,7 +209,7 @@
         }
         $('build').value = chosen.id;
         const major = vegaMajorFor(chosen.id);
-        if (!(await script(VEGA[major]))) {
+        if (!(await loadVega(major))) {
           return null;
         }
         if (!(await script(chosen.url)) || !vega.renderModule('webgpu')) {

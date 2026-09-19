@@ -1,0 +1,526 @@
+{
+  "description": "One label at sixteen sub-pixel baselines, a sixteenth of a pixel apart, for every baseline vega offsets differently. The browser snaps a glyph to a whole pixel along its baseline, so a phase either side of that snap, and the tie exactly on it, has to land on the row canvas puts it on.",
+  "width": 460,
+  "height": 250,
+  "origin": [
+    18,
+    11
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 14,
+                "y": 16,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 30.0625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 44.125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 58.1875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 72.25,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 86.3125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 100.375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 114.4375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 128.5,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 142.5625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 156.625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 170.6875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 184.75,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 198.8125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 212.875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 14,
+                "y": 226.9375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "left",
+                "fill": "#000"
+              }
+            ]
+          },
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 160,
+                "y": 16,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 30.0625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 44.125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 58.1875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 72.25,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 86.3125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 100.375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 114.4375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 128.5,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 142.5625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 156.625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 170.6875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 184.75,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 198.8125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 212.875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              },
+              {
+                "x": 160,
+                "y": 226.9375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "alphabetic",
+                "align": "left",
+                "fill": "#000"
+              }
+            ]
+          },
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 370,
+                "y": 16,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 30.0625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 44.125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 58.1875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 72.25,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 86.3125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 100.375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 114.4375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 128.5,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 142.5625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 156.625,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 170.6875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 184.75,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 198.8125,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 212.875,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              },
+              {
+                "x": 370,
+                "y": 226.9375,
+                "text": "The Godfather",
+                "fontSize": 8,
+                "font": "sans-serif",
+                "baseline": "top",
+                "align": "center",
+                "fill": "#000"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

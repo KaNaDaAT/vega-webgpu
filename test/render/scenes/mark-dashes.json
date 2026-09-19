@@ -1,0 +1,755 @@
+{
+  "description": "strokeDash on the marks whose stroke is not a plain polyline: area, trail, rect and arc, each against a solid control. A rect stroke is analytic in the fragment shader and the rest are extruded ribbons, and neither can carry a pattern, so the outline is walked and dashed and the solid stroke is left off.",
+  "width": 400,
+  "height": 480,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "area",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 54,
+                "height": 26,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 33,
+                "y": 39.555173941490345,
+                "height": 40.444826058509655,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 46,
+                "y": 29.979132154706544,
+                "height": 50.02086784529345,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 59,
+                "y": 28.49958270951601,
+                "height": 51.500417290483995,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 72,
+                "y": 35.61522368914976,
+                "height": 44.38477631085024,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 85,
+                "y": 48.92765162758066,
+                "height": 31.072348372419345,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 98,
+                "y": 63.94976924149233,
+                "height": 16.050230758507666,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 111,
+                "y": 75.61820991986617,
+                "height": 4.381790080133825,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 124,
+                "y": 80,
+                "height": 0,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              }
+            ]
+          },
+          {
+            "marktype": "area",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 210,
+                "y": 54,
+                "height": 26,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 223,
+                "y": 39.555173941490345,
+                "height": 40.444826058509655,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 236,
+                "y": 29.979132154706544,
+                "height": 50.02086784529345,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 249,
+                "y": 28.49958270951601,
+                "height": 51.500417290483995,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 262,
+                "y": 35.61522368914976,
+                "height": 44.38477631085024,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 275,
+                "y": 48.92765162758066,
+                "height": 31.072348372419345,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 288,
+                "y": 63.94976924149233,
+                "height": 16.050230758507666,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 301,
+                "y": 75.61820991986617,
+                "height": 4.381790080133825,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              },
+              {
+                "x": 314,
+                "y": 80,
+                "height": 0,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2
+              }
+            ]
+          },
+          {
+            "marktype": "area",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "y": 110,
+                "x": 36,
+                "width": 60,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 121,
+                "x": 43.77798326227443,
+                "width": 52.22201673772557,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 132,
+                "x": 48.93431345515801,
+                "width": 47.06568654484199,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 143,
+                "x": 49.73099392564522,
+                "width": 46.26900607435478,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 154,
+                "x": 45.89949493661167,
+                "width": 50.10050506338833,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 165,
+                "x": 38.7312645082258,
+                "width": 57.2687354917742,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 176,
+                "x": 30.642431946888745,
+                "width": 65.35756805311125,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 187,
+                "x": 24.359425427764364,
+                "width": 71.64057457223564,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              },
+              {
+                "y": 198,
+                "x": 22,
+                "width": 74,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "orient": "horizontal",
+                "strokeDash": [
+                  6,
+                  4
+                ],
+                "strokeDashOffset": 3
+              }
+            ]
+          },
+          {
+            "marktype": "trail",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 150,
+                "y": 130,
+                "size": 3,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 161.53846153846155,
+                "y": 136.2222072714765,
+                "size": 3.8461538461538463,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 173.07692307692307,
+                "y": 142.08280247313797,
+                "size": 4.6923076923076925,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 184.6153846153846,
+                "y": 147.24118911426066,
+                "size": 5.538461538461538,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 196.15384615384616,
+                "y": 151.39758051323506,
+                "size": 6.384615384615385,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 207.69230769230768,
+                "y": 154.31042230982078,
+                "size": 7.230769230769231,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 219.23076923076923,
+                "y": 155.8104307265494,
+                "size": 8.076923076923077,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 230.76923076923077,
+                "y": 155.8104307265494,
+                "size": 8.923076923076923,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 242.30769230769232,
+                "y": 154.31042230982078,
+                "size": 9.76923076923077,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 253.84615384615384,
+                "y": 151.39758051323506,
+                "size": 10.615384615384615,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 265.38461538461536,
+                "y": 147.24118911426066,
+                "size": 11.461538461538462,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 276.9230769230769,
+                "y": 142.08280247313797,
+                "size": 12.307692307692308,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 288.46153846153845,
+                "y": 136.2222072714765,
+                "size": 13.153846153846155,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 300,
+                "y": 130,
+                "size": 14,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              }
+            ]
+          },
+          {
+            "marktype": "trail",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 150,
+                "y": 215,
+                "size": 3,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 161.53846153846155,
+                "y": 221.2222072714765,
+                "size": 3.8461538461538463,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 173.07692307692307,
+                "y": 227.08280247313797,
+                "size": 4.6923076923076925,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 184.6153846153846,
+                "y": 232.24118911426066,
+                "size": 5.538461538461538,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 196.15384615384616,
+                "y": 236.39758051323506,
+                "size": 6.384615384615385,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 207.69230769230768,
+                "y": 239.31042230982078,
+                "size": 7.230769230769231,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 219.23076923076923,
+                "y": 240.8104307265494,
+                "size": 8.076923076923077,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 230.76923076923077,
+                "y": 240.8104307265494,
+                "size": 8.923076923076923,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 242.30769230769232,
+                "y": 239.31042230982078,
+                "size": 9.76923076923077,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 253.84615384615384,
+                "y": 236.39758051323506,
+                "size": 10.615384615384615,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 265.38461538461536,
+                "y": 232.24118911426066,
+                "size": 11.461538461538462,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 276.9230769230769,
+                "y": 227.08280247313797,
+                "size": 12.307692307692308,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 288.46153846153845,
+                "y": 221.2222072714765,
+                "size": 13.153846153846155,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              },
+              {
+                "x": 300,
+                "y": 215,
+                "size": 14,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2
+              }
+            ]
+          },
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 300,
+                "width": 78,
+                "height": 46,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 3,
+                "strokeDash": [
+                  9,
+                  5
+                ]
+              },
+              {
+                "x": 114,
+                "y": 300,
+                "width": 78,
+                "height": 46,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 3
+              },
+              {
+                "x": 208,
+                "y": 300,
+                "width": 78,
+                "height": 46,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 3,
+                "cornerRadius": 12,
+                "strokeDash": [
+                  7,
+                  4
+                ]
+              },
+              {
+                "x": 302,
+                "y": 300,
+                "width": 78,
+                "height": 46,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 3,
+                "strokeDash": [
+                  3,
+                  3
+                ],
+                "strokeDashOffset": 1.5
+              }
+            ]
+          },
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 70,
+                "y": 420,
+                "startAngle": 0.35,
+                "endAngle": 2.6,
+                "innerRadius": 16,
+                "outerRadius": 40,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2.5,
+                "strokeDash": [
+                  10,
+                  6
+                ]
+              },
+              {
+                "x": 180,
+                "y": 420,
+                "startAngle": 0.35,
+                "endAngle": 2.6,
+                "innerRadius": 16,
+                "outerRadius": 40,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2.5
+              },
+              {
+                "x": 290,
+                "y": 420,
+                "startAngle": 0.35,
+                "endAngle": 2.6,
+                "innerRadius": 0,
+                "outerRadius": 40,
+                "fill": "#f2c14e",
+                "stroke": "#8a5a00",
+                "strokeWidth": 2.5,
+                "strokeDash": [
+                  5,
+                  4
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

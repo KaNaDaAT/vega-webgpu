@@ -68,6 +68,9 @@
     "test": "playwright test",
     "test:diffs": "cross-env CROSS_REPORT=1 playwright test",
     "test:artifacts": "cross-env RENDER_ARTIFACTS=1 playwright test",
+    "gallery": "http-server -p 5500 -c-1 -o /test/render/gallery.html .",
+    "gallery:record": "cross-env RENDER_ARTIFACTS=1 playwright test render.spec.ts scene.spec.ts",
+    "gallery:snapshot": "node scripts/gallery-snapshot.mjs",
     "test:report": "playwright show-report"
   },
   "dependencies": {

@@ -18,8 +18,13 @@ test('an old build loads with the vega it was written for', async ({ page }) => 
     hasWebgpu: !!(window as unknown as { vega: { renderModule: (s: string) => unknown } }).vega.renderModule('webgpu'),
     build: (document.getElementById('build') as HTMLSelectElement).value,
     banner: document.getElementById('error')!.textContent!.slice(0, 90),
+    bannerClass: document.getElementById('error')!.className,
   }));
   console.log(JSON.stringify(out));
+  // The banner has three states. An old build has to reach the one that says
+  // which build is on, not the one that says nothing could be loaded.
+  expect(out.bannerClass, `banner said: ${out.banner}`).toContain('warn');
+  expect(out.banner, 'and it names the build and its vega').toContain('1.2.0');
   expect(out.vega.startsWith('5.'), `expected vega 5, got ${out.vega}`).toBe(true);
   expect(out.hasWebgpu).toBe(true);
   expect(errors.join(' '), 'no constructor error').not.toContain('without');

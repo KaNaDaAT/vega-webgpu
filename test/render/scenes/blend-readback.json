@@ -1,0 +1,272 @@
+{
+  "description": "Every blend mode fixed function blending cannot reach, one group each over a two-tone backdrop: the separable ones from overlay through exclusion, then the four that are not separable. Each is evaluated against a copy of the frame, so these match canvas rather than documenting a gap the way this fixture used to.",
+  "width": 370,
+  "height": 280,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 10,
+                "y": 10,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 10,
+                "y": 45,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 30,
+                "y": 25,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "overlay"
+              },
+              {
+                "x": 100,
+                "y": 10,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 100,
+                "y": 45,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 120,
+                "y": 25,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "color-dodge"
+              },
+              {
+                "x": 190,
+                "y": 10,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 190,
+                "y": 45,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 210,
+                "y": 25,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "color-burn"
+              },
+              {
+                "x": 280,
+                "y": 10,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 280,
+                "y": 45,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 300,
+                "y": 25,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "hard-light"
+              },
+              {
+                "x": 10,
+                "y": 100,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 10,
+                "y": 135,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 30,
+                "y": 115,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "soft-light"
+              },
+              {
+                "x": 100,
+                "y": 100,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 100,
+                "y": 135,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 120,
+                "y": 115,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "difference"
+              },
+              {
+                "x": 190,
+                "y": 100,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 190,
+                "y": 135,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 210,
+                "y": 115,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "exclusion"
+              },
+              {
+                "x": 280,
+                "y": 100,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 280,
+                "y": 135,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 300,
+                "y": 115,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "hue"
+              },
+              {
+                "x": 10,
+                "y": 190,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 10,
+                "y": 225,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 30,
+                "y": 205,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "saturation"
+              },
+              {
+                "x": 100,
+                "y": 190,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 100,
+                "y": 225,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 120,
+                "y": 205,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "color"
+              },
+              {
+                "x": 190,
+                "y": 190,
+                "width": 70,
+                "height": 35,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 190,
+                "y": 225,
+                "width": 70,
+                "height": 35,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 210,
+                "y": 205,
+                "width": 45,
+                "height": 40,
+                "fill": "#d1495b",
+                "blend": "luminosity"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

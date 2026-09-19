@@ -1,16 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { waitForRender } from './drive.js';
 
 /** Browser zoom changes devicePixelRatio without resizing the view. */
 test('redraws when the pixel ratio changes', async ({ page }) => {
   await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 45_000 },
-  );
+  await waitForRender(page, 45_000);
   const out = await page.evaluate(async () => {
     const r = (window as unknown as { view: { _renderer: Record<string, unknown> } }).view._renderer;
     const canvas = r._canvas as HTMLCanvasElement;
@@ -29,13 +23,21 @@ test('redraws when the pixel ratio changes', async ({ page }) => {
       }
       return n / (shot.width * shot.height);
     };
+    // The watcher is replaced on every change, so it is read fresh each time.
+    const watcher = () => r._dpr as { query: MediaQueryList; onChange: () => void } | null;
+    const watching = watcher() !== null;
+    const media = watcher()?.query.media;
+    const set = (v: number) => Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: v });
+
+    // Start from a known ratio rather than whatever the run is at, or RENDER_DPR
+    // decides the numbers below and a 2x run compares 2 against 2.
+    set(1);
+    watcher()?.onChange();
+    await new Promise(res => setTimeout(res, 400));
     const before = { w: canvas.width, h: canvas.height, ink: ink(await capture.call(r)) };
 
-    const watcher = r._dpr as { query: MediaQueryList; onChange: () => void } | null;
-    const watching = watcher !== null;
-    const media = watcher?.query.media;
-    Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 2 });
-    watcher?.onChange();
+    set(2);
+    watcher()?.onChange();
     await new Promise(res => setTimeout(res, 400));
     const shot = await capture.call(r);
     return {

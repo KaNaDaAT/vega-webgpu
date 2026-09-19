@@ -1,10 +1,12 @@
-import { expect, type Page } from '@playwright/test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { expect, type Page, type TestInfo } from '@playwright/test';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import { shotToPng, type Shot } from './snapshot.js';
+import { waitForRender } from './drive.js';
+import { FLAT_MIN_SAMPLE } from './specs.js';
 
 // Per-pixel color tolerance when deciding whether two pixels differ. The
 // budgets are on the *fraction of differing pixels*, so this only needs to
@@ -12,9 +14,10 @@ import { shotToPng, type Shot } from './snapshot.js';
 const PIXELMATCH_THRESHOLD = 0.15;
 
 // Optional on-disk gallery: with RENDER_ARTIFACTS=1 every case's webgpu /
-// canvas / diff PNG is written to test/render/output/ (gitignored) for manual
-// side-by-side comparison, in addition to the always-on HTML report
-// attachments. Off by default so a normal run does not litter hundreds of PNGs.
+// canvas / diff PNG is written to test/render/output/ (gitignored) along with
+// an index.json of the measurements, which test/render/gallery.html reads to
+// browse them side by side, wiped, blinked or as the diff, ranked by any of the
+// numbers. Off by default so a normal run does not litter hundreds of PNGs.
 const WRITE_ARTIFACTS = !!process.env.RENDER_ARTIFACTS;
 const OUTPUT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'output');
 let outputDirReady = false;
@@ -30,11 +33,102 @@ export function saveArtifact(name: string, suffix: string, data: Buffer): void {
   if (!WRITE_ARTIFACTS) {
     return;
   }
+  ensureOutputDir();
+  writeFileSync(join(OUTPUT_DIR, `${name}-${suffix}.png`), data);
+}
+
+function ensureOutputDir(): void {
   if (!outputDirReady) {
     mkdirSync(OUTPUT_DIR, { recursive: true });
     outputDirReady = true;
   }
-  writeFileSync(join(OUTPUT_DIR, `${name}-${suffix}.png`), data);
+}
+
+/** One row of test/render/output/index.json, which gallery.html reads. */
+export interface GalleryCase {
+  /** What the case is called, e.g. `bar` or `arc-shapes`. */
+  name: string;
+  /** `spec` or `fixture`. */
+  kind: string;
+  /** Prefix of its three pngs, which is the name for a spec and `scene-<name>` for a fixture. */
+  file: string;
+  width: number;
+  height: number;
+  diff: number;
+  /**
+   * Fraction of pixels at least one channel differs on at all, which the one
+   * above cannot say: it counts only what passes a colour threshold, so a case
+   * reads 0.000% while tens of thousands of pixels are a level or two apart.
+   */
+  touched: number;
+  tile: number;
+  mean: number;
+  /** Mean signed channel difference, which says whether the error has a direction. */
+  bias: number;
+  flat: number;
+  flatSample: number;
+  max: number;
+  /** The budgets this case was held to, so the gallery can say what passing meant. */
+  budgets: { diff: number | null; tile: number; mean: number; bias: number; flat: number; max?: number };
+  /** What the case is for, from a fixture's own description. */
+  note?: string;
+}
+
+/**
+ * What the run was configured with. A number in the gallery only means
+ * something next to the settings that produced it, and its live mode compares
+ * at whatever the browser is set to rather than at these.
+ */
+function runSettings() {
+  return {
+    dpr: Number(process.env.RENDER_DPR ?? 1),
+    ci: !!process.env.CI,
+    pixelmatchThreshold: PIXELMATCH_THRESHOLD,
+    includeAA: true,
+    flatEps: FLAT_EPS,
+    rendererOptions: 'renderer defaults, drawing offscreen',
+  };
+}
+
+const MANIFEST = join(OUTPUT_DIR, 'index.json');
+let gallery: Map<string, GalleryCase> | null = null;
+
+/**
+ * Adds a case to the gallery manifest, so `test/render/gallery.html` can list
+ * and rank what is on disk. Rewritten on every case rather than at the end,
+ * since a run that stops early should still leave a usable index. Merges what
+ * is already there, so a filtered run adds to the last full one.
+ */
+export function recordCase(entry: GalleryCase): void {
+  if (!WRITE_ARTIFACTS) {
+    return;
+  }
+  ensureOutputDir();
+  if (!gallery) {
+    gallery = new Map();
+    if (existsSync(MANIFEST)) {
+      try {
+        for (const c of JSON.parse(readFileSync(MANIFEST, 'utf8')).cases as GalleryCase[]) {
+          gallery.set(c.file, c);
+        }
+      } catch {
+        // a truncated manifest from an interrupted run is not worth failing over
+      }
+    }
+  }
+  // Keyed by file, not name: symbol-shapes is both a spec and a fixture.
+  gallery.set(entry.file, entry);
+  // A case that was renamed or deleted keeps its row otherwise, since a
+  // filtered run only rewrites what it touched. Its pngs are gone, so it is
+  // gone. A run that only covered some cases still keeps the rest.
+  const cases = [...gallery.values()]
+    .filter(c => existsSync(join(OUTPUT_DIR, `${c.file}-canvas.png`)))
+    .sort((a, b) => a.file.localeCompare(b.file));
+  writeFileSync(
+    MANIFEST,
+    `${JSON.stringify({ generated: new Date().toISOString(), settings: runSettings(), cases }, null, 2)}
+`,
+  );
 }
 
 /** Loads a harness url, waits for it to settle and returns the canvas pixels. */
@@ -52,14 +146,7 @@ export async function renderInHarness(page: Page, url: string, renderer: Rendere
 
   try {
     await page.goto(url);
-    await page.waitForFunction(
-      () => {
-        const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-        return w.__renderDone || w.__renderError;
-      },
-      undefined,
-      { timeout: 45_000 },
-    );
+    await waitForRender(page, 45_000);
 
     const state = await page.evaluate(() => {
       const w = window as unknown as { __renderError?: string; __rendererKind?: string; __traces?: string[] };
@@ -73,7 +160,16 @@ export async function renderInHarness(page: Page, url: string, renderer: Rendere
       const w = window as unknown as { __snapshot?: () => Promise<unknown> };
       return ((await w.__snapshot?.()) ?? null) as Shot | null;
     });
-    expect(shot, `[${renderer}] could not snapshot the canvas`).toBeTruthy();
+    // The capture records its own failures, and it runs after the traces above
+    // were read. Without this a captureFrame that fell back to a blank
+    // toDataURL is reported as a pixel diff with no cause.
+    const during = (await page.evaluate(() => (window as unknown as { __traces?: string[] }).__traces ?? [])).slice(
+      state.traces.length,
+    );
+    const late = during.join('\n');
+    expect(shot, `[${renderer}] could not snapshot the canvas\n${late}`).toBeTruthy();
+    expect(during, `[${renderer}] the capture failed:\n${late}`).toEqual([]);
+    expect(errors, `[${renderer}] console errors during capture:\n${errors.join('\n')}`).toEqual([]);
     return { png: shotToPng(shot as Shot), rendererKind: state.rendererKind };
   } finally {
     page.off('pageerror', onPageError);
@@ -97,11 +193,30 @@ function flatten(img: PNG): PNG {
 /** Side of the square the worst-region measure is taken over, in pixels. */
 export const TILE = 32;
 
-export function diffPngs(
-  a: Buffer,
-  b: Buffer,
-  name: string,
-): { diffRatio: number; worstTile: number; worstTileAt: [number, number]; diff: Buffer } {
+export interface DiffResult {
+  /** Fraction of pixels pixelmatch counts as different, past its threshold. */
+  diffRatio: number;
+  /** Fraction of pixels at least one channel differs on at all. */
+  touched: number;
+  /** Densest TILE by TILE square of difference, as a fraction of that square. */
+  worstTile: number;
+  worstTileAt: [number, number];
+  diff: Buffer;
+  width: number;
+  height: number;
+  /** Largest single channel difference anywhere. */
+  maxDelta: number;
+  /** Mean channel difference over pixels either side inked. */
+  meanDelta: number;
+  /** Largest mean signed channel difference over inked pixels. */
+  biasDelta: number;
+  /** The same, over inked pixels away from any edge. Zero when nothing qualified. */
+  flatMeanDelta: number;
+  /** How many pixels that average is over. */
+  flatSample: number;
+}
+
+export function diffPngs(a: Buffer, b: Buffer, name: string): DiffResult {
   const imgA = flatten(PNG.sync.read(a));
   const imgB = flatten(PNG.sync.read(b));
   if (imgA.width !== imgB.width || imgA.height !== imgB.height) {
@@ -117,11 +232,20 @@ export function diffPngs(
     includeAA: true,
   });
   const { ratio, at } = worstRegion(diff, imgA.width, imgA.height);
+  const { max, mean, bias, touched, flatMean, flatSample } = deltas(imgA, imgB);
   return {
     diffRatio: diffCount / (imgA.width * imgA.height),
+    touched,
+    width: imgA.width,
+    height: imgA.height,
     worstTile: ratio,
     worstTileAt: at,
     diff: PNG.sync.write(diff),
+    maxDelta: max,
+    meanDelta: mean,
+    biasDelta: bias,
+    flatMeanDelta: flatMean,
+    flatSample,
   };
 }
 
@@ -185,17 +309,106 @@ export interface ChannelStats {
   mean: number;
   /** Fraction of pixels at least one channel differs on. */
   touched: number;
+  /**
+   * Largest mean *signed* channel difference over inked pixels. A render that
+   * is systematically off shifts every pixel the same way and shows up here,
+   * where the unsigned mean cannot see it under the antialiasing noise that
+   * text and thin lines carry.
+   */
+  bias: number;
+  /** Mean channel difference over inked pixels away from any edge. */
+  flatMean: number;
+  /** How many pixels that average is over. Under a few hundred it says little. */
+  flatSample: number;
 }
 
-/** Per-channel error, which says how far off a render is rather than how much moved. */
-export function channelStats(a: Buffer, b: Buffer): ChannelStats {
-  const imgA = flatten(PNG.sync.read(a));
-  const imgB = flatten(PNG.sync.read(b));
+/**
+ * Worst-channel spread over each pixel's 3x3 neighbourhood, as a flatness map.
+ * Separable: a horizontal pass, then a vertical one over its output, which is
+ * the same answer as the 3x3 window for six reads rather than nine.
+ */
+function spread(img: PNG): Uint8Array {
+  const { width: w, height: h, data } = img;
+  const rowLo = new Uint8Array(w * h);
+  const rowHi = new Uint8Array(w * h);
+  const out = new Uint8Array(w * h);
+  for (let c = 0; c < 3; c++) {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let a = 255;
+        let b = 0;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= w) {
+            continue;
+          }
+          const v = data[(y * w + xx) * 4 + c];
+          if (v < a) {
+            a = v;
+          }
+          if (v > b) {
+            b = v;
+          }
+        }
+        rowLo[y * w + x] = a;
+        rowHi[y * w + x] = b;
+      }
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let a = 255;
+        let b = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          const yy = y + dy;
+          if (yy < 0 || yy >= h) {
+            continue;
+          }
+          const i = yy * w + x;
+          if (rowLo[i] < a) {
+            a = rowLo[i];
+          }
+          if (rowHi[i] > b) {
+            b = rowHi[i];
+          }
+        }
+        const r = b - a;
+        if (r > out[y * w + x]) {
+          out[y * w + x] = r;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Largest neighbourhood spread a pixel may have and still count as flat. */
+const FLAT_EPS = 6;
+
+/**
+ * Per-channel error over two already flattened images.
+ *
+ * `mean` is the number worth gating on. The differing-pixel count ignores
+ * anything under its colour threshold, which measures out at 39 levels on every
+ * channel or 60 on one, so a render that is uniformly too dark or carries a
+ * colour cast reports a perfect match. Averaging the error over inked pixels
+ * catches exactly that, and stays near zero when the only difference is a
+ * scattering of antialiased edge pixels, however far off any one of them is.
+ *
+ * `max` is the opposite trade: one edge pixel landing on the other side of a
+ * rounding boundary reads 255. It is worth holding on small synthetic fixtures
+ * where that cannot happen by accident, and useless across a full spec.
+ */
+function deltas(imgA: PNG, imgB: PNG): ChannelStats {
+  const flatA = spread(imgA);
+  const flatB = spread(imgB);
   let max = 0;
   let sum = 0;
   let inked = 0;
+  const signed = [0, 0, 0];
   let touched = 0;
-  for (let i = 0; i < imgA.data.length; i += 4) {
+  let flatSum = 0;
+  let flatSample = 0;
+  for (let i = 0, p = 0; i < imgA.data.length; i += 4, p++) {
     let worst = 0;
     for (let c = 0; c < 3; c++) {
       const delta = Math.abs(imgA.data[i + c] - imgB.data[i + c]);
@@ -203,10 +416,21 @@ export function channelStats(a: Buffer, b: Buffer): ChannelStats {
         worst = delta;
       }
     }
-    const lit = imgA.data[i] < 250 || imgB.data[i] < 250;
+    const litA = imgA.data[i] < 250 || imgA.data[i + 1] < 250 || imgA.data[i + 2] < 250;
+    const litB = imgB.data[i] < 250 || imgB.data[i + 1] < 250 || imgB.data[i + 2] < 250;
+    const lit = litA || litB;
     if (lit) {
       inked++;
       sum += worst;
+      for (let c = 0; c < 3; c++) {
+        signed[c] += imgA.data[i + c] - imgB.data[i + c];
+      }
+      // Flat in both, so neither an edge that moved nor one the two rasterizers
+      // merely disagree about. What is left is the colour itself.
+      if (flatA[p] <= FLAT_EPS && flatB[p] <= FLAT_EPS) {
+        flatSample++;
+        flatSum += worst;
+      }
     }
     if (worst > 0) {
       touched++;
@@ -216,7 +440,148 @@ export function channelStats(a: Buffer, b: Buffer): ChannelStats {
     }
   }
   const pixels = imgA.data.length / 4;
-  return { max, mean: inked ? sum / inked : 0, touched: touched / pixels };
+  return {
+    max,
+    mean: inked ? sum / inked : 0,
+    bias: inked ? Math.max(...signed.map(v => Math.abs(v / inked))) : 0,
+    touched: touched / pixels,
+    flatMean: flatSample ? flatSum / flatSample : 0,
+    flatSample,
+  };
+}
+
+/** Per-channel error, which says how far off a render is rather than how much moved. */
+export function channelStats(a: Buffer, b: Buffer): ChannelStats {
+  return deltas(flatten(PNG.sync.read(a)), flatten(PNG.sync.read(b)));
 }
 
 export const png = (data: Buffer) => ({ body: data, contentType: 'image/png' as const });
+
+/** What a comparison is allowed to be off by, already resolved per case. */
+export interface CaseBudgets {
+  /** Fraction of pixels that may differ, or null where the count is skipped. */
+  diff: number | null;
+  tile: number;
+  mean: number;
+  bias: number;
+  flat: number;
+  /** Fixtures gate the worst channel too. A spec carries too much text for it. */
+  max?: number;
+}
+
+/**
+ * One webgpu against canvas comparison: render both, record it for the
+ * gallery, attach everything to the report, and hold it to its budgets.
+ *
+ * The specs and the fixtures differ in how they build a url and where their
+ * budgets come from, and in nothing else. Both had written this out, which
+ * left the gate itself in two places to keep in step.
+ */
+export async function compareCase(
+  testInfo: TestInfo,
+  opts: {
+    name: string;
+    kind: GalleryCase['kind'];
+    /** Prefix for the artifact files, which the gallery reads back. */
+    file: string;
+    label?: string;
+    note?: string;
+    budgets: CaseBudgets;
+    render: (renderer: RendererName) => Promise<RenderResult>;
+  },
+): Promise<void> {
+  const { name, file, budgets } = opts;
+  const webgpu = await opts.render('webgpu');
+  await testInfo.attach(`${name}-webgpu`, png(webgpu.png));
+  saveArtifact(file, 'webgpu', webgpu.png);
+  // Guard against a silent fallback: each renderer must actually be the one
+  // that ran, otherwise the comparison is meaningless.
+  expect(webgpu.rendererKind, `expected WebGPU to render, got '${webgpu.rendererKind}'`).toBe('webgpu');
+
+  const canvas = await opts.render('canvas');
+  await testInfo.attach(`${name}-canvas`, png(canvas.png));
+  saveArtifact(file, 'canvas', canvas.png);
+  expect(canvas.rendererKind, `expected canvas to render, got '${canvas.rendererKind}'`).toBe('canvas');
+
+  const m = diffPngs(webgpu.png, canvas.png, name);
+  recordCase({
+    name,
+    kind: opts.kind,
+    file,
+    width: m.width,
+    height: m.height,
+    diff: m.diffRatio,
+    touched: m.touched,
+    tile: m.worstTile,
+    mean: m.meanDelta,
+    bias: m.biasDelta,
+    flat: m.flatMeanDelta,
+    flatSample: m.flatSample,
+    max: m.maxDelta,
+    note: opts.note,
+    budgets,
+  });
+  await testInfo.attach(`${name}-diff (${(m.diffRatio * 100).toFixed(2)}%)`, png(m.diff));
+  saveArtifact(file, 'diff', m.diff);
+  if (process.env.CROSS_REPORT) {
+    console.log(
+      `DIFF ${opts.label ?? name} ${(m.diffRatio * 100).toFixed(3)}% TILE ${(m.worstTile * 100).toFixed(1)}% ` +
+        `at ${m.worstTileAt.join(',')} MEAN ${m.meanDelta.toFixed(2)} BIAS ${m.biasDelta.toFixed(2)} ` +
+        `MAX ${m.maxDelta} FLAT ${m.flatMeanDelta.toFixed(2)} over ${m.flatSample}px`,
+    );
+  }
+
+  // The worst pixel, where the case is small enough for it to mean something.
+  if (budgets.max !== undefined) {
+    expect(
+      m.maxDelta,
+      `worst channel is ${m.maxDelta} off canvas, over the ${budgets.max} allowed. The pixel count ` +
+        `below can miss this, since a coverage change stays under its colour threshold`,
+    ).toBeLessThanOrEqual(budgets.max);
+  }
+
+  // Checked even where the pixel count is skipped, since the two measure
+  // different things: this is the colour error the count cannot see.
+  expect(
+    m.meanDelta,
+    `the average inked pixel is ${m.meanDelta.toFixed(2)} channel levels off canvas, over the ` +
+      `${budgets.mean} allowed. The pixel count below ignores anything under 39 levels, so a ` +
+      `uniform shift or a colour cast reads as a perfect match there`,
+  ).toBeLessThanOrEqual(budgets.mean);
+
+  // A coverage difference pushes pixels both ways and a systematic one does
+  // not, so the signed mean catches what the unsigned mean above cannot on
+  // anything made of edges.
+  expect(
+    m.biasDelta,
+    `the average inked pixel is ${m.biasDelta.toFixed(2)} channel levels off canvas in the same ` +
+      `direction, over the ${budgets.bias} allowed. A one-sided error is the render being wrong ` +
+      `rather than the two rasterizers disagreeing about an edge`,
+  ).toBeLessThanOrEqual(budgets.bias);
+
+  // Away from the edges the two rasterizers should agree closely, so where
+  // there is enough interior to measure, the budget is much tighter.
+  if (m.flatSample >= FLAT_MIN_SAMPLE) {
+    expect(
+      m.flatMeanDelta,
+      `away from any edge the average inked pixel is ${m.flatMeanDelta.toFixed(2)} channel levels off ` +
+        `canvas over ${m.flatSample} pixels, past the ${budgets.flat} allowed. A mark interior carries no ` +
+        `antialiasing difference, so this is the colour itself rather than coverage`,
+    ).toBeLessThanOrEqual(budgets.flat);
+  }
+
+  if (budgets.diff === null) {
+    return; // pixel comparison intentionally skipped for this case
+  }
+  expect(
+    m.worstTile,
+    `a 32px square at ${m.worstTileAt.join(',')} is ${(m.worstTile * 100).toFixed(1)}% different, ` +
+      `over the ${(budgets.tile * 100).toFixed(0)}% allowed. The whole-image number below ` +
+      `is diluted by everything that matches`,
+  ).toBeLessThanOrEqual(budgets.tile);
+  expect(
+    m.diffRatio,
+    `webgpu vs canvas diff ${(m.diffRatio * 100).toFixed(3)}% exceeds ${((budgets.diff as number) * 100).toFixed(1)}%. ` +
+      `Open the HTML report (npm run test:report) to compare`,
+  ).toBeLessThanOrEqual(budgets.diff);
+}

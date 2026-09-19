@@ -9,18 +9,18 @@
 
 /** yes, no, partial or na, per mark, for the five properties the table covers. */
 const SUPPORT = {
-  arc: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'no', strokeCap: 'na', blend: 'yes' },
-  area: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'no', strokeCap: 'partial', blend: 'yes' },
-  group: { gradientFill: 'yes', gradientStroke: 'no', strokeDash: 'yes', strokeCap: 'na', blend: 'no' },
-  image: { gradientFill: 'na', gradientStroke: 'na', strokeDash: 'na', strokeCap: 'na', blend: 'no' },
-  line: { gradientFill: 'na', gradientStroke: 'no', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
-  path: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'no', strokeCap: 'partial', blend: 'yes' },
-  rect: { gradientFill: 'yes', gradientStroke: 'no', strokeDash: 'no', strokeCap: 'na', blend: 'yes' },
-  rule: { gradientFill: 'na', gradientStroke: 'no', strokeDash: 'no', strokeCap: 'no', blend: 'yes' },
-  shape: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'no', strokeCap: 'partial', blend: 'yes' },
-  symbol: { gradientFill: 'yes', gradientStroke: 'no', strokeDash: 'no', strokeCap: 'na', blend: 'yes' },
-  text: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'na', strokeCap: 'na', blend: 'no' },
-  trail: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'no', strokeCap: 'na', blend: 'yes' },
+  arc: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
+  area: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
+  group: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
+  image: { gradientFill: 'na', gradientStroke: 'na', strokeDash: 'na', strokeCap: 'na', blend: 'yes' },
+  line: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
+  path: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
+  rect: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
+  rule: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
+  shape: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'yes', blend: 'yes' },
+  symbol: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
+  text: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'na', strokeCap: 'na', blend: 'yes' },
+  trail: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeCap: 'na', blend: 'yes' },
 };
 
 const MARKS = Object.keys(SUPPORT);
@@ -33,7 +33,9 @@ const FEATURES = [
   { key: 'blend', label: 'blend' },
 ];
 
-const CELL_TEXT = { yes: 'yes', no: 'no', partial: 'square only', na: 'n/a' };
+// `partial` is unused at the moment, so it says only that much: a cell that
+// takes it again should say what is missing in EXPLAIN.
+const CELL_TEXT = { yes: 'yes', no: 'no', partial: 'partly', na: 'n/a' };
 
 /** What actually happens, per property and support level, for the status line. */
 const EXPLAIN = {
@@ -53,8 +55,7 @@ const EXPLAIN = {
     na: 'this mark has no stroke',
   },
   strokeCap: {
-    yes: 'round and square ends are drawn on a plain line; a dashed or curved one still draws butt',
-    partial: 'square is drawn, round falls back to butt',
+    yes: 'round and square ends are drawn; a line whose curve the GPU evaluates still draws butt',
     no: 'ignored, ends draw butt',
     na: 'this mark has no open ends',
   },
@@ -504,6 +505,8 @@ function baseSpec(mark) {
           size: { field: 'w' },
           fill: { value: name === 'a' ? solid : '#e45756' },
           fillOpacity: { value: 0.8 },
+          stroke: { value: '#2b2b30' },
+          strokeWidth: { value: 1.5 },
         },
       },
     })),

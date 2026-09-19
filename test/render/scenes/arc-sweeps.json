@@ -1,0 +1,107 @@
+{
+  "description": "Arc sweeps either side of 240 degrees, the width one svg arc command is split at.",
+  "width": 400,
+  "height": 200,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 55,
+                "y": 55,
+                "startAngle": 0,
+                "endAngle": 4.2,
+                "innerRadius": 0,
+                "outerRadius": 38,
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 150,
+                "y": 55,
+                "startAngle": 0,
+                "endAngle": 5.0,
+                "innerRadius": 0,
+                "outerRadius": 38,
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 245,
+                "y": 55,
+                "startAngle": 0,
+                "endAngle": 6.0,
+                "innerRadius": 0,
+                "outerRadius": 38,
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 340,
+                "y": 55,
+                "startAngle": 0,
+                "endAngle": 6.2,
+                "innerRadius": 0,
+                "outerRadius": 38,
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 55,
+                "y": 150,
+                "startAngle": 0.4,
+                "endAngle": 4.7,
+                "innerRadius": 18,
+                "outerRadius": 38,
+                "fill": "#72b7b2",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "x": 150,
+                "y": 150,
+                "startAngle": 0.4,
+                "endAngle": 5.6000000000000005,
+                "innerRadius": 18,
+                "outerRadius": 38,
+                "fill": "#72b7b2",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "x": 245,
+                "y": 150,
+                "startAngle": 0.4,
+                "endAngle": 6.300000000000001,
+                "innerRadius": 18,
+                "outerRadius": 38,
+                "fill": "#72b7b2",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "x": 340,
+                "y": 150,
+                "startAngle": 0.4,
+                "endAngle": 6.65,
+                "innerRadius": 18,
+                "outerRadius": 38,
+                "fill": "#72b7b2",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

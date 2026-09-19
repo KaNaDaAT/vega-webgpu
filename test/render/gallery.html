@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="../../favicon.ico" sizes="any" />
+    <title>render gallery</title>
+    <link rel="stylesheet" href="../compare-ui.css" />
+    <style>
+      body {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        height: 100vh;
+        overflow: hidden;
+        font-size: 13px;
+      }
+
+      #list {
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+      }
+
+      /* the gallery's rows carry numbers, so they are a grid rather than a line */
+      .case {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 2px 8px;
+        font-weight: 400;
+      }
+
+      .case .name {
+        font-weight: 500;
+        overflow-wrap: anywhere;
+      }
+
+      .case .meta {
+        grid-column: 1 / -1;
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+        font-size: 11px;
+      }
+
+      .kind {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--dim);
+        align-self: center;
+      }
+
+      .case[aria-selected='true'] .meta,
+      .case[aria-selected='true'] .kind {
+        color: #dbe6fb;
+      }
+
+      main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      /*
+       * Left aligned and in a fixed order. Anything that appears only in one
+       * mode keeps its slot rather than being removed, or every mode change
+       * shuffles the buttons out from under the pointer.
+       */
+      main header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      main header h1 {
+        font-size: 13px;
+        margin: 0;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        flex: 0 0 100%;
+        color: var(--dim);
+      }
+
+      #wipeBox.idle,
+      #blinkBox.idle,
+      #diffOpts.idle {
+        visibility: hidden;
+      }
+
+      #wipe {
+        width: 160px;
+      }
+
+      #wipeReadout {
+        min-width: 11ch;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #diffThreshold {
+        width: 52px;
+      }
+
+      #stage {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 12px;
+      }
+
+      /* the gallery's footer is chrome under a scrolling stage, not the end of
+         a scrolling page, so it sits still rather than sticking */
+      #pagefoot {
+        position: static;
+        margin: 0;
+        padding: 10px 12px;
+      }
+
+      #stage.side {
+        align-content: start;
+      }
+
+      #note {
+        padding: 6px 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--dim);
+        font-size: 12px;
+        background: var(--panel);
+      }
+
+      #note b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* one chip per measure, so a number is never hunted for in a sentence */
+      .facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 6px;
+      }
+
+      .fact {
+        display: inline-flex;
+        gap: 5px;
+        align-items: baseline;
+        padding: 2px 7px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--bg);
+        font-variant-numeric: tabular-nums;
+        cursor: help;
+      }
+
+      .fact b {
+        font-weight: 600;
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+
+      .what {
+        margin: 0 0 6px;
+        max-width: 100ch;
+      }
+
+      .linky {
+        font: inherit;
+        font-size: 12px;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--accent);
+        text-decoration: underline;
+        cursor: pointer;
+      }
+
+      #infoDialog {
+        max-width: 68ch;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--ink);
+        padding: 20px 22px;
+      }
+
+      #infoDialog::backdrop {
+        background: rgb(0 0 0 / 45%);
+      }
+
+      #infoDialog h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      #infoDialog .lede {
+        color: var(--dim);
+        margin: 0 0 14px;
+      }
+
+      #infoDialog dt {
+        font-weight: 600;
+        margin-top: 12px;
+      }
+
+      #infoDialog dd {
+        margin: 3px 0 0;
+        color: var(--dim);
+      }
+
+      #infoDialog .btn {
+        font: inherit;
+        margin-top: 16px;
+        padding: 5px 14px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--panel);
+        color: inherit;
+        cursor: pointer;
+      }
+
+      #empty {
+        padding: 24px;
+        color: var(--dim);
+        max-width: 62ch;
+        line-height: 1.6;
+      }
+
+      #empty code {
+        background: var(--panel);
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <aside>
+      <header>
+        <div class="modes" id="source">
+          <button data-source="recorded" aria-pressed="true" title="The pngs a test run left in test/render/output">
+            recorded
+          </button>
+          <button
+            data-source="live"
+            aria-pressed="false"
+            title="Render the spec here and now with both renderers, at this browser's settings rather than the run's"
+          >
+            live
+          </button>
+        </div>
+        <input id="filter" type="search" placeholder="filter cases" autocomplete="off" />
+        <select id="sort">
+          <option value="flat">sort by flat mean</option>
+          <option value="mean">sort by mean</option>
+          <option value="diff">sort by differing pixels</option>
+          <option value="tile">sort by worst tile</option>
+          <option value="max">sort by worst channel</option>
+          <option value="name">sort by name</option>
+        </select>
+      </header>
+      <div id="list"></div>
+    </aside>
+
+    <main>
+      <header>
+        <h1 id="title">render gallery</h1>
+        <div class="modes" id="viewModes">
+          <button data-view="side" aria-pressed="true" title="The two next to each other, scrolling together">
+            side by side
+          </button>
+          <button
+            data-view="wipe"
+            aria-pressed="false"
+            title="Both in one place, with the divider deciding where canvas ends and webgpu begins"
+          >
+            wipe
+          </button>
+          <button
+            data-view="blink"
+            aria-pressed="false"
+            title="Both in one place, alternating once a second. A shift of a pixel is easier to catch in motion"
+          >
+            blink
+          </button>
+          <button data-view="diff" aria-pressed="false" title="Only what the two disagree on">diff</button>
+        </div>
+        <span id="wipeBox" class="label">
+          <input type="range" id="wipe" min="0" max="100" step="0.5" value="50" aria-label="divider position" />
+          <span id="wipeReadout">canvas 50%</span>
+        </span>
+        <label class="label" id="blinkBox" title="How long each of the two stays on screen">
+          every
+          <select id="blinkRate">
+            <option value="0.3s">0.3s</option>
+            <option value="0.5s">0.5s</option>
+            <option value="1s" selected>1s</option>
+            <option value="2s">2s</option>
+            <option value="4s">4s</option>
+          </select>
+        </label>
+        <span id="diffOpts" class="label">
+          <label class="label" title="Ignore a difference this small, since most of it is a level or two of rounding">
+            ignore under
+            <input type="number" id="diffThreshold" min="0" max="255" step="1" value="3" />
+          </label>
+          <select id="diffStyle" title="How the difference is painted">
+            <option value="mask" selected>marks only</option>
+            <option value="heat">green to red</option>
+            <option value="over">over webgpu</option>
+          </select>
+          <select
+            id="diffScope"
+            title="Which pixels count. Flat regions drop every edge and leave mark interiors, so what is left is the colour rather than the coverage"
+          >
+            <option value="all" selected>every pixel</option>
+            <option value="flat">flat regions only (3x3)</option>
+          </select>
+          <input type="color" id="diffColor" value="#e4572e" aria-label="mark colour" />
+        </span>
+        <label class="label" title="Stop fitting each render to the space and show it at its own size"
+          ><input type="checkbox" id="actualSize" /> actual size</label
+        >
+        <button id="infoBtn" class="linky" type="button" title="What each of these numbers means">
+          what do these mean?
+        </button>
+      </header>
+      <div id="note" hidden></div>
+      <div id="stage" class="stage"></div>
+      <footer id="pagefoot" class="foot">
+        <span class="who">vega-webgpu, an unofficial WebGPU renderer for Vega</span>
+        <a href="../../">Project page</a>
+        <a href="../">Demo page</a>
+        <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+        <a href="../../releases/impressum.html">Impressum</a>
+      </footer>
+    </main>
+
+    <dialog id="infoDialog">
+      <h2>What the numbers mean</h2>
+      <p class="lede">
+        Every case is the same spec drawn twice, once by vega's canvas renderer and once by this one. Canvas is taken as
+        the truth, so each measure says how far this renderer is from it, in a different sense.
+      </p>
+      <dl>
+        <dt>differing pixels</dt>
+        <dd>
+          The share of the frame that pixelmatch calls different. It ignores anything under a colour threshold, which
+          measures out at 39 levels on every channel, so it answers <em>how much moved</em> and is blind to a small
+          error spread over everything.
+        </dd>
+        <dt>any difference</dt>
+        <dd>
+          The share of the frame where at least one channel differs at all, with no threshold under it. It is here
+          because the measure above is not zero when the two match, it is zero when nothing passed the threshold: across
+          the corpus every case reading 0.000% still has thousands of pixels a level or two apart, and the worst of them
+          has 150,327 of 504,000. Read the two together.
+        </dd>
+        <dt>worst tile</dt>
+        <dd>
+          The densest 32 pixel square of that difference. A whole-frame percentage is diluted by however much of a chart
+          is empty, so a small region that is badly wrong reads as a faint haze. This finds it.
+        </dd>
+        <dt>mean</dt>
+        <dd>
+          The average channel error over inked pixels, 0 to 255. This is the one that sees a uniform shift or a colour
+          cast, which the pixel count scores as a perfect match. It barely moves for a scattering of antialiased edge
+          pixels, however far off any one of them is.
+        </dd>
+        <dt>flat</dt>
+        <dd>
+          The same average, over inked pixels whose 3x3 neighbourhood is flat in both renders. Dropping the edges leaves
+          mark interiors, so what is left is the colour rather than the coverage. It holds a far tighter budget, but a
+          case that is all text or thin lines has no flat interior and shows <em>n/a</em>.
+        </dd>
+        <dt>worst channel</dt>
+        <dd>
+          The single furthest-off channel anywhere in the frame, 0 to 255. One edge pixel landing the other side of a
+          rounding boundary reads 255, so it is meaningful on small synthetic fixtures and noisy on a full chart.
+        </dd>
+        <dt>budgets</dt>
+        <dd>
+          What the render suite allows this case before it fails. A case at its budget is a known, documented gap.
+        </dd>
+      </dl>
+      <p class="lede">
+        <b>recorded</b> is what a test run measured, from the pngs it left behind. <b>live</b> renders here and now in
+        this browser, at its own pixel ratio and adapter, so its numbers will not match a recorded run.
+      </p>
+      <form method="dialog"><button class="btn">Close</button></form>
+    </dialog>
+
+    <script src="../compare-core.js"></script>
+    <script src="./gallery.js"></script>
+  </body>
+</html>

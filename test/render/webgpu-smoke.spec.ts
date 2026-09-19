@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { installGpuProbe } from './gpu-probe.js';
 import { shotToPng, type Shot } from './snapshot.js';
+import { waitForRender } from './drive.js';
 
 /**
  * Fail-fast gate for CI. If the browser cannot bring up a WebGPU adapter, e.g.
@@ -27,14 +28,7 @@ test('WebGPU adapter renders a spec', async ({ page }) => {
 
   await installGpuProbe(page);
   await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 45_000 },
-  );
+  await waitForRender(page, 45_000);
 
   const state = await page.evaluate(() => {
     const w = window as unknown as {

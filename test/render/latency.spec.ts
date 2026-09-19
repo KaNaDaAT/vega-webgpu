@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { waitForRender } from './drive.js';
 
 /**
  * How long a render waits when one is already in flight, which is what an
@@ -9,14 +10,7 @@ test('render latency', async ({ page }) => {
   const rows: string[] = [];
   for (const spec of ['tree-radial-bundle', 'bar', 'scatter-plot']) {
     await page.goto(`/test/render/harness.html?spec=${spec}&renderer=webgpu`);
-    await page.waitForFunction(
-      () => {
-        const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-        return w.__renderDone || w.__renderError;
-      },
-      undefined,
-      { timeout: 45_000 },
-    );
+    await waitForRender(page, 45_000);
     const out = await page.evaluate(async () => {
       const w = window as unknown as {
         view?: { _renderer?: Record<string, unknown>; scenegraph: () => { root: unknown } };

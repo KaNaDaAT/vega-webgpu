@@ -65,6 +65,28 @@ A version with a suffix is treated as a candidate throughout:
 
 Each rc commits its bundles to `main` permanently, since that is how Pages serves them. Pruning old rc folders once the final ships is a reasonable habit.
 
+## Looking at what the renderer drew
+
+```bash
+npm run gallery
+```
+
+Serves the repo and opens the render gallery, which shows a spec drawn by both renderers side by side, wiped, blinked, or as a diff with thresholds of its own. This runs no tests: it renders live, so it needs only a `npm run build` first.
+
+To browse what a run measured rather than what the page draws now:
+
+```bash
+npm run gallery:record
+```
+
+That renders every spec and fixture through the comparison suite and writes a canvas, webgpu and diff png for each to `test/render/output/`, with an `index.json` of every measurement and the settings that produced it. The gallery then lists all 134 cases ranked by any of the numbers, and says which budgets each case was held to. `npm run gallery:record -- --grep bar` does only the matching ones. Everything it writes is gitignored.
+
+## The render gallery
+
+`npm run gallery` opens the render gallery, which compares the corpus one case at a time. It reads whatever a run left in `test/render/output`, so record one first with `npm run gallery:record`, or use its live mode, which renders the spec in the browser with both renderers there and then.
+
+`npm run gallery:snapshot -- 2.1.0` assembles a self-contained copy under `releases/2.1.0/gallery/`, which is useful for keeping a version around to look at. It is gitignored and local only. GitHub Pages serves this repository from `main`, so hosting one would mean committing about 20MB of pngs per release against a 19MB repository. Publishing them would need Pages moved to a workflow deployment, which is a separate decision.
+
 ## Regenerating the site without releasing
 
 ```bash

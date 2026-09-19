@@ -1,120 +1,117 @@
 {
- "description": "Symbol shapes that are still triangulated: circle has its own analytic shader, cross erodes wrongly as a union of boxes, arrow and wedge have no distance function yet.",
- "width": 280,
- "height": 140,
- "origin": [
-  0,
-  0
- ],
- "scene": {
-  "marktype": "group",
-  "name": "root",
-  "role": "frame",
-  "interactive": true,
-  "clip": false,
-  "items": [
-   {
+  "description": "Symbol shapes that are still triangulated: circle has its own analytic shader, cross erodes wrongly as a union of boxes, arrow and wedge have no distance function yet.",
+  "width": 280,
+  "height": 140,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
     "items": [
-     {
-      "marktype": "symbol",
-      "role": "mark",
-      "interactive": true,
-      "clip": false,
-      "items": [
-       {
-        "shape": "circle",
-        "size": 100,
-        "x": 40,
-        "y": 40,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "circle",
-        "size": 400,
-        "x": 40,
-        "y": 95,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "cross",
-        "size": 100,
-        "x": 100,
-        "y": 40,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "cross",
-        "size": 400,
-        "x": 100,
-        "y": 95,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "arrow",
-        "size": 100,
-        "x": 160,
-        "y": 40,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "arrow",
-        "size": 400,
-        "x": 160,
-        "y": 95,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "wedge",
-        "size": 100,
-        "x": 220,
-        "y": 40,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "wedge",
-        "size": 400,
-        "x": 220,
-        "y": 95,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "stroke",
-        "size": 100,
-        "x": 40,
-        "y": 160,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       },
-       {
-        "shape": "stroke",
-        "size": 400,
-        "x": 40,
-        "y": 215,
-        "fill": "#4c78a8",
-        "stroke": "#333",
-        "strokeWidth": 1.5
-       }
-      ]
-     }
+      {
+        "items": [
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "shape": "circle",
+                "size": 100,
+                "x": 40,
+                "y": 40,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "circle",
+                "size": 400,
+                "x": 40,
+                "y": 95,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "cross",
+                "size": 100,
+                "x": 100,
+                "y": 40,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "cross",
+                "size": 400,
+                "x": 100,
+                "y": 95,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "arrow",
+                "size": 100,
+                "x": 160,
+                "y": 40,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "arrow",
+                "size": 400,
+                "x": 160,
+                "y": 95,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "wedge",
+                "size": 100,
+                "x": 220,
+                "y": 40,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "wedge",
+                "size": 400,
+                "x": 220,
+                "y": 95,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "stroke",
+                "size": 100,
+                "x": 40,
+                "y": 160,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              },
+              {
+                "shape": "stroke",
+                "size": 400,
+                "x": 40,
+                "y": 215,
+                "fill": "#4c78a8",
+                "stroke": "#333",
+                "strokeWidth": 1.5
+              }
+            ]
+          }
+        ]
+      }
     ]
-   }
-  ]
- }
+  }
 }

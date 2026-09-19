@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { waitForRender } from './drive.js';
 
 /**
  * Frame cost for path-heavy scenes, webgpu against canvas. Diagnostic only: it
@@ -31,14 +32,7 @@ interface FrameCost {
 
 async function bench(page: Page, spec: string, renderer: 'webgpu' | 'canvas', extra = ''): Promise<FrameCost> {
   await page.goto(`/test/render/harness.html?spec=${spec}&renderer=${renderer}${extra}`);
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 45_000 },
-  );
+  await waitForRender(page, 45_000);
   return page.evaluate(async () => {
     const w = window as unknown as {
       view?: { _renderer?: Record<string, unknown>; scenegraph: () => { root: unknown } };
@@ -99,14 +93,7 @@ test('per-mark draw cost', async ({ page }) => {
   const rows: string[] = [];
   for (const spec of SPECS) {
     await page.goto(`/test/render/harness.html?spec=${spec}&renderer=webgpu`);
-    await page.waitForFunction(
-      () => {
-        const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-        return w.__renderDone || w.__renderError;
-      },
-      undefined,
-      { timeout: 45_000 },
-    );
+    await waitForRender(page, 45_000);
     const out = await page.evaluate(async () => {
       const w = window as unknown as {
         view?: { _renderer?: Record<string, unknown>; scenegraph: () => { root: unknown } };
@@ -139,14 +126,7 @@ test('per-mark draw cost', async ({ page }) => {
 /** First frame against steady state, which is what lazy shader and pipeline compilation costs. */
 async function firstFrameCost(page: Page, spec: string): Promise<{ first: number; steady: number }> {
   await page.goto(`/test/render/harness.html?spec=${spec}&renderer=webgpu`);
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 45_000 },
-  );
+  await waitForRender(page, 45_000);
   return page.evaluate(async () => {
     const w = window as unknown as {
       view?: { _renderer?: Record<string, unknown>; scenegraph: () => { root: unknown } };

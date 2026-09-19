@@ -1,28 +1,17 @@
 import { expect, test } from '@playwright/test';
+import { waitForRender } from './drive.js';
 
 test('buffers are not leaked across renders and renderer swaps', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/test/render/harness.html?spec=jobs&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 90_000 },
-  );
+  await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
-    const counts = { buffers: 0, bufferBytes: 0, destroyed: 0, textures: 0, devices: 0 };
+    const counts = { buffers: 0, bufferBytes: 0, destroyed: 0, devices: 0 };
     const origBuf = GPUDevice.prototype.createBuffer;
     GPUDevice.prototype.createBuffer = function (d: GPUBufferDescriptor) {
       counts.buffers++;
       counts.bufferBytes += d.size;
       return origBuf.call(this, d);
-    };
-    const origTex = GPUDevice.prototype.createTexture;
-    GPUDevice.prototype.createTexture = function (d: GPUTextureDescriptor) {
-      counts.textures++;
-      return origTex.call(this, d);
     };
     const origDestroy = GPUBuffer.prototype.destroy;
     GPUBuffer.prototype.destroy = function () {
@@ -45,6 +34,15 @@ test('buffers are not leaked across renders and renderer swaps', async ({ page }
       }
     ).view;
 
+    // vega builds a fresh renderer on every swap back, and it starts from the
+    // defaults rather than the options the harness applied to the first one
+    const offscreen = () => {
+      const options = (view as unknown as { _renderer?: { wgOptions?: { offscreen: boolean } } })._renderer?.wgOptions;
+      if (options) {
+        options.offscreen = true;
+      }
+    };
+
     const snap = () => ({ ...counts });
     const render10 = async () => {
       const r = view._renderer;
@@ -62,6 +60,7 @@ test('buffers are not leaked across renders and renderer swaps', async ({ page }
     view.renderer('canvas');
     await view.runAsync();
     view.renderer('webgpu');
+    offscreen();
     await view.runAsync();
     const afterSwap = snap();
 
@@ -95,4 +94,6 @@ test('buffers are not leaked across renders and renderer swaps', async ({ page }
     0.8,
   );
   expect(after.destroyed / Math.max(after.buffers, 1), 'buffers made after a swap are released').toBeGreaterThan(0.8);
+  expect(out.swap.buffers, 'the swap itself redraws').toBeGreaterThan(0);
+  expect(out.totalDevices, 'and it reuses the device rather than asking for another').toBeLessThanOrEqual(2);
 });

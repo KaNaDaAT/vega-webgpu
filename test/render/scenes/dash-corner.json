@@ -1,0 +1,198 @@
+{
+  "description": "One big corner, dashed: plain, blended, blended with round caps and joins, and the same with the dash phase moved so the corner falls inside a run rather than a gap.",
+  "width": 340,
+  "height": 760,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 340,
+                "height": 760,
+                "fill": "#f2c744"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 40,
+                "y": 30,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "butt",
+                "strokeJoin": "miter",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "normal"
+              },
+              {
+                "x": 170,
+                "y": 150,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "butt",
+                "strokeJoin": "miter",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "normal"
+              },
+              {
+                "x": 300,
+                "y": 30,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "butt",
+                "strokeJoin": "miter",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "normal"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 40,
+                "y": 215,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "butt",
+                "strokeJoin": "miter",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "multiply"
+              },
+              {
+                "x": 170,
+                "y": 335,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "butt",
+                "strokeJoin": "miter",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "multiply"
+              },
+              {
+                "x": 300,
+                "y": 215,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "butt",
+                "strokeJoin": "miter",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "multiply"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 40,
+                "y": 400,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "multiply"
+              },
+              {
+                "x": 170,
+                "y": 520,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "multiply"
+              },
+              {
+                "x": 300,
+                "y": 400,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 0,
+                "blend": "multiply"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 40,
+                "y": 585,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 22,
+                "blend": "multiply"
+              },
+              {
+                "x": 170,
+                "y": 705,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 22,
+                "blend": "multiply"
+              },
+              {
+                "x": 300,
+                "y": 585,
+                "stroke": "#4c78a8",
+                "strokeWidth": 20,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [30, 12],
+                "strokeDashOffset": 22,
+                "blend": "multiply"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

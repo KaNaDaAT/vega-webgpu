@@ -1,0 +1,623 @@
+{
+  "description": "A wide trail stroked translucently and again under multiply. vega writes one closed contour per trail segment and consecutive contours overlap, so every joint is a place two stroke bands land on the same pixel. Canvas composites the union of them once.",
+  "width": 340,
+  "height": 300,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 340,
+                "height": 300,
+                "fill": "#f6f3ea"
+              }
+            ]
+          },
+          {
+            "marktype": "trail",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 63.08,
+                "y": 75.52,
+                "size": 8,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 70.68,
+                "y": 62.66,
+                "size": 10.38,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 79.81,
+                "y": 50.84,
+                "size": 12.73,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 90.35,
+                "y": 40.25,
+                "size": 15.02,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 102.12,
+                "y": 31.04,
+                "size": 17.24,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 114.94,
+                "y": 23.38,
+                "size": 19.34,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 128.62,
+                "y": 17.36,
+                "size": 21.31,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 142.94,
+                "y": 13.09,
+                "size": 23.13,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 157.67,
+                "y": 10.63,
+                "size": 24.77,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 172.6,
+                "y": 10.03,
+                "size": 26.21,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 187.49,
+                "y": 11.28,
+                "size": 27.44,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 202.1,
+                "y": 14.37,
+                "size": 28.44,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 216.22,
+                "y": 19.26,
+                "size": 29.2,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 229.62,
+                "y": 25.86,
+                "size": 29.71,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 242.1,
+                "y": 34.08,
+                "size": 29.97,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 253.46,
+                "y": 43.78,
+                "size": 29.97,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 263.53,
+                "y": 54.82,
+                "size": 29.71,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 272.15,
+                "y": 67.02,
+                "size": 29.2,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 279.18,
+                "y": 80.2,
+                "size": 28.44,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 284.52,
+                "y": 94.16,
+                "size": 27.44,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 288.09,
+                "y": 108.66,
+                "size": 26.21,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 289.82,
+                "y": 123.5,
+                "size": 24.77,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 289.7,
+                "y": 138.44,
+                "size": 23.13,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 287.73,
+                "y": 153.25,
+                "size": 21.31,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 283.92,
+                "y": 167.7,
+                "size": 19.34,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 278.36,
+                "y": 181.56,
+                "size": 17.24,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 271.11,
+                "y": 194.63,
+                "size": 15.02,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 262.3,
+                "y": 206.69,
+                "size": 12.73,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 252.05,
+                "y": 217.57,
+                "size": 10.38,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              },
+              {
+                "x": 240.53,
+                "y": 227.08,
+                "size": 8,
+                "stroke": "#1f3b73",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.45
+              }
+            ]
+          },
+          {
+            "marktype": "trail",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 63.08,
+                "y": 230.52,
+                "size": 8,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 70.68,
+                "y": 217.66,
+                "size": 10.38,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 79.81,
+                "y": 205.84,
+                "size": 12.73,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 90.35,
+                "y": 195.25,
+                "size": 15.02,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 102.12,
+                "y": 186.04,
+                "size": 17.24,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 114.94,
+                "y": 178.38,
+                "size": 19.34,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 128.62,
+                "y": 172.36,
+                "size": 21.31,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 142.94,
+                "y": 168.09,
+                "size": 23.13,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 157.67,
+                "y": 165.63,
+                "size": 24.77,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 172.6,
+                "y": 165.03,
+                "size": 26.21,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 187.49,
+                "y": 166.28,
+                "size": 27.44,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 202.1,
+                "y": 169.37,
+                "size": 28.44,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 216.22,
+                "y": 174.26,
+                "size": 29.2,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 229.62,
+                "y": 180.86,
+                "size": 29.71,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 242.1,
+                "y": 189.08,
+                "size": 29.97,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 253.46,
+                "y": 198.78,
+                "size": 29.97,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 263.53,
+                "y": 209.82,
+                "size": 29.71,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 272.15,
+                "y": 222.02,
+                "size": 29.2,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 279.18,
+                "y": 235.2,
+                "size": 28.44,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 284.52,
+                "y": 249.16,
+                "size": 27.44,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 288.09,
+                "y": 263.66,
+                "size": 26.21,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 289.82,
+                "y": 278.5,
+                "size": 24.77,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 289.7,
+                "y": 293.44,
+                "size": 23.13,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 287.73,
+                "y": 308.25,
+                "size": 21.31,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 283.92,
+                "y": 322.7,
+                "size": 19.34,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 278.36,
+                "y": 336.56,
+                "size": 17.24,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 271.11,
+                "y": 349.63,
+                "size": 15.02,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 262.3,
+                "y": 361.69,
+                "size": 12.73,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 252.05,
+                "y": 372.57,
+                "size": 10.38,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              },
+              {
+                "x": 240.53,
+                "y": 382.08,
+                "size": 8,
+                "fill": "#e4b363",
+                "fillOpacity": 0.9,
+                "stroke": "#2b2b30",
+                "strokeWidth": 5,
+                "strokeOpacity": 1,
+                "blend": "multiply"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

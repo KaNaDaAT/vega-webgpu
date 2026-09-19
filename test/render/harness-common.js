@@ -82,12 +82,22 @@ function applyTestOptions(renderer, params) {
   if (!options) {
     return;
   }
-  options.offscreen = true;
+  // Offscreen everywhere by default, so local and CI take the same path and a
+  // runner with no compositor never has to acquire a swapchain. `offscreen=0`
+  // is the one way back, for the check that a real canvas shows the frame.
+  options.offscreen = params?.get('offscreen') !== '0';
   const sampleCount = params?.get('sampleCount');
   if (sampleCount) {
     options.sampleCount = Number(sampleCount);
   }
-  if (params?.get('cacheShapes')) {
-    options.cacheShapes = true;
+  // both ways: the option defaults to on, so a knob that can only set it on
+  // cannot reach the uncached path
+  const cacheShapes = params?.get('cacheShapes');
+  if (cacheShapes !== null && cacheShapes !== undefined) {
+    options.cacheShapes = cacheShapes !== '0' && cacheShapes !== 'false';
+  }
+  const canvasTextDrift = params?.get('canvasTextDrift');
+  if (canvasTextDrift !== null && canvasTextDrift !== undefined) {
+    options.canvasTextDrift = canvasTextDrift !== '0' && canvasTextDrift !== 'false';
   }
 }

@@ -1,0 +1,238 @@
+{
+  "description": "A polyline with round joins under multiply, the same with miter joins, and the round one unblended. An overlap between two segments is invisible under an opaque stroke and doubles under a blend.",
+  "width": 310,
+  "height": 270,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 310,
+                "height": 270,
+                "fill": "#f2c744"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 60,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 80,
+                "y": 32,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 130,
+                "y": 70,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 180,
+                "y": 36,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 230,
+                "y": 64,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 280,
+                "y": 40,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 140,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "miter",
+                "strokeCap": "butt",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 80,
+                "y": 112,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "miter",
+                "strokeCap": "butt",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 130,
+                "y": 150,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "miter",
+                "strokeCap": "butt",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 180,
+                "y": 116,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "miter",
+                "strokeCap": "butt",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 230,
+                "y": 144,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "miter",
+                "strokeCap": "butt",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 280,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "miter",
+                "strokeCap": "butt",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 220,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 80,
+                "y": 192,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 130,
+                "y": 230,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 180,
+                "y": 196,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 230,
+                "y": 224,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              },
+              {
+                "x": 280,
+                "y": 200,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeJoin": "round",
+                "strokeCap": "round",
+                "blend": "multiply",
+                "strokeOpacity": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

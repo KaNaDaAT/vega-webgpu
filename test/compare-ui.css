@@ -1,0 +1,379 @@
+/*
+ * Chrome shared by the demo page and the render gallery. They compare the same
+ * two things, one live and one from a test run's pngs, so the palette, the
+ * stacked overlay and its wipe, the mode buttons and the footer are defined
+ * once here and each page adds only what is its own.
+ */
+
+:root {
+  --bg: #fff;
+  --panel: #f7f7f8;
+  --line: #e2e2e5;
+  --ink: #1a1a1c;
+  --dim: #6b6b73;
+  --accent: #2f6feb;
+  --divider: #e4572e;
+  /* the checkerboard, which shows where a render is transparent */
+  --checkA: #f0f0f2;
+  --checkB: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131316;
+    --panel: #1a1a1e;
+    --line: #2e2e34;
+    --ink: #e8e8ea;
+    --dim: #9a9aa4;
+    --checkA: #1b1b1f;
+    --checkB: #131316;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* an explicit display beats the user agent's [hidden] rule */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font:
+    14px/1.45 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.label {
+  font-size: 13px;
+  color: var(--dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+select,
+input[type='number'],
+input[type='search'] {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+
+select:hover {
+  border-color: var(--accent);
+}
+
+input[type='color'] {
+  width: 34px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  vertical-align: middle;
+}
+
+/* One exclusive choice, as a segmented control. */
+.modes {
+  display: inline-flex;
+}
+
+.modes button {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  cursor: pointer;
+}
+
+.modes button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.modes button:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.modes button + button {
+  border-left: 0;
+}
+
+.modes button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/*
+ * The stage a render sits on. The checkerboard is what makes a transparent
+ * pixel visible, and every render keeps its own white ground on top of it, or
+ * the board would show through the chart and there would be nothing to compare.
+ */
+.stage {
+  background: repeating-conic-gradient(var(--checkA) 0 25%, var(--checkB) 0 50%) 50% / 16px 16px;
+}
+
+/*
+ * The two renders in one place, the top one clipped to the wipe. The background
+ * is what makes the top layer cover the one under it: a canvas is transparent
+ * wherever nothing was drawn, so without it a mark present in only one of the
+ * two shows through on both sides of the divider.
+ */
+.overlay {
+  /* a strip above the renders for the labels, so neither one covers a chart */
+  --strip: 19px;
+
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  background: var(--vis-bg, #fff);
+}
+
+.overlay .layer {
+  padding-top: var(--strip);
+}
+
+.overlay .layer.top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  clip-path: inset(0 0 0 var(--wipe, 50%));
+  background: var(--vis-bg, #fff);
+}
+
+/* a hairline where the two meet, so the divider is visible on flat areas. It
+   paints last, so the labels either side of it do not break the line. */
+.overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--wipe, 50%);
+  width: 1px;
+  background: var(--divider);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/*
+ * Each layer says what it is, so the label rides with the thing it names. That
+ * is what lets blink stay readable: the top layer's label fades with the top
+ * layer, and the one underneath is uncovered at the same moment, so whichever
+ * name is on screen is the render on screen.
+ */
+.overlay .side {
+  position: absolute;
+  top: 0;
+  height: var(--strip);
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  /* Solid, and clear of the render: a translucent pill over a chart hides the
+     thing being compared and leaves a gap in the divider. Fixed colours rather
+     than the theme's, since the strip sits on the chart's own ground, which is
+     white whichever theme the page is in. */
+  color: #fff;
+  background: #2b2b30;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/*
+ * Wiping, each label hugs its own side of the divider rather than the edges of
+ * the render. A label at the edge is off screen as soon as the render is wider
+ * than the stage, and a label beside the slider reads as a direction to drag
+ * rather than as what is on screen.
+ */
+.overlay .layer:not(.top) .side {
+  right: calc(100% - var(--wipe, 50%));
+  border-radius: 0 0 0 3px;
+}
+
+.overlay .layer.top .side {
+  left: var(--wipe, 50%);
+  border-radius: 0 0 3px 0;
+}
+
+/*
+ * Blink shows the whole of each in turn rather than a slice of each. A shift of
+ * a pixel is far easier to catch in motion than across a divider, so the wipe
+ * and its hairline step aside while it runs, and both labels move to the same
+ * corner where only one of them is ever visible.
+ */
+.overlay.blink .layer.top {
+  clip-path: none;
+  animation: blink var(--blink, 1s) steps(1) infinite;
+}
+
+/* .layer is in the selector to outweigh the wipe rules above, not for effect */
+.overlay.blink .layer .side {
+  left: 0;
+  right: auto;
+  border-radius: 0 0 3px 0;
+}
+
+.overlay.blink::after {
+  display: none;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Two renders in a row, sharing one scrollbar so a tall pair moves together. */
+.sideBySide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+/* a figure carries 40px of user agent side margin, which is not wanted anywhere */
+.pane {
+  margin: 0;
+}
+
+.sideBySide > .pane {
+  min-width: 0;
+}
+
+.pane figcaption {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+/*
+ * Fit to the space by default, since a render taller or wider than the stage is
+ * the common case and scrolling two of them to compare is the thing this is
+ * meant to avoid. Both layers scale by the same fraction, so the divider still
+ * falls in the same place on each.
+ */
+.pane canvas,
+.pane img,
+.overlay canvas,
+.overlay img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+
+/*
+ * Actual size is the 1:1 view, which is the one to trust: fitting resamples,
+ * and a difference of one pixel can resample away. The stage scrolls instead.
+ */
+.actual .pane canvas,
+.actual .pane img,
+.actual .overlay canvas,
+.actual .overlay img {
+  width: auto;
+  max-width: none;
+}
+
+/*
+ * The list of things to look at, down the side. Both pages pick from over a
+ * hundred specs, which is more than a dropdown should hold.
+ */
+aside {
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+}
+
+aside header {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 6px;
+}
+
+aside header > * {
+  width: 100%;
+}
+
+aside .list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.case {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.case:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.case[aria-selected='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+/*
+ * Sticky rather than fixed. Fixed takes the footer out of flow, and then the
+ * last of the content sits under it with no way to scroll to it, which is the
+ * usual way this goes wrong. Sticky keeps its place at the end, so scrolling to
+ * the bottom still reaches everything, and only lifts it to the viewport edge
+ * while there is more below.
+ */
+.foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 32px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.foot .who {
+  margin-right: auto;
+}
+
+.foot a {
+  color: var(--dim);
+  text-decoration: none;
+}
+
+.foot a:hover,
+.foot a:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}

@@ -1,0 +1,359 @@
+{
+  "description": "Every blend mode over a half transparent backdrop and over none at all, on a frame with no background. The top bands put a blended rect across the edge of a translucent one, so its left half meets something and its right half meets nothing. Below, the same four modes on a symbol, a line, an arc and a cross, whose shape has no distance function and so draws triangulated, since the compositing formula carries a term for the part of the source landing where there is no backdrop and factors that reach the destination cannot carry it too: a multiply over nothing came out black where canvas draws the source plainly.",
+  "width": 340,
+  "height": 440,
+  "origin": [
+    0,
+    0
+  ],
+  "background": "rgba(0,0,0,0)",
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 10,
+                "y": 15,
+                "width": 180,
+                "height": 55,
+                "fill": "#4c78a8",
+                "fillOpacity": 0.5
+              },
+              {
+                "x": 10,
+                "y": 85,
+                "width": 180,
+                "height": 55,
+                "fill": "#4c78a8",
+                "fillOpacity": 0.5
+              },
+              {
+                "x": 10,
+                "y": 155,
+                "width": 180,
+                "height": 55,
+                "fill": "#4c78a8",
+                "fillOpacity": 0.5
+              },
+              {
+                "x": 10,
+                "y": 225,
+                "width": 180,
+                "height": 55,
+                "fill": "#4c78a8",
+                "fillOpacity": 0.5
+              },
+              {
+                "x": 10,
+                "y": 300,
+                "width": 180,
+                "height": 170,
+                "fill": "#4c78a8",
+                "fillOpacity": 0.5
+              }
+            ]
+          },
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 60,
+                "y": 25,
+                "width": 260,
+                "height": 35,
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "multiply"
+              },
+              {
+                "x": 60,
+                "y": 95,
+                "width": 260,
+                "height": 35,
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "screen"
+              },
+              {
+                "x": 60,
+                "y": 165,
+                "width": 260,
+                "height": 35,
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "darken"
+              },
+              {
+                "x": 60,
+                "y": 235,
+                "width": 260,
+                "height": 35,
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 50,
+                "y": 330,
+                "size": 1400,
+                "shape": "circle",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "multiply"
+              },
+              {
+                "x": 115,
+                "y": 330,
+                "size": 1400,
+                "shape": "circle",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "screen"
+              },
+              {
+                "x": 180,
+                "y": 330,
+                "size": 1400,
+                "shape": "circle",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "darken"
+              },
+              {
+                "x": 245,
+                "y": 330,
+                "size": 1400,
+                "shape": "circle",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 370,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 320,
+                "y": 378,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "multiply"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 376,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "screen"
+              },
+              {
+                "x": 320,
+                "y": 384,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "screen"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 382,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "darken"
+              },
+              {
+                "x": 320,
+                "y": 390,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 388,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "lighten"
+              },
+              {
+                "x": 320,
+                "y": 396,
+                "stroke": "#7a3a8f",
+                "strokeWidth": 5,
+                "strokeOpacity": 0.8,
+                "interpolate": "linear",
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 50,
+                "y": 445,
+                "startAngle": 0,
+                "endAngle": 4.2,
+                "outerRadius": 24,
+                "innerRadius": 8,
+                "fill": "#3a8f6a",
+                "fillOpacity": 0.8,
+                "blend": "multiply"
+              },
+              {
+                "x": 115,
+                "y": 445,
+                "startAngle": 0,
+                "endAngle": 4.2,
+                "outerRadius": 24,
+                "innerRadius": 8,
+                "fill": "#3a8f6a",
+                "fillOpacity": 0.8,
+                "blend": "screen"
+              },
+              {
+                "x": 180,
+                "y": 445,
+                "startAngle": 0,
+                "endAngle": 4.2,
+                "outerRadius": 24,
+                "innerRadius": 8,
+                "fill": "#3a8f6a",
+                "fillOpacity": 0.8,
+                "blend": "darken"
+              },
+              {
+                "x": 245,
+                "y": 445,
+                "startAngle": 0,
+                "endAngle": 4.2,
+                "outerRadius": 24,
+                "innerRadius": 8,
+                "fill": "#3a8f6a",
+                "fillOpacity": 0.8,
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 50,
+                "y": 400,
+                "size": 1400,
+                "shape": "cross",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "multiply"
+              },
+              {
+                "x": 115,
+                "y": 400,
+                "size": 1400,
+                "shape": "cross",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "screen"
+              },
+              {
+                "x": 180,
+                "y": 400,
+                "size": 1400,
+                "shape": "cross",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "darken"
+              },
+              {
+                "x": 245,
+                "y": 400,
+                "size": 1400,
+                "shape": "cross",
+                "fill": "#c77b3a",
+                "fillOpacity": 0.8,
+                "blend": "lighten"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

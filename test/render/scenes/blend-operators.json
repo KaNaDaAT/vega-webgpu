@@ -1,0 +1,431 @@
+{
+  "description": "The Porter Duff operators canvas takes in the same property a blend mode goes in, one clipped group each: destination-over, the four in and out pairs, the two atops, xor, lighter and copy. Several of them change the frame where the source is absent, which is why each sits inside a clip of its own rather than erasing the ones beside it.",
+  "width": 400,
+  "height": 420,
+  "origin": [
+    0,
+    0
+  ],
+  "background": "rgba(0,0,0,0)",
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "group",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 10,
+                "y": 10,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "destination-over"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 140,
+                "y": 10,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "source-in"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 270,
+                "y": 10,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "destination-in"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 10,
+                "y": 110,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "source-out"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 140,
+                "y": 110,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "destination-out"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 270,
+                "y": 110,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "source-atop"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 10,
+                "y": 210,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "destination-atop"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 140,
+                "y": 210,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "xor"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 270,
+                "y": 210,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "lighter"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 10,
+                "y": 310,
+                "width": 120,
+                "height": 90,
+                "clip": true,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 8,
+                        "y": 8,
+                        "width": 70,
+                        "height": 70,
+                        "fill": "#3b6fb6"
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 42,
+                        "y": 26,
+                        "width": 70,
+                        "height": 55,
+                        "fill": "#d1495b",
+                        "blend": "copy"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

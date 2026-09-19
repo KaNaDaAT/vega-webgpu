@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { waitForRender } from './drive.js';
 
 /**
  * Splits a benchmark frame into vega's dataflow and the renderer's own work, so
@@ -9,14 +10,7 @@ test('benchmark frame split', async ({ page }) => {
   test.skip(!process.env.WEBGPU_BENCH, 'set WEBGPU_BENCH=1 to run the benchmark');
   test.setTimeout(300_000);
   await page.goto('/test/render/harness.html?spec=benchmark&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 60_000 },
-  );
+  await waitForRender(page);
   const rows = await page.evaluate(async () => {
     const view = (
       window as unknown as {

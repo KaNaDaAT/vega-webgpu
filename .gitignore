@@ -18,3 +18,15 @@ test/penguins_read.py
 
 # local vega builds for A/B testing an upstream change
 test/vendor/
+
+# The staged site, which the pages workflow builds and uploads rather than
+# committing. The same thing locally, to look at before pushing:
+#   git archive HEAD | tar -x -C _site && cp build/*.js _site/build/
+#   node scripts/gallery-snapshot.mjs <version> --out _site/gallery
+/_site/
+/gallery/
+
+# Per-version render gallery snapshots. One gallery ships, built fresh by the
+# pages workflow and uploaded with the site, so committing about 20MB of pngs
+# per release against a 19MB repository buys nothing. Locally: npm run gallery.
+releases/*/gallery/

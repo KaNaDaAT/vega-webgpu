@@ -1,17 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { waitForRender } from './drive.js';
 
 /** The canvas has to stay inside the GPU's texture cap, and may hold its ratio. */
 test('pixel ratio is capped and can be locked', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 45_000 },
-  );
+  await waitForRender(page, 45_000);
   const out = await page.evaluate(async () => {
     const r = (window as unknown as { view: { _renderer: Record<string, unknown> } }).view._renderer;
     const canvas = r._canvas as HTMLCanvasElement;

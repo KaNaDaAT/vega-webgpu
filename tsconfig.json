@@ -8,6 +8,8 @@
     "strict": true,
     "noImplicitOverride": true,
     "noUnusedLocals": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "skipLibCheck": true,

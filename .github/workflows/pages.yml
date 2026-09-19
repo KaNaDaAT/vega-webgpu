@@ -1,0 +1,88 @@
+name: Pages
+
+# The site is uploaded rather than served from the branch, which is what lets it
+# carry the render gallery. The gallery is about 20MB of pngs against a 19MB
+# repository, so committing one per release was never going to work, and an
+# artifact deployment keeps it off main entirely.
+#
+# The repository setting has to match: Settings, Pages, Source set to GitHub
+# Actions. While it is still set to a branch this workflow runs and deploys
+# nothing.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Nothing here writes to the repository. Only the deployment needs a token.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A release pushes twice in a row, and only the newer site is worth deploying.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - run: npx playwright install chromium --no-shell --with-deps
+
+      # The gallery is the corpus as this commit draws it. It is one gallery,
+      # not one per version: nothing is committed, so only what this deploy
+      # uploads exists, and an older version cannot be rendered again after the
+      # fact anyway.
+      #
+      # A case over its budget must not stop the site going out. The pngs and
+      # the manifest are written before the assertions run, so the gallery ships
+      # showing where the renderer actually stands, which is what it is for, and
+      # ci.yml is the workflow that gates on the suite.
+      - name: Record the corpus
+        continue-on-error: true
+        run: npm run gallery:record
+
+      # git archive rather than a copy, so the site is exactly the tracked files
+      # and node_modules and the render output never reach the upload.
+      #
+      # The bundle goes in on top of it, because it is not tracked and the pages
+      # that let you pick a build look for it there. Without it the playground
+      # falls back to the newest cut release while its support table comes from
+      # this commit's source, so the page states what the renderer it is running
+      # cannot do.
+      - name: Stage the site
+        run: |
+          mkdir -p _site
+          git archive HEAD | tar -x -C _site
+          mkdir -p _site/build
+          cp build/vega-webgpu-renderer.js build/vega-webgpu-renderer.min.js build/vega-webgpu-renderer.module.js _site/build/
+          VERSION=$(node -p "require('./package.json').version")
+          node scripts/gallery-snapshot.mjs "$VERSION" --out _site/gallery
+          du -sh _site
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

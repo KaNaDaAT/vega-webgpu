@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { waitForRender } from './drive.js';
 
 interface Shot {
   name: string;
@@ -16,14 +17,7 @@ interface Shot {
 test('several webgpu views render side by side', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 90_000 },
-  );
+  await waitForRender(page, 90_000);
 
   const out = await page.evaluate(async (): Promise<{ shots: Shot[]; alone: Shot | null }> => {
     const vega = (window as unknown as { vega: Record<string, (...a: unknown[]) => unknown> }).vega;
@@ -82,11 +76,17 @@ test('several webgpu views render side by side', async ({ page }) => {
     const shots: Shot[] = [];
     for (let i = 0; i < views.length; i++) shots.push(await shoot(views[i], names[i]));
 
-    // the same spec on its own, as the reference for what it should look like
-    for (const v of views) (v.finalize as () => void)();
+    // the same spec on its own, as the reference for what it should look like.
+    // vega's finalize does not reach the renderer, and the renderer's own is
+    // what drops the device, so without it the reference is not alone.
+    for (const v of views) {
+      (v.finalize as () => void)();
+      (v._renderer as { finalize?: () => void })?.finalize?.call(v._renderer);
+    }
     const solo = await build('arc');
     const alone = await shoot(solo, 'arc alone');
     (solo.finalize as () => void)();
+    (solo._renderer as { finalize?: () => void })?.finalize?.call(solo._renderer);
 
     return { shots, alone };
   });
@@ -97,6 +97,7 @@ test('several webgpu views render side by side', async ({ page }) => {
     expect(s.ink, `${s.name} drew nothing`).toBeGreaterThan(0.01);
   }
   const arc = out.shots.find(s => s.name === 'arc')!;
+  expect(out.alone!.error, 'arc on its own failed to capture').toBeUndefined();
   expect(out.alone!.ink, 'arc alongside others should match arc on its own').toBeCloseTo(arc.ink, 2);
 });
 
@@ -104,14 +105,7 @@ test('several webgpu views render side by side', async ({ page }) => {
 test('a resized view redraws at the new size', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 90_000 },
-  );
+  await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     const view = (
       window as unknown as {
@@ -158,6 +152,11 @@ test('a resized view redraws at the new size', async ({ page }) => {
   for (const s of out) {
     expect(s.ink, `${s.asked.join('x')} drew nothing`).toBeGreaterThan(0.01);
   }
+  // the canvas has to follow the view, or every assertion below holds on a
+  // renderer that ignored all four sizes and drew the first one every time
+  expect(out[1].got[0], 'a wider view gets a wider canvas').toBeGreaterThan(out[0].got[0]);
+  expect(out[1].got[1], 'and a taller one a taller canvas').toBeGreaterThan(out[0].got[1]);
+  expect(out[2].got[0], 'a narrower view gets a narrower canvas').toBeLessThan(out[1].got[0]);
   // back at the starting size the picture has to come back the same
   expect(out[3].got).toEqual(out[0].got);
   expect(out[3].ink).toBeCloseTo(out[0].ink, 3);
@@ -167,14 +166,7 @@ test('a resized view redraws at the new size', async ({ page }) => {
 test('a view recovers from a lost device', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as { __renderDone?: boolean; __renderError?: string };
-      return w.__renderDone || w.__renderError;
-    },
-    undefined,
-    { timeout: 90_000 },
-  );
+  await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     const view = (
       window as unknown as {

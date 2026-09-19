@@ -1,0 +1,374 @@
+{
+  "description": "Dashes whose caps reach across the gap, blended and not. Two facing round caps overlap where the gap is under the stroke width, which an opaque stroke hides and a blend does not.",
+  "width": 360,
+  "height": 400,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 360,
+                "height": 400,
+                "fill": "#f2c744"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24,
+                "y": 55,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "normal"
+              },
+              {
+                "x": 86,
+                "y": 29,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "normal"
+              },
+              {
+                "x": 148,
+                "y": 67,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "normal"
+              },
+              {
+                "x": 210,
+                "y": 33,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "normal"
+              },
+              {
+                "x": 272,
+                "y": 57,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "normal"
+              },
+              {
+                "x": 334,
+                "y": 37,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "normal"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24,
+                "y": 125,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 86,
+                "y": 99,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 148,
+                "y": 137,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 210,
+                "y": 103,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 272,
+                "y": 127,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 334,
+                "y": 107,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24,
+                "y": 195,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 86,
+                "y": 169,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 148,
+                "y": 207,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 210,
+                "y": 173,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 272,
+                "y": 197,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 334,
+                "y": 177,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "square",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24,
+                "y": 265,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "butt",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 86,
+                "y": 239,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "butt",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 148,
+                "y": 277,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "butt",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 210,
+                "y": 243,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "butt",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 272,
+                "y": 267,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "butt",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              },
+              {
+                "x": 334,
+                "y": 247,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "butt",
+                "strokeJoin": "round",
+                "strokeDash": [12, 6],
+                "blend": "multiply"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24,
+                "y": 335,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 20],
+                "blend": "multiply"
+              },
+              {
+                "x": 86,
+                "y": 309,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 20],
+                "blend": "multiply"
+              },
+              {
+                "x": 148,
+                "y": 347,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 20],
+                "blend": "multiply"
+              },
+              {
+                "x": 210,
+                "y": 313,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 20],
+                "blend": "multiply"
+              },
+              {
+                "x": 272,
+                "y": 337,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 20],
+                "blend": "multiply"
+              },
+              {
+                "x": 334,
+                "y": 317,
+                "stroke": "#4c78a8",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "strokeDash": [12, 20],
+                "blend": "multiply"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -2,15 +2,22 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { diffPngs, png, renderInHarness, saveArtifact, type RendererName, type RenderResult } from './compare.js';
+import { compareCase, renderInHarness, type RendererName, type RenderResult } from './compare.js';
 import {
   CROSS_CHECK_DEFAULT,
+  FLAT_MEAN_DEFAULT,
+  BIAS_DELTA_DEFAULT,
+  MEAN_DELTA_DEFAULT,
   TILE_CHECK_DEFAULT,
   ciCrossCheckOverrides,
   ciTileOverrides,
   crossCheckOverrides,
+  flatMeanDeltaOverrides,
+  biasDeltaOverrides,
+  meanDeltaOverrides,
   onCi,
-  renderSpecs,
+  specCases,
+  type SpecCase,
 } from './specs.js';
 import { specNames } from '../../scripts/specs-manifest.mjs';
 
@@ -25,8 +32,8 @@ test('the demo page lists every spec on disk', () => {
   expect([...listed].sort(), 'run: npm run manifest').toEqual(specNames());
 });
 
-function renderSpec(page: Page, specName: string, renderer: RendererName): Promise<RenderResult> {
-  const url = `/test/render/harness.html?spec=${encodeURIComponent(specName)}&renderer=${renderer}`;
+function renderSpec(page: Page, kase: SpecCase, renderer: RendererName): Promise<RenderResult> {
+  const url = `/test/render/harness.html?spec=${encodeURIComponent(kase.spec)}&renderer=${renderer}${kase.query}`;
   return renderInHarness(page, url, renderer);
 }
 
@@ -42,47 +49,23 @@ function renderSpec(page: Page, specName: string, renderer: RendererName): Promi
  * browsable webgpu-vs-canvas comparison gallery, passing tests included.
  */
 test.describe('WebGPU vs canvas', () => {
-  for (const specName of renderSpecs) {
-    test(specName, async ({ page }, testInfo: TestInfo) => {
-      const webgpu = await renderSpec(page, specName, 'webgpu');
-      await testInfo.attach(`${specName}-webgpu`, png(webgpu.png));
-      saveArtifact(specName, 'webgpu', webgpu.png);
-      // Guard against a silent fallback: each renderer must actually be the
-      // one that ran, otherwise the comparison is meaningless.
-      expect(webgpu.rendererKind, `expected WebGPU to render, got '${webgpu.rendererKind}'`).toBe('webgpu');
-
-      const canvas = await renderSpec(page, specName, 'canvas');
-      await testInfo.attach(`${specName}-canvas`, png(canvas.png));
-      saveArtifact(specName, 'canvas', canvas.png);
-      expect(canvas.rendererKind, `expected canvas to render, got '${canvas.rendererKind}'`).toBe('canvas');
-
-      const own = Object.hasOwn(crossCheckOverrides, specName) ? crossCheckOverrides[specName] : CROSS_CHECK_DEFAULT;
-      const budget = onCi && own !== null ? (ciCrossCheckOverrides[specName] ?? own) : own;
-      const tileBudget = onCi ? (ciTileOverrides[specName] ?? TILE_CHECK_DEFAULT) : TILE_CHECK_DEFAULT;
-      if (budget === null) {
-        return; // comparison intentionally skipped for this spec
-      }
-
-      const { diffRatio, worstTile, worstTileAt, diff } = diffPngs(webgpu.png, canvas.png, specName);
-      await testInfo.attach(`${specName}-diff (${(diffRatio * 100).toFixed(2)}%)`, png(diff));
-      saveArtifact(specName, 'diff', diff);
-      if (process.env.CROSS_REPORT) {
-        console.log(
-          `DIFF ${specName} ${(diffRatio * 100).toFixed(3)}% TILE ${(worstTile * 100).toFixed(1)}% ` +
-            `at ${worstTileAt.join(',')}`,
-        );
-      }
-      expect(
-        worstTile,
-        `a 32px square at ${worstTileAt.join(',')} is ${(worstTile * 100).toFixed(1)}% different, ` +
-          `over the ${(tileBudget * 100).toFixed(0)}% allowed. The whole-image number below ` +
-          `is diluted by everything that matches`,
-      ).toBeLessThanOrEqual(tileBudget);
-      expect(
-        diffRatio,
-        `webgpu vs canvas diff ${(diffRatio * 100).toFixed(3)}% exceeds ${(budget * 100).toFixed(1)}%. ` +
-          `Open the HTML report (npm run test:report) to compare`,
-      ).toBeLessThanOrEqual(budget);
+  for (const kase of specCases) {
+    const name = kase.name;
+    test(name, async ({ page }, testInfo: TestInfo) => {
+      const own = Object.hasOwn(crossCheckOverrides, name) ? crossCheckOverrides[name] : CROSS_CHECK_DEFAULT;
+      await compareCase(testInfo, {
+        name,
+        kind: 'spec',
+        file: name,
+        render: (renderer: RendererName) => renderSpec(page, kase, renderer),
+        budgets: {
+          diff: onCi && own !== null ? (ciCrossCheckOverrides[name] ?? own) : own,
+          tile: onCi ? (ciTileOverrides[name] ?? TILE_CHECK_DEFAULT) : TILE_CHECK_DEFAULT,
+          mean: meanDeltaOverrides[name] ?? MEAN_DELTA_DEFAULT,
+          bias: biasDeltaOverrides[name] ?? BIAS_DELTA_DEFAULT,
+          flat: flatMeanDeltaOverrides[name] ?? FLAT_MEAN_DEFAULT,
+        },
+      });
     });
   }
 });

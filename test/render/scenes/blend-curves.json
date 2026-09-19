@@ -1,0 +1,219 @@
+{
+  "description": "A blend on a line the GPU evaluates as curve spans, and on one with a gap so it goes through the tessellated path instead. Neither route passed the mode to the pipeline it built, so a curved line composited normal whatever the item asked for.",
+  "width": 360,
+  "height": 240,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 0,
+                "width": 360,
+                "height": 60,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 0,
+                "y": 60,
+                "width": 360,
+                "height": 60,
+                "fill": "#e8c547"
+              },
+              {
+                "x": 0,
+                "y": 120,
+                "width": 360,
+                "height": 60,
+                "fill": "#3b6fb6"
+              },
+              {
+                "x": 0,
+                "y": 180,
+                "width": 360,
+                "height": 60,
+                "fill": "#e8c547"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 82,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 58,
+                "y": 38,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 96,
+                "y": 82,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 134,
+                "y": 38,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 172,
+                "y": 82,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 210,
+                "y": 38,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 248,
+                "y": 82,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 286,
+                "y": 38,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              },
+              {
+                "x": 324,
+                "y": 82,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "basis",
+                "blend": "multiply"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 202,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 58,
+                "y": 158,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 96,
+                "y": 202,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 134,
+                "y": 158,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 172,
+                "y": 202,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply",
+                "defined": false
+              },
+              {
+                "x": 210,
+                "y": 158,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 248,
+                "y": 202,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 286,
+                "y": 158,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              },
+              {
+                "x": 324,
+                "y": 202,
+                "stroke": "#d1495b",
+                "strokeWidth": 14,
+                "interpolate": "linear",
+                "blend": "multiply"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

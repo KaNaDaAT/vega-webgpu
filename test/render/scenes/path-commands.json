@@ -1,0 +1,171 @@
+{
+  "description": "One path mark per svg path command and the traps in each: smooth curve reflection, every arc flag, relative forms, implicit repeats and subpaths. Filled only, so a difference is the commands rather than a stroke on a degenerate shape.",
+  "width": 432,
+  "height": 292,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 6,
+                "y": 6,
+                "path": "M4,4 L52,4 L52,52 L4,52 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 76,
+                "y": 6,
+                "path": "M4,4 H52 V52 H4 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 146,
+                "y": 6,
+                "path": "M4,50 C4,4 52,4 52,50 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 216,
+                "y": 6,
+                "path": "M4,50 C4,10 20,10 28,28 S52,10 52,50 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 286,
+                "y": 6,
+                "path": "M4,50 S28,4 52,50 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 356,
+                "y": 6,
+                "path": "M4,50 Q28,0 52,50 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 6,
+                "y": 76,
+                "path": "M4,40 Q16,10 28,28 T52,40 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 76,
+                "y": 76,
+                "path": "M4,40 T52,10 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 146,
+                "y": 76,
+                "path": "M8,28 A20,20 0 0 0 48,28 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 216,
+                "y": 76,
+                "path": "M8,28 A20,20 0 1 0 48,28 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 286,
+                "y": 76,
+                "path": "M8,28 A20,20 0 0 1 48,28 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 356,
+                "y": 76,
+                "path": "M8,28 A20,20 0 1 1 48,28 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 6,
+                "y": 146,
+                "path": "M10,40 A22,12 30 1 1 46,20 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 76,
+                "y": 146,
+                "path": "M10,30 A24,10 0 0 1 46,30 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 146,
+                "y": 146,
+                "path": "M10,30 A5,5 0 1 1 46,30 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 216,
+                "y": 146,
+                "path": "M8,44 A18,18 0 0 1 44,44 S52,10 28,6 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 286,
+                "y": 146,
+                "path": "M8,44 A18,18 0 0 1 44,44 T12,10 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 356,
+                "y": 146,
+                "path": "m4,4 l48,0 l0,48 l-48,0 z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 6,
+                "y": 216,
+                "path": "M4,4 L28,4 28,28 52,28 52,52 4,52 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 76,
+                "y": 216,
+                "path": "M4,4 H52 V20 H4 Z M12,30 H44 V48 H12 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 146,
+                "y": 216,
+                "path": "M4,4 H52 V52 H4 Z M16,16 H40 V40 H16 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 216,
+                "y": 216,
+                "path": "M8,28 a20,20 0 1 1 40,0 a20,20 0 1 1 -40,0 z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 286,
+                "y": 216,
+                "path": "M4,26 L52,26 L52,30 L4,30 Z",
+                "fill": "#4c78a8"
+              },
+              {
+                "x": 356,
+                "y": 216,
+                "path": "M14,8 A0,0 0 0 1 42,48 L14,48 Z",
+                "fill": "#4c78a8"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

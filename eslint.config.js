@@ -6,6 +6,10 @@ export default tseslint.config(
     ignores: [
       'build/',
       'releases/',
+      // the staged site the pages workflow uploads, which is a copy of files
+      // that are linted where they live
+      '_site/',
+      'gallery/',
       'node_modules/',
       'test/data/',
       // vendored vega builds the demo page loads for A/B comparison

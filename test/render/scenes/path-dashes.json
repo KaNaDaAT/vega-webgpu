@@ -1,0 +1,52 @@
+{
+  "description": "Dashed path outlines: an open path, a filled closed one, a solid control, and a dash with an offset. A path's stroke is an extruded ribbon, which cannot carry a dash, so the outline is walked and dashed instead.",
+  "width": 250,
+  "height": 175,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "path": "M20,30 L120,30 L120,90",
+                "stroke": "#3b6fb6",
+                "strokeWidth": 4,
+                "strokeDash": [12, 6]
+              },
+              {
+                "path": "M150,20 L230,20 L230,100 L150,100 Z",
+                "stroke": "#d1495b",
+                "strokeWidth": 3,
+                "fill": "#f2c14e",
+                "strokeDash": [8, 5]
+              },
+              {
+                "path": "M20,120 L230,120",
+                "stroke": "#2e8b57",
+                "strokeWidth": 3
+              },
+              {
+                "path": "M20,150 L230,150",
+                "stroke": "#7b4bab",
+                "strokeWidth": 5,
+                "strokeDash": [2, 8],
+                "strokeDashOffset": 4
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
