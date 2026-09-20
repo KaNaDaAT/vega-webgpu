@@ -141,8 +141,12 @@ type LineRoute = CurveKind | 'path' | 'segments';
  * Where an undashed line draws. A recognised cubic goes to the GPU as its own
  * control points, so the stroke follows the real curve instead of a flattened
  * polyline. linear and the step family tessellate, which is what gives their
- * corners a join, and so does a line with gaps. The curve shaders draw no cap,
- * so a square capped curve takes the tessellated path instead.
+ * corners a join, and so does a line with gaps.
+ *
+ * The curve shaders draw no cap. A square one takes the tessellated path,
+ * which draws it exactly. A round one stays on the curve and loses its cap,
+ * because the tessellated route's flattening is further from canvas than the
+ * missing cap is: on line-curve-caps it doubles the differing pixels.
  */
 function lineRoute(points: SceneLinePoint[]): LineRoute {
   const interpolate = points[0]?.interpolate;

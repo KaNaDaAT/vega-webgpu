@@ -338,7 +338,11 @@ function drawGradientSymbol(
     return;
   }
   const pathGeom = symbolShapeGeometry(ctx, item.shape || 'circle', item.size ?? 64);
-  const geometry = geometryForItem(ctx, item, pathGeom, false, item.x || 0, item.y || 0);
+  const geometry = geometryForItem(ctx, item, pathGeom, false, item.x || 0, item.y || 0, {
+    angle: (item.angle || 0) * DEG_TO_RAD,
+    scaleX: 1,
+    scaleY: 1,
+  });
   const fill = whiteCarrier(item.opacity, item.fillOpacity);
   const stroke = Color.from(item.stroke, item.opacity, item.strokeOpacity);
   const [fillData, strokeData] = geometryVertexData(geometry, fill, stroke);

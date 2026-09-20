@@ -1,0 +1,174 @@
+{
+  "description": "A rotated symbol whose fill is a ramp. The gradient route is the only one that does not pass the angle down, so the top row draws upright while the solid row below it turns.",
+  "width": 380,
+  "height": 200,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 50,
+                "y": 55,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 0,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              },
+              {
+                "x": 50,
+                "y": 145,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 0,
+                "fill": "#9ecae9",
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              },
+              {
+                "x": 140,
+                "y": 55,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 30,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              },
+              {
+                "x": 140,
+                "y": 145,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 30,
+                "fill": "#9ecae9",
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              },
+              {
+                "x": 230,
+                "y": 55,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 45,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              },
+              {
+                "x": 230,
+                "y": 145,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 45,
+                "fill": "#9ecae9",
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              },
+              {
+                "x": 320,
+                "y": 55,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 90,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 0,
+                  "y2": 1,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              },
+              {
+                "x": 320,
+                "y": 145,
+                "size": 2600,
+                "shape": "triangle-up",
+                "angle": 90,
+                "fill": "#9ecae9",
+                "stroke": "#2b2b30",
+                "strokeWidth": 3
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

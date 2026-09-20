@@ -96,6 +96,10 @@ export const quadDeltaOverrides: Record<string, number> = {};
  * passing on a number chosen to let it through.
  */
 export const skippedScenes: Record<string, string> = {
+  'line-curve-caps':
+    'the curve shaders evaluate a cubic on the gpu and draw no cap, so a round capped curve ends ' +
+    'flat. Routing it to the tessellated path caps it and moves the curve further from canvas, ' +
+    'so the cap belongs in the curve shader. Will be fixed in a future version. See README.md.',
   'text-variants':
     'stroked text sits about a pixel off canvas, so the worst block reads 171 against 60 for the ' +
     'same labels unstroked. Will be fixed in a future version. See README.md.',

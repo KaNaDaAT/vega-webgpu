@@ -1,0 +1,76 @@
+{
+  "description": "A rule with no length. canvas moves to the point and lines to the same point, which a butt cap renders as nothing. Falling back to the stroke width for both extents paints a square block instead.",
+  "width": 380,
+  "height": 170,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rule",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 40,
+                "y": 40,
+                "x2": 40,
+                "y2": 40,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 8
+              },
+              {
+                "x": 120,
+                "y": 40,
+                "x2": 160,
+                "y2": 40,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 8
+              },
+              {
+                "x": 200,
+                "y": 40,
+                "x2": 200,
+                "y2": 80,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 8
+              },
+              {
+                "x": 280,
+                "y": 40,
+                "x2": 310,
+                "y2": 70,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 8
+              },
+              {
+                "x": 40,
+                "y": 120,
+                "stroke": "#e45756",
+                "strokeWidth": 10
+              },
+              {
+                "x": 120,
+                "y": 120,
+                "x2": 120,
+                "y2": 120,
+                "stroke": "#e45756",
+                "strokeWidth": 10
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

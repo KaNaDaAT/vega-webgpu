@@ -81,7 +81,14 @@ export class RenderQueue {
   }
 
   enqueue(element: QueueElement): void {
-    if (this.batchInfo !== null && element.pipeline !== this.batchInfo.pipeline) {
+    // A direct draw comes after everything the open batch has collected, and
+    // the batch is only appended when it flushes, so it has to close first.
+    // Closing only on a different pipeline let a draw that shares one jump in
+    // front of it, and markPipeline keys on the layout rather than the label,
+    // so every mark's outline pipeline is the same object as a line's batch.
+    // Runs still merge across marks: setupBatch keeps an open batch whose
+    // target matches, which is where that happens.
+    if (this.batchInfo !== null) {
       this.flushBatch();
     }
     // A mode the blend state cannot express draws into a layer and is folded in

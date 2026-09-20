@@ -45,6 +45,14 @@ Unstroked text is still covered, by `text-layout`, `text-gradients` and `text-ba
 
 Will be fixed in a future version.
 
+### `line-curve-caps`
+
+The curve shaders evaluate a cubic on the GPU and draw no cap, so a round stroke cap on a basis, cardinal, monotone, catmull-rom or natural line ends flat. `linear` and the step family tessellate and are exact.
+
+Routing a capped curve to the tessellated path does cap it, and moves the curve itself further from canvas: measured on this fixture the differing pixels went from 80 to 145. So the cap belongs in the curve shader, or as a pair of discs drawn through the segment shader at the ends of each run. A square cap already takes the tessellated path and is exact there.
+
+Will be fixed in a future version.
+
 ## Known differences that are gated rather than skipped
 
 These are real and measured, and the case still earns its place because the rest of what it covers is exact.

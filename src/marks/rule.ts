@@ -88,6 +88,13 @@ function dashedAttributes(item: SceneRule, pattern: number[], color: RGBA): Floa
   return segmentInstances(runs, color, item.strokeWidth ?? 1, ends.caps, undefined, ends.square);
 }
 
+/** True when the rule has no length, so canvas draws nothing under a butt cap. */
+function isDegenerate(item: SceneRule): boolean {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  return (item.x2 ?? x) === x && (item.y2 ?? y) === y;
+}
+
 /** True when the rule runs at an angle, so it cannot be drawn as a rect. */
 function isDiagonal(item: SceneRule): boolean {
   const x = item.x || 0;
@@ -135,6 +142,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     // or a ramp takes the segment path the diagonal and dashed ones take.
     const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
     const shaped = item.strokeCap === 'round' || item.strokeCap === 'square';
+    // canvas moves to the point and lines to the same point, which a butt cap
+    // renders as nothing. Falling back to the stroke width for both extents
+    // would paint a square block instead.
+    if (!shaped && isDegenerate(item)) {
+      continue;
+    }
     if (!pattern && !isDiagonal(item) && !strokeGradient && !shaped) {
       run.push(item);
       continue;

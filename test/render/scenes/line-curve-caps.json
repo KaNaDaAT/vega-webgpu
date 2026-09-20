@@ -1,0 +1,246 @@
+{
+  "description": "A round stroke cap on each interpolation. The curve shaders evaluate the cubic on the gpu and draw no cap, so only the routes that tessellate or walk segments round their ends.",
+  "width": 400,
+  "height": 210,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 40.0,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 90,
+                "y": 52.5204902874646,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 150,
+                "y": 57.99059097300548,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 210,
+                "y": 53.33004400686996,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 270,
+                "y": 41.16324117523407,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 330,
+                "y": 28.34140780580759,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "linear"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 80.0,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "basis"
+              },
+              {
+                "x": 90,
+                "y": 92.5204902874646,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "basis"
+              },
+              {
+                "x": 150,
+                "y": 97.99059097300548,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "basis"
+              },
+              {
+                "x": 210,
+                "y": 93.33004400686995,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "basis"
+              },
+              {
+                "x": 270,
+                "y": 81.16324117523406,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "basis"
+              },
+              {
+                "x": 330,
+                "y": 68.34140780580759,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "basis"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 120.0,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "monotone"
+              },
+              {
+                "x": 90,
+                "y": 132.5204902874646,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "monotone"
+              },
+              {
+                "x": 150,
+                "y": 137.99059097300548,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "monotone"
+              },
+              {
+                "x": 210,
+                "y": 133.33004400686997,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "monotone"
+              },
+              {
+                "x": 270,
+                "y": 121.16324117523406,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "monotone"
+              },
+              {
+                "x": 330,
+                "y": 108.34140780580759,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "monotone"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 160.0,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "cardinal"
+              },
+              {
+                "x": 90,
+                "y": 172.5204902874646,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "cardinal"
+              },
+              {
+                "x": 150,
+                "y": 177.99059097300548,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "cardinal"
+              },
+              {
+                "x": 210,
+                "y": 173.33004400686997,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "cardinal"
+              },
+              {
+                "x": 270,
+                "y": 161.16324117523408,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "cardinal"
+              },
+              {
+                "x": 330,
+                "y": 148.3414078058076,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 9,
+                "strokeCap": "round",
+                "interpolate": "cardinal"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
