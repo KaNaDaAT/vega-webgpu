@@ -27,10 +27,16 @@ const MAX_COVERAGE: Record<string, number> = {
   // reads it, so these marks draw rather than vanish
   'nan-coords': 0.1,
   'degenerate-sizes': 0.05,
-  'empty-and-missing': 0.01,
-  'single-point-shapes': 0.01,
+  // Both measure 0.00% at either pixel ratio, and their floor is 0, so the
+  // ceiling is the only thing either one asserts. Held near zero rather than
+  // at a percent, which anything short of a smear would pass.
+  'empty-and-missing': 0.001,
+  'single-point-shapes': 0.001,
   // one rect is deliberately two billion pixels wide, so covering the frame is right
   'huge-values': 1,
+  // the one image that loads is 8.6% of this frame, and each broken one would
+  // be another 8% if it drew anything at all
+  'image-broken': 0.12,
 };
 
 /**
@@ -50,6 +56,10 @@ const MIN_COVERAGE: Record<string, number> = {
   // The negative width is flipped the way fillRect flips it, so the rect it
   // asks for is painted rather than dropped, and that is 2.5% of this frame.
   'degenerate-sizes': 0.02,
+  // A broken image throws where a missing one draws nothing, so before the
+  // guard in the image mark the three bad urls took the frame with them and
+  // this read 0.0%. The floor is the one image that does load.
+  'image-broken': 0.05,
 };
 
 /** Share of pixels that are not the background. */
@@ -94,6 +104,9 @@ test.describe('hostile input', () => {
       const painted = coverage(out.png);
       const budget = MAX_COVERAGE[name] ?? 0.05;
       const floor = MIN_COVERAGE[name] ?? 0;
+      if (process.env.CROSS_REPORT) {
+        console.log(`HOSTILE ${name} painted ${(painted * 100).toFixed(2)}% of the frame`);
+      }
       expect(
         painted,
         `painted ${(painted * 100).toFixed(1)}% of the frame, under the ${(floor * 100).toFixed(0)}% expected. ` +

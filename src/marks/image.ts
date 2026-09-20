@@ -246,8 +246,11 @@ function draw(
 
     let w = imageWidth(item, image);
     let h = imageHeight(item, image);
-    if (w === 0 || h === 0 || !(image.complete || image.toDataURL)) {
-      continue; // not loaded yet; the renderer re-renders on arrival
+    // A url that failed to load leaves a complete image carrying no pixels,
+    // and drawing one of those throws rather than drawing nothing, which
+    // costs the whole frame over one bad url.
+    if (w === 0 || h === 0 || !image.width || !image.height || !(image.complete || image.toDataURL)) {
+      continue; // not loaded yet, or never will be; the renderer re-renders on arrival
     }
 
     let x = (item.x || 0) - imageXOffset(item.align, w);

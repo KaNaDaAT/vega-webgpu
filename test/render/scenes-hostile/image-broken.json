@@ -1,0 +1,31 @@
+{
+  "description": "Three images the loader cannot turn into pixels beside one it can: an undecodable data url, an empty url, and a url naming nothing. A broken image is complete and carries no pixels, and drawing one throws, so what this asserts is that the frame still holds the image that did load.",
+  "width": 260,
+  "height": 120,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "image",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              { "url": "data:image/png;base64,QUJD", "x": 10, "y": 10, "width": 50, "height": 50 },
+              { "url": "", "x": 70, "y": 10, "width": 50, "height": 50 },
+              { "url": "data:image/png;base64,", "x": 130, "y": 10, "width": 50, "height": 50 },
+              { "url": "../data/7zip.png", "x": 190, "y": 10, "width": 60, "height": 60 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
