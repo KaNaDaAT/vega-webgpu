@@ -74,7 +74,7 @@ const body =
   ` */\n` +
   `export const VEGA_ENUMS = ${JSON.stringify(enums, null, 2)};\n`;
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let before = '';
   try {
     before = readFileSync(out, 'utf8');

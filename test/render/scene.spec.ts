@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { enums } from '../../scripts/vega-enums.mjs';
 import { compareCase, renderInHarness, type RendererName, type RenderResult } from './compare.js';
 import {
   QUAD_DELTA_DEFAULT,
@@ -27,6 +28,55 @@ import { TILE_CHECK_DEFAULT, onFineGrid } from './specs.js';
  */
 test('there are fixtures to compare', () => {
   expect(renderScenes.length, 'test/render/scenes has no fixtures in it').toBeGreaterThan(10);
+});
+
+/** Every value any fixture sets a property to, read off the stored scenegraphs. */
+function valuesInFixtures(props: string[]): Record<string, Set<string>> {
+  const found: Record<string, Set<string>> = Object.fromEntries(props.map(p => [p, new Set<string>()]));
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!node || typeof node !== 'object') {
+      return;
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (key in found && (typeof value === 'string' || typeof value === 'number')) {
+        found[key].add(String(value));
+      }
+      walk(value);
+    }
+  };
+  for (const name of renderScenes) {
+    walk(JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'scenes', `${name}.json`), 'utf8')));
+  }
+  return found;
+}
+
+/**
+ * Coverage of the values vega itself says a property takes, from the same
+ * schema `releases/vega-enums.js` is generated out of. A mark property that
+ * only one of its values is ever drawn with is a property where four fifths of
+ * the parsing can break silently, and a vega release that adds a blend mode
+ * should show up here rather than in a bug report.
+ *
+ * Only the properties vega's schema enumerates are checkable. It has no enum
+ * for `interpolate` or for a symbol `shape`, and vega-scenegraph keeps both
+ * lists private to their own modules, so those two are covered by
+ * `line-interpolate`, `symbol-shapes` and `symbol-analytic` without anything
+ * to hold them to. See README.md.
+ */
+test('every value vega enumerates is drawn by some fixture', () => {
+  // align, baseline, direction, orient and fontWeight are listed for the axis,
+  // legend and title as well as for a mark, and a fixture is a mark, so what
+  // is checked here is the three that are mark properties throughout.
+  const props = ['blend', 'strokeCap', 'strokeJoin'];
+  const seen = valuesInFixtures(props);
+  for (const prop of props) {
+    const missing = (enums[prop] ?? []).filter(v => !seen[prop].has(v));
+    expect(missing, `no fixture sets ${prop} to ${missing.join(', ')}`).toEqual([]);
+  }
 });
 
 /** A fixture's own description, which says which mode or shape each part is. */

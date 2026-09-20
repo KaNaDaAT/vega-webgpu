@@ -1,0 +1,51 @@
+{
+  "description": "Every property that decides where an image lands and how it is painted, drawn at the source's own 100x100 so nothing here is a resampling difference: the default corner, align center and right, baseline middle and bottom, a width or a height alone with the other derived, both letterbox branches of aspect, opacity, a second and third url in one draw, smooth off at 1:1, multiply over a rect, and a half pixel origin. image-resample carries the scaled cases.",
+  "width": 596,
+  "height": 364,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [{ "x": 248, "y": 248, "width": 100, "height": 100, "fill": "#e45756" }]
+          },
+          {
+            "marktype": "image",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              { "url": "../data/7zip.png", "x": 16, "y": 16 },
+              { "url": "../data/7zip.png", "x": 182, "y": 16, "align": "center" },
+              { "url": "../data/7zip.png", "x": 348, "y": 16, "align": "right" },
+              { "url": "../data/7zip.png", "x": 364, "y": 66, "baseline": "middle" },
+              { "url": "../data/7zip.png", "x": 480, "y": 116, "baseline": "bottom" },
+
+              { "url": "../data/ffox.png", "x": 16, "y": 132, "width": 100 },
+              { "url": "../data/ffox.png", "x": 132, "y": 132, "height": 100 },
+              { "url": "../data/ffox.png", "x": 248, "y": 82, "width": 100, "height": 200 },
+              { "url": "../data/ffox.png", "x": 314, "y": 132, "width": 200, "height": 100 },
+              { "url": "../data/ffox.png", "x": 480, "y": 132, "opacity": 0.4 },
+
+              { "url": "../data/gimp.png", "x": 16, "y": 248 },
+              { "url": "../data/gimp.png", "x": 132, "y": 248, "smooth": false },
+              { "url": "../data/gimp.png", "x": 248, "y": 248, "blend": "multiply" },
+              { "url": "../data/gimp.png", "x": 364.5, "y": 248.5 },
+              { "url": "../data/7zip.png", "x": 480, "y": 248, "opacity": 0.75 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

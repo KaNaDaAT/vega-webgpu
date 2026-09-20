@@ -1,0 +1,37 @@
+{
+  "description": "Every scale an image can be drawn at, from a 100x100 source: halved and quartered, 0.7 which lands between two mip levels, stretched by a different factor on each axis with aspect off, a letterbox box that rescales, and doubled with smoothing on and off. Each reduction is also drawn with smooth false beside it, which is nearest at any scale.",
+  "width": 590,
+  "height": 348,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "image",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              { "url": "../data/7zip.png", "x": 16, "y": 16, "width": 50, "height": 50 },
+              { "url": "../data/7zip.png", "x": 82, "y": 16, "width": 50, "height": 50, "smooth": false },
+              { "url": "../data/7zip.png", "x": 148, "y": 16, "width": 25, "height": 25 },
+              { "url": "../data/7zip.png", "x": 190, "y": 16, "width": 70, "height": 70 },
+              { "url": "../data/ffox.png", "x": 276, "y": 16, "width": 100, "height": 50, "aspect": false },
+              { "url": "../data/ffox.png", "x": 392, "y": 16, "width": 50, "height": 100, "aspect": false },
+              { "url": "../data/ffox.png", "x": 458, "y": 16, "width": 100, "height": 50 },
+
+              { "url": "../data/gimp.png", "x": 16, "y": 132, "width": 200, "height": 200 },
+              { "url": "../data/gimp.png", "x": 232, "y": 132, "width": 200, "height": 200, "smooth": false }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

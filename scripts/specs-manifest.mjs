@@ -23,7 +23,7 @@ export function specNames() {
     .sort();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const names = specNames();
   const next = JSON.stringify(names, null, 2) + '\n';
   const current = existsSync(manifest) ? readFileSync(manifest, 'utf8') : '';

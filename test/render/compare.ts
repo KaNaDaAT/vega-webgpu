@@ -6,7 +6,7 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import { shotToPng, type Shot } from './snapshot.js';
 import { waitForRender } from './drive.js';
-import { FLAT_MIN_SAMPLE } from './specs.js';
+import { FLAT_MIN_SAMPLE, INK_MIN_RATIO } from './specs.js';
 
 // Per-pixel color tolerance when deciding whether two pixels differ. The
 // budgets are on the *fraction of differing pixels*, so this only needs to
@@ -211,6 +211,11 @@ function flatten(img: PNG): PNG {
   return img;
 }
 
+/** A render as the measures see it, with its alpha composited over white. */
+export function overWhite(buf: Buffer): Buffer {
+  return PNG.sync.write(flatten(PNG.sync.read(buf)));
+}
+
 /** Side of the square the worst-region measure is taken over, in pixels. */
 export const TILE = 32;
 
@@ -232,6 +237,8 @@ export interface DiffResult {
   meanDelta: number;
   /** Largest mean signed channel difference over inked pixels. */
   biasDelta: number;
+  /** Fraction of the frame either side drew on, which every measure needs. */
+  ink: number;
   /** The same, over inked pixels away from any edge. Zero when nothing qualified. */
   flatMeanDelta: number;
   /** How many pixels that average is over. */
@@ -254,7 +261,7 @@ export function diffPngs(a: Buffer, b: Buffer, name: string): DiffResult {
     includeAA: true,
   });
   const { ratio, at } = worstRegion(diff, imgA.width, imgA.height);
-  const { quad, mean, bias, touched, flatMean, flatSample } = deltas(imgA, imgB);
+  const { quad, mean, bias, touched, ink, flatMean, flatSample } = deltas(imgA, imgB);
   return {
     diffRatio: diffCount / (imgA.width * imgA.height),
     touched,
@@ -266,6 +273,7 @@ export function diffPngs(a: Buffer, b: Buffer, name: string): DiffResult {
     quadDelta: quad,
     meanDelta: mean,
     biasDelta: bias,
+    ink,
     flatMeanDelta: flatMean,
     flatSample,
   };
@@ -334,6 +342,8 @@ export interface ChannelStats {
   mean: number;
   /** Fraction of pixels at least one channel differs on. */
   touched: number;
+  /** Fraction of pixels either render drew on. */
+  ink: number;
   /**
    * Largest mean *signed* channel difference over inked pixels. A render that
    * is systematically off shifts every pixel the same way and shows up here,
@@ -418,7 +428,7 @@ const FLAT_EPS = 6;
 const BLOCK_SCENE_PX = 2;
 
 /** The device pixel ratio the suite is rendering at. */
-const renderRatio = (): number => Math.max(1, Math.round(Number(process.env.RENDER_DPR ?? 1)));
+export const renderRatio = (): number => Math.max(1, Math.round(Number(process.env.RENDER_DPR ?? 1)));
 
 /** Largest channel difference between block averages. */
 function blockDelta(imgA: PNG, imgB: PNG, side: number): number {
@@ -508,6 +518,7 @@ function deltas(imgA: PNG, imgB: PNG): ChannelStats {
     mean: inked ? sum / inked : 0,
     bias: inked ? Math.max(...signed.map(v => Math.abs(v / inked))) : 0,
     touched: touched / pixels,
+    ink: inked / pixels,
     flatMean: flatSample ? flatSum / flatSample : 0,
     flatSample,
   };
@@ -593,9 +604,20 @@ export async function compareCase(
     console.log(
       `DIFF ${opts.label ?? name} ${(m.diffRatio * 100).toFixed(3)}% TILE ${(m.worstTile * 100).toFixed(1)}% ` +
         `at ${m.worstTileAt.join(',')} MEAN ${m.meanDelta.toFixed(2)} BIAS ${m.biasDelta.toFixed(2)} ` +
-        `QUAD ${m.quadDelta.toFixed(1)} FLAT ${m.flatMeanDelta.toFixed(2)} over ${m.flatSample}px`,
+        `QUAD ${m.quadDelta.toFixed(1)} FLAT ${m.flatMeanDelta.toFixed(2)} over ${m.flatSample}px ` +
+        `INK ${(m.ink * 100).toFixed(2)}%`,
     );
   }
+
+  // Every measure below compares the two renders, so two blank ones agree on
+  // everything. A case that draws nothing passes all six having tested
+  // nothing, which is what this is here to stop.
+  expect(
+    m.ink,
+    `the two renders between them drew on ${(m.ink * 100).toFixed(2)}% of the frame, under the ` +
+      `${(INK_MIN_RATIO * 100).toFixed(1)}% a case needs before a comparison means anything. ` +
+      `Two blank renders match perfectly, so this is a case that tested nothing`,
+  ).toBeGreaterThan(INK_MIN_RATIO);
 
   // The worst pixel, where the case is small enough for it to mean something.
   if (budgets.quad !== undefined) {

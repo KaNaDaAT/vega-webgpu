@@ -1,0 +1,247 @@
+{
+  "description": "Text layout that nothing else covers: two and three line text, lineHeight, lineBreak, a limit with the default ellipsis and a custom one, a limit under a right align, dir rtl both ways round, italic, small-caps, two font weights, and a serif and a monospace family. Every one of these is in the glyph cache key, and a raster shared between two of them is the failure this catches. The last four place a label by radius and theta instead of by x and y, which is the one part of the anchor the key leaves out. Unstroked, since stroked text is skipped (see text-variants).",
+  "width": 704,
+  "height": 550,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 24,
+                "y": 24,
+                "text": [
+                  "line one",
+                  "line two"
+                ],
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a"
+              },
+              {
+                "x": 248,
+                "y": 24,
+                "text": [
+                  "line one",
+                  "line two"
+                ],
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "lineHeight": 26
+              },
+              {
+                "x": 472,
+                "y": 24,
+                "text": "one|two|three",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "lineBreak": "|"
+              },
+              {
+                "x": 24,
+                "y": 98,
+                "text": "Antialiasing budget",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "limit": 90
+              },
+              {
+                "x": 248,
+                "y": 98,
+                "text": "Antialiasing budget",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "limit": 90,
+                "ellipsis": ">>"
+              },
+              {
+                "x": 472,
+                "y": 98,
+                "text": "Antialiasing budget",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "limit": 90,
+                "align": "right",
+                "dx": 180
+              },
+              {
+                "x": 24,
+                "y": 172,
+                "text": "abc ABC 123",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "dir": "rtl"
+              },
+              {
+                "x": 248,
+                "y": 172,
+                "text": "abc ABC 123",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "dir": "rtl",
+                "align": "right",
+                "dx": 180
+              },
+              {
+                "x": 472,
+                "y": 172,
+                "text": "Handgloves",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "fontStyle": "italic"
+              },
+              {
+                "x": 24,
+                "y": 246,
+                "text": "Handgloves",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "fontVariant": "small-caps"
+              },
+              {
+                "x": 248,
+                "y": 246,
+                "text": "Handgloves",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "fontWeight": 500
+              },
+              {
+                "x": 472,
+                "y": 246,
+                "text": "Handgloves",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "fontWeight": "lighter"
+              },
+              {
+                "x": 24,
+                "y": 320,
+                "text": "Handgloves",
+                "font": "serif",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a"
+              },
+              {
+                "x": 248,
+                "y": 320,
+                "text": "Handgloves",
+                "font": "monospace",
+                "fontSize": 16,
+                "baseline": "top",
+                "fill": "#2b5d8a"
+              },
+              {
+                "x": 472,
+                "y": 320,
+                "text": [
+                  "tall",
+                  "stack",
+                  "of three"
+                ],
+                "font": "sans-serif",
+                "fontSize": 13,
+                "baseline": "top",
+                "fill": "#2b5d8a",
+                "lineHeight": 15
+              },
+              {
+                "x": 24,
+                "y": 394,
+                "text": "theta 0",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "middle",
+                "fill": "#2b5d8a",
+                "radius": 26,
+                "align": "center",
+                "dx": 72,
+                "dy": 28
+              },
+              {
+                "x": 248,
+                "y": 394,
+                "text": "quarter",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "middle",
+                "fill": "#2b5d8a",
+                "radius": 26,
+                "theta": 1.5707963,
+                "align": "center",
+                "dx": 72,
+                "dy": 28
+              },
+              {
+                "x": 472,
+                "y": 394,
+                "text": "half",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "middle",
+                "fill": "#2b5d8a",
+                "radius": 26,
+                "theta": 3.1415927,
+                "align": "center",
+                "dx": 72,
+                "dy": 28
+              },
+              {
+                "x": 24,
+                "y": 468,
+                "text": "three quarter",
+                "font": "sans-serif",
+                "fontSize": 16,
+                "baseline": "middle",
+                "fill": "#2b5d8a",
+                "radius": 26,
+                "theta": 4.712389,
+                "align": "center",
+                "dx": 72,
+                "dy": 28
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
