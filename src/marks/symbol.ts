@@ -184,7 +184,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const dash = dashPatternOf(item);
     // A ramp cannot come out of the distance function either, so a gradient
     // stroke takes the same walk a dash does.
-    const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
+    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
     if (dash || strokeGradient) {
       flushRun();
       // The fill first, which is the order canvas paints them in. Drawn after
@@ -209,9 +209,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       flushRun();
     }
     run.push(item);
-    // A mode evaluated against a copy of the frame reads that copy once per
-    // draw, so two items sharing one would both blend with what was there
-    // before either of them. canvas composites item by item.
+    // One draw per item, see needsBackdrop.
     if (needsBackdrop(blendKey(item.blend), ctx._opaqueBackdrop)) {
       flushRun();
     }
@@ -357,7 +355,6 @@ function drawGradientSymbol(
     pipelineFor: res.solidPipelineFor,
     gradientPipelineFor: res.gradientPipelineFor,
     bufferManager: res.bufferManager,
-    vertexManager: res.colorVertexManager,
   };
   const blend = blendKey(item.blend);
 

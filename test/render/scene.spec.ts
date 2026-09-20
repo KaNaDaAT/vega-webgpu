@@ -10,7 +10,6 @@ import {
   SCENE_FLAT_MEAN_DEFAULT,
   SCENE_BIAS_DELTA_DEFAULT,
   SCENE_MEAN_DELTA_DEFAULT,
-  dprSceneCheckOverrides,
   quadDeltaOverrides,
   skippedScenes,
   renderScenes,
@@ -19,7 +18,7 @@ import {
   sceneBiasDeltaOverrides,
   sceneMeanDeltaOverrides,
 } from './scenes.js';
-import { TILE_CHECK_DEFAULT, onFineGrid } from './specs.js';
+import { TILE_CHECK_DEFAULT } from './specs.js';
 
 /**
  * The fixture list is a directory read with nothing behind it, so an empty or
@@ -103,12 +102,7 @@ test.describe('scenes', () => {
   for (const name of renderScenes) {
     test(name, async ({ page }, testInfo: TestInfo) => {
       test.skip(name in skippedScenes, skippedScenes[name]);
-      const diff =
-        onFineGrid && Object.hasOwn(dprSceneCheckOverrides, name)
-          ? dprSceneCheckOverrides[name]
-          : Object.hasOwn(sceneCheckOverrides, name)
-            ? sceneCheckOverrides[name]
-            : SCENE_CHECK_DEFAULT;
+      const diff = Object.hasOwn(sceneCheckOverrides, name) ? sceneCheckOverrides[name] : SCENE_CHECK_DEFAULT;
       await compareCase(testInfo, {
         name,
         kind: 'fixture',

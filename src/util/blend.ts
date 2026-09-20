@@ -49,6 +49,10 @@ const EVALUATED = new Set(BLEND_MODES);
  * multiply over nothing came out black where canvas draws the source plainly.
  * A frame cleared opaque stays opaque wherever anything draws, since source
  * over leaves the alpha at one, so there the shortcut is exact.
+ *
+ * A mark that batches its items has to stop batching where this is true. The
+ * copy is read once per draw, so two items sharing one would both blend with
+ * what was there before either of them, and canvas composites item by item.
  */
 export function needsBackdrop(key: string, opaqueBackdrop: boolean): boolean {
   if (key === 'normal') {

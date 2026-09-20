@@ -132,7 +132,7 @@ function draw(
   /** One group's background, and the border that goes under its children. */
   const paintBackdrop = (item: SceneGroupExt): void => {
     const edged = withStrokeOffset(item);
-    const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
+    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
     const border = borderInstances(ctx, edged, strokeGradient);
     const fore = item.strokeForeground === true && item.stroke != null;
     if (fore) {

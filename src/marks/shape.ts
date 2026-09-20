@@ -19,6 +19,7 @@ import {
   geometryVertexData,
   getMarkResources,
   gradientTargetOf,
+  MAX_GEOMETRY_CACHE,
   solidTargetOf,
   enqueueGradient,
   enqueueSolid,
@@ -38,9 +39,6 @@ import {
 } from './util.js';
 
 const drawName = 'Shape';
-// Bounds the per-context geometry cache so a long streaming session, where
-// every frame brings new datum ids, cannot grow it without limit.
-const MAX_CACHE = 4096;
 
 interface ShapeCacheEntry {
   fill: RGBA;
@@ -50,7 +48,7 @@ interface ShapeCacheEntry {
   bounds?: BoundsSnapshot;
   strokeWidth?: number;
   strokeIsGradient: boolean;
-  data: [Float32Array, Float32Array];
+  data: Float32Array;
   /** Contours the outline is built from, so a hit never re-runs the shape generator. */
   lines: Point[][];
   /** What the outline is cut and ended by, which the fill geometry says nothing about. */
@@ -145,7 +143,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
     let shapeGeom: PathGeometry | null = null;
     const geom = () => (shapeGeom ??= shape(ctx, item));
-    const [fillData, strokeData, lines, unchanged] = createGeometryData(
+    const [fillData, lines, unchanged] = createGeometryData(
       ctx,
       res,
       item,
@@ -161,10 +159,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     } else {
       batch.push(fillData);
     }
-    batch.push(strokeData);
-    // A mode evaluated against a copy of the frame reads that copy once per
-    // draw, so two items sharing one would both blend with what was there
-    // before either of them. canvas composites item by item.
+    // One draw per item, see needsBackdrop.
     const layered = needsBackdrop(blend, ctx._opaqueBackdrop);
     if ((strokeGradient && bounds) || layered) {
       // A ramp is per item, so this one cannot join the held buffer below: its
@@ -336,7 +331,7 @@ function createGeometryData(
   strokeIsGradient: boolean,
   useCache: boolean,
   geom: () => PathGeometry,
-): [fillData: Float32Array, strokeData: Float32Array, lines: Point[][], unchanged: boolean] {
+): [fillData: Float32Array, lines: Point[][], unchanged: boolean] {
   const key = cacheKey(item);
   const fill = hasGradient
     ? whiteCarrier(item.opacity, item.fillOpacity)
@@ -362,16 +357,12 @@ function createGeometryData(
       const heldOutline = outline === entry.outline;
       entry.outline = outline;
       if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
-        return [entry.data[0], entry.data[1], entry.lines, heldOutline];
+        return [entry.data, entry.lines, heldOutline];
       }
       // geometry unchanged, rewrite only the colors
-      const data: [Float32Array, Float32Array] = [
-        new Float32Array(entry.data[0].length),
-        new Float32Array(entry.data[1].length),
-      ];
-      recolor(data[0], entry.data[0], fill);
-      recolor(data[1], entry.data[1], stroke);
-      return [data[0], data[1], entry.lines, false];
+      const data = new Float32Array(entry.data.length);
+      recolor(data, entry.data, fill);
+      return [data, entry.lines, false];
     }
   }
 
@@ -384,10 +375,10 @@ function createGeometryData(
     scaleX: 1,
     scaleY: 1,
   });
-  const data = geometryVertexData(geometry, fill, stroke);
+  const [data] = geometryVertexData(geometry, fill, stroke);
 
   if (useCache) {
-    if (res.cache.size >= MAX_CACHE) {
+    if (res.cache.size >= MAX_GEOMETRY_CACHE) {
       const oldest = res.cache.keys().next().value;
       if (oldest !== undefined) {
         res.cache.delete(oldest);
@@ -406,17 +397,9 @@ function createGeometryData(
       outline,
     });
   }
-  return [data[0], data[1], shapeGeom.lines, false];
+  return [data, shapeGeom.lines, false];
 }
 
-/**
- * Vega mutates a Bounds in place as the view pans or zooms, so comparing by
- * identity never sees a change. Snapshot the numbers and compare those.
- */
-/**
- * A projection can send a shape outside its domain and leave NaN in the bounds,
- * which never equals itself, so those items would rebuild on every frame.
- */
 export default {
   type: 'shape',
   draw,

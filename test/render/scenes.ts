@@ -60,9 +60,6 @@ export const sceneMeanDeltaOverrides: Record<string, number> = {
   'rule-diagonals': 26, // 12.6
 };
 
-/** Differing-pixel budgets at a pixel ratio above 1, for the same reason. */
-export const dprSceneCheckOverrides: Record<string, number> = {};
-
 /**
  * Largest channel difference allowed between block averages, over blocks two
  * scene pixels a side. See BLOCK_SCENE_PX in compare.ts.

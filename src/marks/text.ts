@@ -266,9 +266,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const textPipeline = res.pipelineFor(blendKey(items[0]?.blend));
   const uniformBindGroup = createUniformBindGroup(drawName, device, textPipeline, uniformBuffer);
 
-  // A mode evaluated against a copy of the frame reads that copy once per
-  // draw, so labels sharing one all blend with what was there before any of
-  // them. canvas composites label by label, which two overlapping ones show.
+  // One draw per label, see needsBackdrop. Two overlapping ones show it.
   const perLabel = needsBackdrop(blendKey(items[0]?.blend), ctx._opaqueBackdrop);
 
   // One draw covers every label sharing a texture, and a blend belongs to the

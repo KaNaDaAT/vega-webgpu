@@ -580,7 +580,7 @@ export default class WebGPURenderer extends Renderer {
     // Built only when a draw asked for one. They are the size of the canvas,
     // and a frame that neither masks nor blends should not carry them.
     let targets: FrameTargets | null = null;
-    if (this._queue.drawsOffFrame()) {
+    if (this._offFrame) {
       const blend = this.blendTargets(device);
       targets = {
         target,

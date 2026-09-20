@@ -1,142 +1,17 @@
-import type { Bounds } from 'vega-scenegraph';
-import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { ScenePathItem } from '../types/scene.js';
-import geometryForItem from '../path/geometryForItem.js';
-import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
-import { blendKey, needsBackdrop } from '../util/blend.js';
-import { Color, isGradient } from '../util/color.js';
-import {
-  GeometryBatch,
-  cachedGeometryData,
-  dashPatternOf,
-  strokeOutline,
-  enqueueOutline,
-  outlineTargetOf,
-  type GeometryCache,
-  geometryVertexData,
-  getMarkResources,
-  gradientTargetOf,
-  solidTargetOf,
-  enqueueGradient,
-  enqueueSolid,
-  markClip,
-  markItems,
-  fillResources,
-  type FillResources,
-  strokeEnds,
-  whiteCarrier,
-  type MarkModule,
-} from './util.js';
+import geometryForPath from '../path/geometryForPath.js';
+import { itemShapeMark } from './itemShape.js';
 
-const drawName = 'Path';
+const DEG_TO_RAD = Math.PI / 180;
 
-interface PathResources extends FillResources {
-  cache: GeometryCache;
-}
-
-function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): PathResources {
-  return getMarkResources(ctx, 'path', device, vb, () => ({
-    ...fillResources(ctx, device, vb, drawName),
-    cache: new Map(),
-  }));
-}
-
-function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = markItems<ScenePathItem>(scene);
-  if (!items?.length) {
-    return;
-  }
-
-  const res = getResources(device, ctx, vb);
-  const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const clip = markClip(ctx, scene);
-  const gradientTarget = gradientTargetOf(ctx, device, `${drawName}Gradient`, res, uniformBuffer, clip);
-  const solidTarget = solidTargetOf(ctx, device, drawName, res, uniformBuffer, clip);
-
-  // Solid fills and strokes share one pipeline and are accumulated in paint
-  // order into a single buffer/draw. Gradient fills interrupt the batch.
-  const batch = new GeometryBatch();
-  // one batch draws with one pipeline, so a change of blend closes it
-  let batchBlend = 'normal';
-  const flushBatch = () => {
-    const data = batch.flush();
-    if (data) {
-      enqueueSolid(solidTarget, data, batchBlend);
-    }
-  };
-
-  for (const item of items) {
-    const blend = blendKey(item.blend);
-    if (blend !== batchBlend) {
-      flushBatch();
-      batchBlend = blend;
-    }
-    const bounds = item.bounds;
-    const gradient = isGradient(item.fill) && bounds ? item.fill : null;
-
-    const fill = gradient
-      ? whiteCarrier(item.opacity, item.fillOpacity)
-      : Color.from(item.fill, item.opacity, item.fillOpacity);
-    const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
-    const stroke = strokeGradient
-      ? whiteCarrier(item.opacity, item.strokeOpacity)
-      : Color.from(item.stroke, item.opacity, item.strokeOpacity);
-    // The stroke is walked as segments, so it is left off the geometry.
-    const dash = dashPatternOf(item);
-    // path items carry their own translation, rotation and scale
-    const transform = {
-      angle: ((item.angle || 0) * Math.PI) / 180,
-      scaleX: item.scaleX ?? 1,
-      scaleY: item.scaleY ?? 1,
-    };
-    const strokeItem = { ...item, stroke: undefined };
-    const [fillData] = cachedGeometryData(res.cache, strokeItem, fill, stroke, () => {
-      const shapeGeom = geometryForPath(ctx, item.path);
-      const geometry = geometryForItem(ctx, strokeItem, shapeGeom, false, item.x || 0, item.y || 0, transform);
-      return geometryVertexData(geometry, fill, stroke);
-    });
-    if (fillData.length > 0 && gradient && bounds) {
-      flushBatch();
-      enqueueGradient(gradientTarget, fillData, gradient, bounds, blendKey(item.blend));
-    } else {
-      batch.push(fillData);
-    }
-    // After the fill, which is the order canvas paints them in. Enqueued ahead
-    // of it the fill covers the inner half of every dash.
-    if (item.stroke) {
-      const data = strokeOutline(
-        geometryForPath(ctx, item.path, dash ? DASH_FLATNESS : undefined).lines,
-        dash,
-        stroke,
-        item.strokeWidth ?? 1,
-        item.strokeDashOffset ?? 0,
-        item.x || 0,
-        item.y || 0,
-        transform,
-        strokeEnds(item),
-      );
-      if (data) {
-        flushBatch();
-        enqueueOutline(
-          outlineTargetOf(ctx, device, res, uniformBuffer, clip),
-          data,
-          blendKey(item.blend),
-          strokeGradient,
-          bounds,
-        );
-      }
-    }
-    // A mode evaluated against a copy of the frame reads that copy once per
-    // draw, so two items sharing one would both blend with what was there
-    // before either of them. canvas composites item by item.
-    if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
-      flushBatch();
-    }
-  }
-  flushBatch();
-}
-
-export default {
+export default itemShapeMark<ScenePathItem>({
   type: 'path',
-  draw,
-} satisfies MarkModule;
+  name: 'Path',
+  shapeOf: (ctx, item, scale) => geometryForPath(ctx, item.path, scale),
+  transformOf: item => ({
+    angle: (item.angle || 0) * DEG_TO_RAD,
+    scaleX: item.scaleX ?? 1,
+    scaleY: item.scaleY ?? 1,
+  }),
+  cached: true,
+});

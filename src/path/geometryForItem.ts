@@ -4,9 +4,6 @@ import type { ItemGeometry, PathGeometry } from '../types/geometry.js';
 import type { FillStyle, StrokeStyle } from '../types/scene.js';
 import { joinStyleOf } from '../util/join.js';
 
-// canvas defaults to 10; a miter is never further from the contour than this
-// many line widths, which is what bounds the spikes below
-
 /** extrude-polyline knows miter and bevel, so a round join takes the miter. */
 function extrudeJoin(strokeJoin: string | undefined): 'miter' | 'bevel' {
   return strokeJoin === 'bevel' ? 'bevel' : 'miter';

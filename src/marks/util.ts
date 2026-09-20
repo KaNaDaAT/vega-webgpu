@@ -69,6 +69,13 @@ export function getMarkResources<T extends { device: GPUDevice }>(
 }
 
 /**
+ * Floats per triangulated vertex: position and colour. Every buffer
+ * `geometryVertexData` writes and every draw that consumes one is this wide,
+ * which is also the layout `fillResources` builds its pipelines with.
+ */
+export const GEOMETRY_STRIDE = 7;
+
+/**
  * Interleaves triangulated fill and stroke geometry with their colors
  * into [x, y, z, r, g, b, a] vertex buffers.
  */
@@ -77,25 +84,27 @@ export function geometryVertexData(
   fill: RGBA,
   stroke: RGBA,
 ): [fillData: Float32Array, strokeData: Float32Array] {
-  const fillData = new Float32Array(geometry.fillCount * 7);
-  const strokeData = new Float32Array(geometry.strokeCount * 7);
+  const fillData = new Float32Array(geometry.fillCount * GEOMETRY_STRIDE);
+  const strokeData = new Float32Array(geometry.strokeCount * GEOMETRY_STRIDE);
   for (let i = 0; i < geometry.fillCount; i++) {
-    fillData[i * 7] = geometry.fillTriangles[i * 3];
-    fillData[i * 7 + 1] = geometry.fillTriangles[i * 3 + 1];
-    fillData[i * 7 + 2] = geometry.fillTriangles[i * 3 + 2] * -1;
-    fillData[i * 7 + 3] = fill[0];
-    fillData[i * 7 + 4] = fill[1];
-    fillData[i * 7 + 5] = fill[2];
-    fillData[i * 7 + 6] = fill[3];
+    const o = i * GEOMETRY_STRIDE;
+    fillData[o] = geometry.fillTriangles[i * 3];
+    fillData[o + 1] = geometry.fillTriangles[i * 3 + 1];
+    fillData[o + 2] = geometry.fillTriangles[i * 3 + 2] * -1;
+    fillData[o + 3] = fill[0];
+    fillData[o + 4] = fill[1];
+    fillData[o + 5] = fill[2];
+    fillData[o + 6] = fill[3];
   }
   for (let i = 0; i < geometry.strokeCount; i++) {
-    strokeData[i * 7] = geometry.strokeTriangles[i * 3];
-    strokeData[i * 7 + 1] = geometry.strokeTriangles[i * 3 + 1];
-    strokeData[i * 7 + 2] = geometry.strokeTriangles[i * 3 + 2] * -1;
-    strokeData[i * 7 + 3] = stroke[0];
-    strokeData[i * 7 + 4] = stroke[1];
-    strokeData[i * 7 + 5] = stroke[2];
-    strokeData[i * 7 + 6] = stroke[3];
+    const o = i * GEOMETRY_STRIDE;
+    strokeData[o] = geometry.strokeTriangles[i * 3];
+    strokeData[o + 1] = geometry.strokeTriangles[i * 3 + 1];
+    strokeData[o + 2] = geometry.strokeTriangles[i * 3 + 2] * -1;
+    strokeData[o + 3] = stroke[0];
+    strokeData[o + 4] = stroke[1];
+    strokeData[o + 5] = stroke[2];
+    strokeData[o + 6] = stroke[3];
   }
   return [fillData, strokeData];
 }
@@ -205,7 +214,6 @@ export interface DrawTarget {
   pipelineFor: (blend: string) => GPURenderPipeline;
   bufferManager: BufferManager;
   uniformBuffer: GPUBuffer;
-  vertexLength: number;
   clip: ClipRect | undefined;
 }
 
@@ -220,7 +228,6 @@ export function gradientTargetOf(
   res: {
     gradientPipelineFor: (blend: string) => GPURenderPipeline;
     bufferManager: BufferManager;
-    vertexManager: VertexBufferManager;
   },
   uniformBuffer: GPUBuffer,
   clip: ClipRect | undefined,
@@ -232,12 +239,10 @@ export function gradientTargetOf(
     pipelineFor: res.gradientPipelineFor,
     bufferManager: res.bufferManager,
     uniformBuffer,
-    vertexLength: res.vertexManager.getVertexLength(),
     clip,
   };
 }
 
-/** Draws geometry whose color comes from a ramp rather than its vertices. */
 /**
  * One scratch array every instance builder writes into, so a mark does not
  * mint a new one each frame. createInstanceBuffer copies through writeBuffer
@@ -295,7 +300,6 @@ export function solidTargetOf(
   res: {
     pipelineFor: (blend: string) => GPURenderPipeline;
     bufferManager: BufferManager;
-    vertexManager: VertexBufferManager;
   },
   uniformBuffer: GPUBuffer,
   clip: ClipRect | undefined,
@@ -307,7 +311,6 @@ export function solidTargetOf(
     pipelineFor: res.pipelineFor,
     bufferManager: res.bufferManager,
     uniformBuffer,
-    vertexLength: res.vertexManager.getVertexLength(),
     clip,
   };
 }
@@ -318,13 +321,14 @@ export function enqueueSolid(target: DrawTarget, data: Float32Array, blend = 'no
   const pipeline = target.pipelineFor(blend);
   ctx._renderQueue.enqueue({
     pipeline,
-    drawCounts: [data.length / target.vertexLength],
+    drawCounts: [data.length / GEOMETRY_STRIDE],
     vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
     bindGroups: [createUniformBindGroup(target.name, device, pipeline, target.uniformBuffer)],
     clip: target.clip,
   });
 }
 
+/** Draws geometry whose color comes from a ramp rather than its vertices. */
 export function enqueueGradient(
   target: DrawTarget,
   data: Float32Array,
@@ -336,7 +340,7 @@ export function enqueueGradient(
   const pipeline = target.pipelineFor(blend);
   ctx._renderQueue.enqueue({
     pipeline,
-    drawCounts: [data.length / target.vertexLength],
+    drawCounts: [data.length / GEOMETRY_STRIDE],
     vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
     bindGroups: [
       createUniformBindGroup(target.name, device, pipeline, target.uniformBuffer),
@@ -1180,9 +1184,9 @@ export interface GeometryCacheEntry {
 
 export type GeometryCache = Map<unknown, GeometryCacheEntry>;
 
-// Bounds the cache so a streaming session, where every frame brings new datum
-// ids, cannot grow it without limit.
-const MAX_GEOMETRY_CACHE = 4096;
+// Bounds a per-context geometry cache so a streaming session, where every
+// frame brings new datum ids, cannot grow one without limit.
+export const MAX_GEOMETRY_CACHE = 4096;
 
 /** Identifies an item across frames: vega keeps tuple ids on a symbol. */
 function cacheKey(item: CacheableItem): unknown {
@@ -1226,7 +1230,7 @@ export function sameColor(a: RGBA, b: RGBA): boolean {
 
 /** Copies positions from `source` and writes `color` into every vertex. */
 export function recolor(data: Float32Array, source: Float32Array, color: RGBA): void {
-  for (let i = 0; i < data.length; i += 7) {
+  for (let i = 0; i < data.length; i += GEOMETRY_STRIDE) {
     data[i] = source[i];
     data[i + 1] = source[i + 1];
     data[i + 2] = source[i + 2];

@@ -1,6 +1,6 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneGradient, SceneItem, SceneRule } from '../types/scene.js';
+import type { SceneItem, SceneRule } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
@@ -140,7 +140,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const pattern = dashPatternOf(item);
     // The rect shader draws a rule with a butt end and a solid colour, so a cap
     // or a ramp takes the segment path the diagonal and dashed ones take.
-    const strokeGradient = isGradient(item.stroke) && item.bounds ? (item.stroke as SceneGradient) : null;
+    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
     const shaped = item.strokeCap === 'round' || item.strokeCap === 'square';
     // canvas moves to the point and lines to the same point, which a butt cap
     // renders as nothing. Falling back to the stroke width for both extents
@@ -150,9 +150,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     if (!pattern && !isDiagonal(item) && !strokeGradient && !shaped) {
       run.push(item);
-      // A mode evaluated against a copy of the frame reads that copy once per
-      // draw, so two items sharing one would both blend with what was there
-      // before either of them. canvas composites item by item.
+      // One draw per item, see needsBackdrop.
       if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
         flushRun();
       }

@@ -212,9 +212,6 @@ export const onCi = !!process.env.CI;
 /** The pixel ratio the suite is running at, which RENDER_DPR sets. */
 export const renderDpr = Number(process.env.RENDER_DPR ?? 1);
 
-/** True when a run is at a finer grid than the budgets were calibrated on. */
-export const onFineGrid = renderDpr > 1;
-
 /** Per-spec budgets for the CI rasterizer, with the measured number in a note. */
 export const ciCrossCheckOverrides: Record<string, number> = {
   // 1.263% there, 0.675% on a real adapter: the seam between abutting fills
