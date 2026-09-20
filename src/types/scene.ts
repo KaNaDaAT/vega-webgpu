@@ -113,6 +113,8 @@ export type SceneShapeItem = SceneItem &
   StrokeStyle & {
     id?: string | number;
     shape?: unknown;
+    /** Degrees, the way vega's own markItemPath turns an item. */
+    angle?: number;
   };
 
 export type SceneArcItem = SceneItem &

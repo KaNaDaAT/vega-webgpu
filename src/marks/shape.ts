@@ -343,7 +343,13 @@ function createGeometryData(
 
   // the outline draws as segments, so the triangulation only builds the fill
   const shapeGeom = geom();
-  const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom);
+  // vega translates to the item and rotates before it calls the generator, so
+  // a shape given an x, y or angle is drawn there rather than at the origin
+  const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom, false, item.x || 0, item.y || 0, {
+    angle: ((item.angle || 0) * Math.PI) / 180,
+    scaleX: 1,
+    scaleY: 1,
+  });
   const data = geometryVertexData(geometry, fill, stroke);
 
   if (useCache) {
