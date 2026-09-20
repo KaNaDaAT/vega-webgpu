@@ -1,0 +1,333 @@
+{
+  "description": "Two overlapping items of one mark under a blend the frame state cannot express, so each has to meet the backdrop the one before it wrote. darken over white on top, lighten over a dark band below. symbol and rule are instanced, arc, path and shape share one vertex batch, and rect already closed its run.",
+  "width": 720,
+  "height": 260,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 50,
+                "y": 40,
+                "size": 3000,
+                "shape": "square",
+                "fill": "#3050ff",
+                "blend": "darken"
+              },
+              {
+                "x": 78,
+                "y": 62,
+                "size": 3000,
+                "shape": "square",
+                "fill": "#ffb020",
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "rule",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 140,
+                "y": 52,
+                "x2": 216,
+                "y2": 52,
+                "stroke": "#3050ff",
+                "strokeWidth": 26,
+                "blend": "darken"
+              },
+              {
+                "x": 186,
+                "y": 20,
+                "x2": 186,
+                "y2": 86,
+                "stroke": "#ffb020",
+                "strokeWidth": 26,
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 265,
+                "y": 52,
+                "startAngle": 0,
+                "endAngle": 3.4,
+                "outerRadius": 42,
+                "fill": "#3050ff",
+                "blend": "darken"
+              },
+              {
+                "x": 285,
+                "y": 52,
+                "startAngle": 2.4,
+                "endAngle": 5.8,
+                "outerRadius": 42,
+                "fill": "#ffb020",
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 350,
+                "y": 18,
+                "path": "M0,0 L64,0 L64,60 L0,60 Z",
+                "fill": "#3050ff",
+                "blend": "darken"
+              },
+              {
+                "x": 382,
+                "y": 42,
+                "path": "M0,0 L64,0 L64,60 L0,60 Z",
+                "fill": "#ffb020",
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "shape",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 470,
+                "y": 18,
+                "shape": {
+                  "__shapePath__": "M0,0 L64,0 L64,60 L0,60 Z"
+                },
+                "fill": "#3050ff",
+                "blend": "darken"
+              },
+              {
+                "x": 502,
+                "y": 42,
+                "shape": {
+                  "__shapePath__": "M0,0 L64,0 L64,60 L0,60 Z"
+                },
+                "fill": "#ffb020",
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 590,
+                "y": 18,
+                "width": 64,
+                "height": 60,
+                "fill": "#3050ff",
+                "blend": "darken"
+              },
+              {
+                "x": 622,
+                "y": 42,
+                "width": 64,
+                "height": 60,
+                "fill": "#ffb020",
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 130,
+                "width": 720,
+                "height": 130,
+                "fill": "#202020"
+              }
+            ]
+          },
+          {
+            "marktype": "symbol",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 50,
+                "y": 170,
+                "size": 3000,
+                "shape": "square",
+                "fill": "#3050ff",
+                "blend": "lighten"
+              },
+              {
+                "x": 78,
+                "y": 192,
+                "size": 3000,
+                "shape": "square",
+                "fill": "#ffb020",
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "rule",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 140,
+                "y": 182,
+                "x2": 216,
+                "y2": 182,
+                "stroke": "#3050ff",
+                "strokeWidth": 26,
+                "blend": "lighten"
+              },
+              {
+                "x": 186,
+                "y": 150,
+                "x2": 186,
+                "y2": 216,
+                "stroke": "#ffb020",
+                "strokeWidth": 26,
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "arc",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 265,
+                "y": 182,
+                "startAngle": 0,
+                "endAngle": 3.4,
+                "outerRadius": 42,
+                "fill": "#3050ff",
+                "blend": "lighten"
+              },
+              {
+                "x": 285,
+                "y": 182,
+                "startAngle": 2.4,
+                "endAngle": 5.8,
+                "outerRadius": 42,
+                "fill": "#ffb020",
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 350,
+                "y": 148,
+                "path": "M0,0 L64,0 L64,60 L0,60 Z",
+                "fill": "#3050ff",
+                "blend": "lighten"
+              },
+              {
+                "x": 382,
+                "y": 172,
+                "path": "M0,0 L64,0 L64,60 L0,60 Z",
+                "fill": "#ffb020",
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "shape",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 470,
+                "y": 148,
+                "shape": {
+                  "__shapePath__": "M0,0 L64,0 L64,60 L0,60 Z"
+                },
+                "fill": "#3050ff",
+                "blend": "lighten"
+              },
+              {
+                "x": 502,
+                "y": 172,
+                "shape": {
+                  "__shapePath__": "M0,0 L64,0 L64,60 L0,60 Z"
+                },
+                "fill": "#ffb020",
+                "blend": "lighten"
+              }
+            ]
+          },
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 590,
+                "y": 148,
+                "width": 64,
+                "height": 60,
+                "fill": "#3050ff",
+                "blend": "lighten"
+              },
+              {
+                "x": 622,
+                "y": 172,
+                "width": 64,
+                "height": 60,
+                "fill": "#ffb020",
+                "blend": "lighten"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

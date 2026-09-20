@@ -1,5 +1,5 @@
 import type { TextDrift } from '../util/canvasDrift.js';
-import type { Bounds } from 'vega-scenegraph';
+import type { Bounds, PathSink } from 'vega-scenegraph';
 import type WebGPURenderer from '../WebGPURenderer.js';
 import type { RenderQueue } from '../util/renderQueue.js';
 import type { ItemGeometry, PathGeometry } from './geometry.js';
@@ -65,7 +65,12 @@ export interface GPUVegaScene {
   name?: string;
   role?: string;
   interactive?: boolean;
-  clip?: boolean;
+  /**
+   * `true` clips the mark to its enclosing group. vega's `{path}` and
+   * `{sphere}` clip forms parse to a generator that draws the clip path
+   * instead, which the renderer takes the box of.
+   */
+  clip?: boolean | ((sink: PathSink) => unknown);
   zindex?: number;
   bounds?: Bounds;
   items?: SceneItem[];
@@ -86,10 +91,17 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   _ty: number;
   /** Per text mark, canvas's own matrix drift, when wgOptions asks for it. */
   _textDrift?: TextDrift | null;
-  /** Active scissor rect (physical pixels), if any. */
+  /**
+   * Active scissor rect (physical pixels), if any. Every clip in the chain
+   * intersected, the way canvas's own context.clip() narrows what is already
+   * clipped rather than replacing it.
+   */
   _clip?: ClipRect;
-  /** Set alongside _clip when the clipping group has a corner radius. */
-  _clipRadii?: ClipRadii;
+  /**
+   * The innermost rounded clip in the chain: its own box, which the scissor
+   * above may have narrowed, and the radii to cut at its corners.
+   */
+  _clipRound?: { box: ClipRect; radii: ClipRadii };
 
   _renderer: WebGPURenderer;
   _renderQueue: RenderQueue;

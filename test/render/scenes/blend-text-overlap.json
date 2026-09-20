@@ -1,0 +1,101 @@
+{
+  "description": "Two overlapping labels of one text mark under a blend the frame state cannot express. Every label of a mark goes into one draw, so both met the backdrop the first one saw.",
+  "width": 420,
+  "height": 200,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 0,
+                "y": 100,
+                "width": 420,
+                "height": 90,
+                "fill": "#202020"
+              }
+            ]
+          },
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "text": "HHHH",
+                "x": 20,
+                "y": 50,
+                "align": "left",
+                "baseline": "middle",
+                "font": "sans-serif",
+                "fontSize": 58,
+                "fontWeight": "bold",
+                "fill": "#3050ff",
+                "blend": "darken"
+              },
+              {
+                "text": "HHHH",
+                "x": 44,
+                "y": 62,
+                "align": "left",
+                "baseline": "middle",
+                "font": "sans-serif",
+                "fontSize": 58,
+                "fontWeight": "bold",
+                "fill": "#ffb020",
+                "blend": "darken"
+              }
+            ]
+          },
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "text": "HHHH",
+                "x": 20,
+                "y": 135,
+                "align": "left",
+                "baseline": "middle",
+                "font": "sans-serif",
+                "fontSize": 58,
+                "fontWeight": "bold",
+                "fill": "#3050ff",
+                "blend": "lighten"
+              },
+              {
+                "text": "HHHH",
+                "x": 44,
+                "y": 147,
+                "align": "left",
+                "baseline": "middle",
+                "font": "sans-serif",
+                "fontSize": 58,
+                "fontWeight": "bold",
+                "fill": "#ffb020",
+                "blend": "lighten"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

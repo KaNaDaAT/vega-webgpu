@@ -5,7 +5,7 @@ import geometryForItem from '../path/geometryForItem.js';
 import { symbol as symbolShapeGeometry } from '../path/shapes.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { blendKey } from '../util/blend.js';
+import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { symbolSdfKey } from '../shaders/index.js';
 import { hasSdf } from '../shaders/symbolSdf.js';
@@ -209,6 +209,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       flushRun();
     }
     run.push(item);
+    // A mode evaluated against a copy of the frame reads that copy once per
+    // draw, so two items sharing one would both blend with what was there
+    // before either of them. canvas composites item by item.
+    if (needsBackdrop(blendKey(item.blend), ctx._opaqueBackdrop)) {
+      flushRun();
+    }
   }
   flushRun();
 }

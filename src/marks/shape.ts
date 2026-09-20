@@ -4,7 +4,7 @@ import type { PathGeometry } from '../types/geometry.js';
 import type { SceneShapeItem } from '../types/scene.js';
 import { shape } from '../path/shapes.js';
 import geometryForItem from '../path/geometryForItem.js';
-import { blendKey } from '../util/blend.js';
+import { blendKey, needsBackdrop } from '../util/blend.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -53,6 +53,25 @@ interface ShapeCacheEntry {
   data: [Float32Array, Float32Array];
   /** Contours the outline is built from, so a hit never re-runs the shape generator. */
   lines: Point[][];
+  /** What the outline is cut and ended by, which the fill geometry says nothing about. */
+  outline: string;
+}
+
+/**
+ * Everything the stroke outline is built from beyond the contours and the
+ * colour. The held buffer is only reused while this is unchanged, so a dash,
+ * a cap or a join toggled on an existing item redraws: none of them moves a
+ * vertex of the fill, and a cap or a join does not even change the segment
+ * count the hold falls back on.
+ */
+function outlineSignature(item: SceneShapeItem): string {
+  return [
+    item.strokeDash?.join(' ') ?? '',
+    item.strokeDashOffset ?? 0,
+    item.strokeCap ?? '',
+    item.strokeJoin ?? '',
+    item.strokeMiterLimit ?? '',
+  ].join('|');
 }
 
 interface ShapeResources extends FillResources {
@@ -143,17 +162,26 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       batch.push(fillData);
     }
     batch.push(strokeData);
-    if (strokeGradient && bounds) {
+    // A mode evaluated against a copy of the frame reads that copy once per
+    // draw, so two items sharing one would both blend with what was there
+    // before either of them. canvas composites item by item.
+    const layered = needsBackdrop(blend, ctx._opaqueBackdrop);
+    if ((strokeGradient && bounds) || layered) {
       // A ramp is per item, so this one cannot join the held buffer below: its
-      // own draw carries its own bind group. Only a gradient stroke pays that.
-      const own = outlineInstances(item, lines, whiteCarrier(item.opacity, item.strokeOpacity));
+      // own draw carries its own bind group. Neither can a layered blend, since
+      // the held buffer draws after every fill where canvas strokes each item
+      // before it fills the next.
+      const color = strokeGradient
+        ? whiteCarrier(item.opacity, item.strokeOpacity)
+        : Color.from(item.stroke, item.opacity, item.strokeOpacity);
+      const own = color[3] > 0 ? outlineInstances(item, lines, color) : null;
       if (own) {
         flushBatch();
         enqueueOutline(
           outlineTargetOf(ctx, device, res, uniformBuffer, clip),
           own,
-          blendKey(item.blend),
-          strokeGradient,
+          blend,
+          strokeGradient && bounds ? strokeGradient : null,
           bounds,
         );
       }
@@ -168,6 +196,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       } else if (after > before) {
         outlineRuns.push({ blend, start: before, count: after - before });
       }
+    }
+    if (layered) {
+      flushBatch();
     }
   }
   flushBatch();
@@ -314,6 +345,7 @@ function createGeometryData(
     ? whiteCarrier(item.opacity, item.strokeOpacity)
     : Color.from(item.stroke, item.opacity, item.strokeOpacity);
 
+  const outline = outlineSignature(item);
   if (useCache) {
     const entry = res.cache.get(key);
     if (
@@ -327,8 +359,10 @@ function createGeometryData(
       // re-insert to keep the map in least-recently-used order
       res.cache.delete(key);
       res.cache.set(key, entry);
+      const heldOutline = outline === entry.outline;
+      entry.outline = outline;
       if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
-        return [entry.data[0], entry.data[1], entry.lines, true];
+        return [entry.data[0], entry.data[1], entry.lines, heldOutline];
       }
       // geometry unchanged, rewrite only the colors
       const data: [Float32Array, Float32Array] = [
@@ -369,6 +403,7 @@ function createGeometryData(
       strokeIsGradient,
       data,
       lines: shapeGeom.lines,
+      outline,
     });
   }
   return [data[0], data[1], shapeGeom.lines, false];

@@ -163,12 +163,14 @@ export class BufferManager {
   }
 
   /**
-   * The clip every draw from this mark is held to. A scissor rect is exact for
-   * a plain box, so this is only read by the shader to cut the corners of a
-   * rounded one.
+   * The rounded clip every draw from this mark is held to. A scissor rect is
+   * exact for a plain box and already carries every clip in the chain, so the
+   * shader is only told about the box whose corners it has to cut.
    */
-  setClip(clip?: readonly number[], radii?: readonly number[]): void {
-    this.clip = [clip?.[0] ?? 0, clip?.[1] ?? 0, clip?.[2] ?? 0, clip?.[3] ?? 0];
+  setClipRound(round?: { box: readonly number[]; radii: readonly number[] }): void {
+    const box = round?.box;
+    const radii = round?.radii;
+    this.clip = [box?.[0] ?? 0, box?.[1] ?? 0, box?.[2] ?? 0, box?.[3] ?? 0];
     this.clipRadii = [radii?.[0] ?? 0, radii?.[1] ?? 0, radii?.[2] ?? 0, radii?.[3] ?? 0];
   }
 

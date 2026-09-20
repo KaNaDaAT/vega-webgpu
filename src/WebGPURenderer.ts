@@ -543,6 +543,10 @@ export default class WebGPURenderer extends Renderer {
 
     ctx._tx = 0;
     ctx._ty = 0;
+    // The group visit restores these as it unwinds, so this is only in case a
+    // frame gave up part way through one.
+    ctx._clip = undefined;
+    ctx._clipRound = undefined;
     // Read per frame rather than once: vega sets the background after it builds
     // the renderer, and a view can change it later.
     ctx._opaqueBackdrop = (this.clearColor() as GPUColorDict).a >= 1;

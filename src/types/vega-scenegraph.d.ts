@@ -109,6 +109,24 @@ declare module 'vega-scenegraph' {
   export function domClear(el: Element, index: number): Element;
   export function domCreate(doc: Document | null, tag: string, ns?: string): Element;
 
+  /** The part of a 2D context a path generator writes into. */
+  export interface PathSink {
+    beginPath(): void;
+    closePath(): void;
+    moveTo(x: number, y: number): void;
+    lineTo(x: number, y: number): void;
+    rect(x: number, y: number, w: number, h: number): void;
+    quadraticCurveTo(x1: number, y1: number, x2: number, y2: number): void;
+    bezierCurveTo(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number): void;
+    arc(cx: number, cy: number, r: number, sa: number, ea: number, ccw?: boolean): void;
+  }
+
+  /**
+   * A path sink that accumulates the extent of whatever is drawn into
+   * `bounds`, optionally rotated by `deg`. How vega measures a clip path.
+   */
+  export function boundContext(bounds: Bounds, deg?: number): PathSink;
+
   /** One svg path command: the letter, then its parameters. */
   export type PathCommand = [string, ...number[]];
   export function pathParse(path: string): PathCommand[];

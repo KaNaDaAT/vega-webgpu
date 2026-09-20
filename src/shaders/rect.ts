@@ -126,10 +126,12 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     return rectColor(in, in.fill);
 }
 
+// The ramp spans the item's bounds, which is what canvas fills a gradient
+// from, so it is wider than the box wherever a stroke widens the bounds.
 fn gradientColor(in: VertexOutput) -> vec4<f32> {
-    // un-flip: gradient coordinates run top-down like canvas coordinates
-    let p = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-    let t = gradientT(p, in.scale);
+    let world = in.pos.xy / max(uniforms.dpi, 0.001) + uniforms.offset;
+    let p = (world - gradient.bounds.xy) / max(gradient.bounds.zw, vec2<f32>(1e-6, 1e-6));
+    let t = gradientT(p, gradient.bounds.zw);
     let sample = textureSample(stopRamp, stopSampler, vec2<f32>(t, 0.5));
     return rectColor(in, vec4<f32>(sample.rgb, sample.a * in.fill.a));
 }

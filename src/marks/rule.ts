@@ -3,7 +3,7 @@ import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneGradient, SceneItem, SceneRule } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { blendKey } from '../util/blend.js';
+import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -150,6 +150,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     if (!pattern && !isDiagonal(item) && !strokeGradient && !shaped) {
       run.push(item);
+      // A mode evaluated against a copy of the frame reads that copy once per
+      // draw, so two items sharing one would both blend with what was there
+      // before either of them. canvas composites item by item.
+      if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
+        flushRun();
+      }
       continue;
     }
     flushRun();

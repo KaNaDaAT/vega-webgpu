@@ -19,7 +19,7 @@ import {
   type Turn,
 } from '../util/textTexture.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import { blendKey } from '../util/blend.js';
+import { blendKey, needsBackdrop } from '../util/blend.js';
 import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
 
 const drawName = 'Text';
@@ -266,27 +266,41 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const textPipeline = res.pipelineFor(blendKey(items[0]?.blend));
   const uniformBindGroup = createUniformBindGroup(drawName, device, textPipeline, uniformBuffer);
 
+  // A mode evaluated against a copy of the frame reads that copy once per
+  // draw, so labels sharing one all blend with what was there before any of
+  // them. canvas composites label by label, which two overlapping ones show.
+  const perLabel = needsBackdrop(blendKey(items[0]?.blend), ctx._opaqueBackdrop);
+
   // One draw covers every label sharing a texture, and a blend belongs to the
   // pipeline, so this takes the mark's blend rather than each item's. The line
   // mark reads it the same way, and vega sets it per mark in practice.
   const enqueue = (texture: GPUTexture, data: Float32Array) => {
-    ctx._renderQueue.enqueue({
-      pipeline: textPipeline,
-      drawCounts: [6, data.length / LABEL_STRIDE],
-      vertexBuffers: [res.bufferManager.createInstanceBuffer(data)],
-      bindGroups: [
-        uniformBindGroup,
-        device.createBindGroup({
-          label: 'Text Texture Bind Group',
-          layout: textPipeline.getBindGroupLayout(1),
-          entries: [
-            { binding: 0, resource: res.sampler },
-            { binding: 1, resource: texture.createView() },
-          ],
-        }),
-      ],
-      clip,
-    });
+    const total = data.length / LABEL_STRIDE;
+    if (total === 0) {
+      return;
+    }
+    const buffer = res.bufferManager.createInstanceBuffer(data);
+    const bindGroups = [
+      uniformBindGroup,
+      device.createBindGroup({
+        label: 'Text Texture Bind Group',
+        layout: textPipeline.getBindGroupLayout(1),
+        entries: [
+          { binding: 0, resource: res.sampler },
+          { binding: 1, resource: texture.createView() },
+        ],
+      }),
+    ];
+    const step = perLabel ? 1 : total;
+    for (let first = 0; first < total; first += step) {
+      ctx._renderQueue.enqueue({
+        pipeline: textPipeline,
+        drawCounts: [6, step, 0, first],
+        vertexBuffers: [buffer],
+        bindGroups,
+        clip,
+      });
+    }
   };
 
   if (packed.length > 0) {

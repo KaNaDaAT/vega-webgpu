@@ -1,4 +1,4 @@
-import { sceneVisit, type Bounds, pathRectangle } from 'vega-scenegraph';
+import { Bounds, boundContext, sceneVisit, pathRectangle } from 'vega-scenegraph';
 import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { dashPolyline, type Point } from '../util/dash.js';
@@ -63,7 +63,7 @@ export function getMarkResources<T extends { device: GPUDevice }>(
     buffers?.setResolution(ctx._uniforms.resolution);
     buffers?.setOffset([vb.x1, vb.y1]);
     buffers?.setDpi(ctx._uniforms.dpi);
-    buffers?.setClip(ctx._clip, ctx._clipRadii);
+    buffers?.setClipRound(ctx._clipRound);
   }
   return res;
 }
@@ -101,33 +101,95 @@ export function geometryVertexData(
 }
 
 /**
- * Scissor rect for a mark, in physical pixels. Marks with `clip: true`
- * are clipped to their enclosing group. Otherwise the inherited group
- * clip (if any) applies.
+ * A box in the current group's coordinates, as a scissor rect in device
+ * pixels. The group translation is already in `_tx`.
+ */
+export function deviceClip(ctx: GPUVegaCanvasContext, x: number, y: number, w: number, h: number): ClipRect {
+  const dpi = ctx._uniforms.dpi;
+  return [(ctx._origin[0] + ctx._tx + x) * dpi, (ctx._origin[1] + ctx._ty + y) * dpi, w * dpi, h * dpi];
+}
+
+/**
+ * Two scissor rects narrowed to what both cover, which is what canvas's
+ * `context.clip()` does to whatever is already clipped. An empty result is
+ * left with a zero extent and the render queue drops the draw.
+ */
+export function intersectClip(outer: ClipRect | undefined, inner: ClipRect): ClipRect {
+  if (!outer) {
+    return inner;
+  }
+  const x = Math.max(outer[0], inner[0]);
+  const y = Math.max(outer[1], inner[1]);
+  const x2 = Math.min(outer[0] + outer[2], inner[0] + inner[2]);
+  const y2 = Math.min(outer[1] + outer[3], inner[1] + inner[3]);
+  return [x, y, Math.max(x2 - x, 0), Math.max(y2 - y, 0)];
+}
+
+/** Reused by the clip-path measurement below, which runs per mark per frame. */
+const clipPathBounds = new Bounds();
+
+/**
+ * Scissor rect for a mark, in physical pixels.
+ *
+ * A mark with `clip: true` is clipped to its enclosing group, and one whose
+ * clip is a path generator to that path's box. Either way the result is
+ * narrowed by whatever the mark already sits inside.
+ *
+ * A path is only ever its box here. canvas clips to the path itself, so a
+ * clip that is not a rectangle leaves the corners of its box drawn. See
+ * test/render/README.md.
  */
 export function markClip(ctx: GPUVegaCanvasContext, scene: GPUVegaScene): ClipRect | undefined {
-  if (!scene.clip) {
+  const clip = scene.clip;
+  if (!clip) {
     return ctx._clip;
+  }
+  if (typeof clip === 'function') {
+    const b = clipPathBounds.clear();
+    clip(boundContext(b));
+    return b.empty() ? ctx._clip : intersectClip(ctx._clip, deviceClip(ctx, b.x1, b.y1, b.width(), b.height()));
   }
   const group = scene.group;
   if (!group) {
     return ctx._clip;
   }
-  const dpi = ctx._uniforms.dpi;
-  return [
-    (ctx._origin[0] + ctx._tx) * dpi,
-    (ctx._origin[1] + ctx._ty) * dpi,
-    (group.width || 0) * dpi,
-    (group.height || 0) * dpi,
-  ];
+  return intersectClip(ctx._clip, deviceClip(ctx, 0, 0, group.width || 0, group.height || 0));
 }
 
 /**
- * An item's bounding box in the same coordinate space as its triangulated
- * vertices (group translation applied), as [x, y, w, h] for gradients.
+ * An item's bounding box as [x, y, w, h] for a gradient to map its ramp over,
+ * which is what vega's canvas renderer spans one across.
+ *
+ * Both the bounds and the geometry are in the enclosing group's coordinates,
+ * and the group translation reaches the shader through the offset uniform, so
+ * adding it here once more moved a ramp by the group offset.
  */
-export function gradientBounds(ctx: GPUVegaCanvasContext, bounds: Bounds): [number, number, number, number] {
-  return [bounds.x1 + ctx._tx, bounds.y1 + ctx._ty, Math.max(bounds.width(), 1e-6), Math.max(bounds.height(), 1e-6)];
+export function gradientBounds(bounds: Bounds): [number, number, number, number] {
+  return [bounds.x1, bounds.y1, Math.max(bounds.width(), 1e-6), Math.max(bounds.height(), 1e-6)];
+}
+
+/**
+ * The box a rect or a group background spans its ramp over.
+ *
+ * vega's boundStroke grows an item's bounds by a whole stroke width on each
+ * side, so a stroked rect fills its gradient over rather more than its own
+ * box. A scenegraph that reached the renderer unbounded keeps the box.
+ */
+export function boxGradientBounds(item: SceneRectExt): [number, number, number, number] {
+  if (item.bounds) {
+    return gradientBounds(item.bounds);
+  }
+  const pad = item.stroke ? (item.strokeWidth ?? 1) : 0;
+  const x = item.x || 0;
+  const y = item.y || 0;
+  const w = item.width || 0;
+  const h = item.height || 0;
+  return [
+    Math.min(x, x + w) - pad,
+    Math.min(y, y + h) - pad,
+    Math.max(Math.abs(w) + 2 * pad, 1e-6),
+    Math.max(Math.abs(h) + 2 * pad, 1e-6),
+  ];
 }
 
 /** Fill color for vertex data: white carrier with opacity when a gradient is used. */
@@ -278,7 +340,7 @@ export function enqueueGradient(
     vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
     bindGroups: [
       createUniformBindGroup(target.name, device, pipeline, target.uniformBuffer),
-      createGradientBindGroup(getGradientResources(device, ctx), pipeline, gradient, gradientBounds(ctx, bounds)),
+      createGradientBindGroup(getGradientResources(device, ctx), pipeline, gradient, gradientBounds(bounds)),
     ],
     clip: target.clip,
   });
@@ -490,7 +552,7 @@ export function enqueueOutline(
         getGradientResources(device, ctx),
         pipeline,
         gradient,
-        gradientBounds(ctx, bounds as Bounds),
+        gradientBounds(bounds as Bounds),
       ),
     );
   }

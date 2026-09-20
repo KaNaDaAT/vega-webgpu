@@ -1,0 +1,31 @@
+{
+  "description": "A mark clipped by a path that is not a rectangle. canvas clips to the path, and a scissor rect can only state its box, so the four corners canvas cuts away are still drawn. Skipped, see README.md.",
+  "width": 320,
+  "height": 220,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": {
+              "__clipPath__": "M160,30 C232,30 290,73 290,110 C290,147 232,190 160,190 C88,190 30,147 30,110 C30,73 88,30 160,30 Z"
+            },
+            "items": [
+              { "x": 20, "y": 20, "width": 130, "height": 180, "fill": "#4c78a8" },
+              { "x": 160, "y": 20, "width": 130, "height": 180, "fill": "#e45756" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

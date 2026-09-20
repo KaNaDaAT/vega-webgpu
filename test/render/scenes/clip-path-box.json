@@ -1,0 +1,56 @@
+{
+  "description": "A mark clipped by a path rather than by its group. vega's `clip: {path}` form parses to a generator that draws the path, and canvas clips to it. Both paths here are rectangles, which a scissor rect states exactly, and the right one sits in a clipped group so the two clips have to be intersected.",
+  "width": 420,
+  "height": 200,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": { "__clipPath__": "M30,40 L160,40 L160,150 L30,150 Z" },
+            "items": [
+              { "x": 10, "y": 20, "width": 90, "height": 160, "fill": "#4c78a8" },
+              { "x": 110, "y": 20, "width": 90, "height": 160, "fill": "#e45756" }
+            ]
+          },
+          {
+            "marktype": "group",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 220,
+                "y": 30,
+                "width": 160,
+                "height": 130,
+                "clip": true,
+                "fill": "#eef3f8",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 2,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": { "__clipPath__": "M20,20 L200,20 L200,90 L20,90 Z" },
+                    "items": [{ "x": -20, "y": -20, "width": 240, "height": 200, "fill": "#54a24b" }]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

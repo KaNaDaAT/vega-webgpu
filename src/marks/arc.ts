@@ -4,7 +4,7 @@ import type { SceneArcItem } from '../types/scene.js';
 import { arc } from '../path/shapes.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem from '../path/geometryForItem.js';
-import { blendKey } from '../util/blend.js';
+import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import {
   GeometryBatch,
@@ -116,6 +116,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         flushBatch();
         enqueueOutline(outlineTarget, data, blendKey(item.blend), strokeGradient, bounds);
       }
+    }
+    // A mode evaluated against a copy of the frame reads that copy once per
+    // draw, so two items sharing one would both blend with what was there
+    // before either of them. canvas composites item by item.
+    if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
+      flushBatch();
     }
   }
   flushBatch();

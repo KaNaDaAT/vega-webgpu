@@ -1,0 +1,175 @@
+{
+  "description": "Gradient fills and gradient strokes on marks inside a translated group. vega maps a ramp over the item's own bounds, which are in the enclosing group's coordinates, so the ramp must not move with the group offset. symbol, path and arc fill from one, symbol and rect stroke from one.",
+  "width": 440,
+  "height": 240,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "group",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 140,
+                "y": 80,
+                "width": 290,
+                "height": 150,
+                "fill": "#f4f4f4",
+                "items": [
+                  {
+                    "marktype": "symbol",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 46,
+                        "y": 46,
+                        "size": 2600,
+                        "shape": "square",
+                        "fill": {
+                          "gradient": "linear",
+                          "x1": 0,
+                          "y1": 0,
+                          "x2": 1,
+                          "y2": 0,
+                          "stops": [
+                            { "offset": 0, "color": "#4c78a8" },
+                            { "offset": 1, "color": "#e45756" }
+                          ]
+                        }
+                      },
+                      {
+                        "x": 46,
+                        "y": 112,
+                        "size": 1600,
+                        "shape": "circle",
+                        "fill": "#ffffff",
+                        "strokeWidth": 6,
+                        "stroke": {
+                          "gradient": "linear",
+                          "x1": 0,
+                          "y1": 0,
+                          "x2": 1,
+                          "y2": 0,
+                          "stops": [
+                            { "offset": 0, "color": "#54a24b" },
+                            { "offset": 1, "color": "#b279a2" }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "path",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 96,
+                        "y": 16,
+                        "path": "M0,0 L64,0 L64,60 L0,60 Z",
+                        "fill": {
+                          "gradient": "linear",
+                          "x1": 0,
+                          "y1": 0,
+                          "x2": 0,
+                          "y2": 1,
+                          "stops": [
+                            { "offset": 0, "color": "#72b7b2" },
+                            { "offset": 1, "color": "#f58518" }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "arc",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 128,
+                        "y": 116,
+                        "startAngle": 0,
+                        "endAngle": 4.4,
+                        "innerRadius": 8,
+                        "outerRadius": 30,
+                        "fill": {
+                          "gradient": "linear",
+                          "x1": 0,
+                          "y1": 0,
+                          "x2": 1,
+                          "y2": 0,
+                          "stops": [
+                            { "offset": 0, "color": "#4c78a8" },
+                            { "offset": 1, "color": "#f58518" }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 190,
+                        "y": 16,
+                        "width": 60,
+                        "height": 60,
+                        "fill": "#dbe9f6",
+                        "strokeWidth": 6,
+                        "stroke": {
+                          "gradient": "linear",
+                          "x1": 0,
+                          "y1": 0,
+                          "x2": 1,
+                          "y2": 0,
+                          "stops": [
+                            { "offset": 0, "color": "#e45756" },
+                            { "offset": 1, "color": "#4c78a8" }
+                          ]
+                        }
+                      },
+                      {
+                        "x": 190,
+                        "y": 92,
+                        "width": 60,
+                        "height": 44,
+                        "fill": {
+                          "gradient": "linear",
+                          "x1": 0,
+                          "y1": 0,
+                          "x2": 0,
+                          "y2": 1,
+                          "stops": [
+                            { "offset": 0, "color": "#4c78a8" },
+                            { "offset": 1, "color": "#e45756" }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -13,7 +13,10 @@ import {
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
+  boxGradientBounds,
+  deviceClip,
   enqueueOutline,
+  intersectClip,
   outlineTargetOf,
   withStrokeOffset,
   getMarkResources,
@@ -157,7 +160,7 @@ function draw(
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
         createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
-        createGradientBindGroup(gradientResources(), gradientPipeline, fill, [0, 0, 1, 1]),
+        createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item)),
       ],
       clip: ctx._clip,
     });
@@ -199,13 +202,17 @@ function draw(
     ctx._ty += gy;
 
     const oldClip = ctx._clip;
-    const oldRadii = ctx._clipRadii;
+    const oldRound = ctx._clipRound;
     if (group.clip) {
-      const dpi = ctx._uniforms.dpi;
-      ctx._clip = [(ctx._origin[0] + ctx._tx) * dpi, (ctx._origin[1] + ctx._ty) * dpi, gw * dpi, gh * dpi];
+      // canvas narrows whatever is already clipped rather than replacing it,
+      // so a clipped group inside a clipped one is cut by both
+      const box = deviceClip(ctx, 0, 0, gw, gh);
+      ctx._clip = intersectClip(oldClip, box);
       // canvas clips a group to its rounded rectangle, which a scissor cannot
-      // express, so the corners are cut in the fragment stage instead
-      ctx._clipRadii = clipRadii(group, dpi);
+      // express, so the corners are cut in the fragment stage instead. A group
+      // with no radius of its own leaves an enclosing rounded clip cutting.
+      const radii = clipRadii(group, ctx._uniforms.dpi);
+      ctx._clipRound = radii ? { box, radii } : oldRound;
     }
     if (vb) {
       vb.translate(-gx, -gy);
@@ -222,7 +229,7 @@ function draw(
     }
     if (group.clip) {
       ctx._clip = oldClip;
-      ctx._clipRadii = oldRadii;
+      ctx._clipRound = oldRound;
     }
     ctx._tx -= gx;
     ctx._ty -= gy;

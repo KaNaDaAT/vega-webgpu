@@ -25,9 +25,23 @@
     }
 
     // JSON has no literal for NaN or Infinity, so hostile fixtures carry them
-    // as sentinels.
-    const revive = (_key, value) =>
-      value === '__NaN__' ? NaN : value === '__Infinity__' ? Infinity : value === '__-Infinity__' ? -Infinity : value;
+    // as sentinels. A clip that is a path generator is a function, which JSON
+    // cannot carry either, so `{"__clipPath__": "M..."}` builds the same one
+    // vega's parser builds for `clip: {path}`.
+    const revive = (_key, value) => {
+      if (value === '__NaN__') return NaN;
+      if (value === '__Infinity__') return Infinity;
+      if (value === '__-Infinity__') return -Infinity;
+      if (value && typeof value === 'object' && typeof value.__clipPath__ === 'string') {
+        const path = value.__clipPath__;
+        const parsed = vega.pathParse(path);
+        return context => (context ? vega.pathRender(context, parsed) : path);
+      }
+      if (value && typeof value === 'object' && typeof value.__shapePath__ === 'string') {
+        return shapeGenerator(value.__shapePath__);
+      }
+      return value;
+    };
     const scene = vega.sceneFromJSON(JSON.parse(JSON.stringify(fixture.scene), revive));
     boundScene(scene);
     const r = new module.renderer();
@@ -47,6 +61,27 @@
     window.__renderError = String((err && err.stack) || err);
   }
 })();
+
+/**
+ * A `shape` mark's own shape, which vega's geoshape transform sets to a d3
+ * style generator: called with a context it draws, called with none it returns
+ * the path. JSON cannot carry one, so a fixture names a fixed svg path and
+ * this wraps it in the same two-faced generator the renderers both expect.
+ */
+function shapeGenerator(path) {
+  const parsed = vega.pathParse(path);
+  let target = null;
+  const generator = () => {
+    if (!target) return path;
+    vega.pathRender(target, parsed);
+    return undefined;
+  };
+  generator.context = context => {
+    target = context;
+    return generator;
+  };
+  return generator;
+}
 
 /**
  * Fills in item bounds, which a serialized fixture does not carry and a

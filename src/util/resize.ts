@@ -45,6 +45,7 @@ export default function resize(
   context._origin = origin;
   context._ratio = ratio;
   context._clip = undefined;
+  context._clipRound = undefined;
 
   return canvas;
 }

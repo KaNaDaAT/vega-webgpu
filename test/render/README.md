@@ -54,7 +54,7 @@ Every measure is a comparison, so two blank renders agree on all six and the cas
 
 ## What has no fixture
 
-- **The `shape` mark.** Its `shape` is a d3 style generator function carrying a `context` setter, which is what `src/path/shapes.ts` calls, and `sceneToJSON` cannot carry a function. A stored scenegraph cannot express one, so there is no `shape-*` fixture and there cannot be one without teaching the harness to build a generator, which would stop a fixture being a scenegraph handed straight to the renderer. It is covered by the specs instead, where a projection builds the generator: choropleth, map-fit, map-fit-stroked, map-bind and map-point-radius all draw through it.
+- **A `shape` mark drawn from a projection.** Its `shape` is a d3 style generator carrying a `context` setter, and `sceneToJSON` cannot carry a function. `{"__shapePath__": "M..."}` in a fixture builds the same two-faced generator over a fixed svg path, which is what `blend-overlap` uses, so a shape mark can be held to the mark-level measures. What that cannot reach is the projection behind a real one, and the geometry it produces: choropleth, map-fit, map-fit-stroked, map-bind and map-point-radius cover that as specs. `{"__clipPath__": "M..."}` is the same idea for the clip generator vega's `clip: {path}` form parses to.
 - **An image url that fails to load.** A broken image is `complete` and carries no pixels, and `drawImage` throws on one, so the canvas renderer loses the whole frame and leaves nothing to compare against. Measured on a 404, an undecodable data url and an empty url: canvas rejects its render with `InvalidStateError`. This renderer did the same until the image mark learned to skip an image with no pixels in it, and what holds that is `scenes-hostile/image-broken`, which asserts one bad url does not take the rest of the frame with it.
 - **Curve types have no enum to check against.** `releases/vega-enums.js` is generated from vega's schema and carries `blend`, `strokeCap` and `strokeJoin`. Every value of those three is drawn by some fixture, and `scene.spec.ts` holds that against the same generator, so a vega release adding one fails here. The schema does not enumerate `interpolate` or a symbol `shape`, and vega-scenegraph keeps both lists private to their own modules, so there is no authority to audit those two against. `line-interpolate` covers every key of the curve lookup as it stands today and `symbol-shapes` with `symbol-analytic` covers every built-in symbol, but neither will notice vega adding one.
 
@@ -84,8 +84,29 @@ Routing a capped curve to the tessellated path does cap it, and moves the curve 
 
 Will be fixed in a future version.
 
+### `gradient-diagonal`
+
+`util/canvas/gradient.js` builds a canvas gradient only when the ramp is horizontal, vertical, or the item's bounds are square. Anything else it renders into an image the size of the bounds and hands to `createPattern(image, 'no-repeat')`, which is vega #2365. A pattern is placed at the origin of the coordinate space the fill happens in, and `drawPath` fills after the item translate has been undone, so it lands at the enclosing group's origin rather than at the mark. A mark further out than the bounds are wide is then filled with nothing at all.
+
+Measured on this fixture: of the three non-square diagonal rects canvas draws one, partly, and leaves the other two blank. This renderer spans the ramp over the item's bounds wherever the mark is, for 23.057% of pixels differing, a 100% worst tile and a signed mean of 76.52. The square box and the horizontal ramp in the same fixture are the controls and match.
+
+Matching this means deliberately not drawing marks, so it is a decision rather than a fix, and it wants reporting upstream first. A `symbol` reads differently again, drawn everywhere with a ramp that advances with x, which this has not pinned down.
+
+Will be fixed in a future version.
+
+### `clip-path-round`
+
+vega's `clip: {path}` and `clip: {sphere}` forms parse to a generator that draws the clip path, and canvas clips to the path itself. A mark here is held to a scissor rect and nothing else, so the path is taken as its own box and the corners canvas cuts away are still drawn: 14.004% of pixels, a 98.4% worst tile and a worst block of 179. A rectangular clip path is exact and `clip-path-box` gates it, inside a clipped group so the intersection is covered too.
+
+Clipping to the path itself wants a coverage mask sampled by every mark shader, or a stencil attachment on every pipeline. Will be fixed in a future version.
+
 ## Known differences that are gated rather than skipped
 
 These are real and measured, and the case still earns its place because the rest of what it covers is exact.
 
-- `rect-gradient-border` carries a `bias` of 3 against a default of 2. A mark spans its gradient over its own box where canvas spans it over `item.bounds`, which carry half the stroke, so every inked pixel of a gradient fill sits a level or two along the ramp. Solid fills on the same fixture are exact and the other gradient fixtures read 0.00. The fixture exists to gate the routing fix underneath that, which it does through `diff` and `quad`.
+Two, both in `scenes.ts` with their measurement beside them.
+
+- `group-variants` carries a `diff` of 0.4% against a default of 0.2%, and measures 0.230%. Six dashed and capped borders on a corner radius, which is where the dash phase around a curve differs. `group-corner-dash` holds the same cause.
+- `rule-diagonals` carries a `mean` of 26 against a default of 10, and measures 12.6. Both renderers approximate a slanted edge and neither is the reference for the other.
+
+`rect-gradient-border` was a third until this round. It held a `bias` of 3 against a default of 2 while a rect spanned its ramp over its own box rather than over `item.bounds`, and reads 0.21 on the default now that it spans the bounds.

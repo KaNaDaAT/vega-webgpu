@@ -12,6 +12,7 @@ import {
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
+  boxGradientBounds,
   enqueueOutline,
   outlineTargetOf,
   getMarkResources,
@@ -128,8 +129,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         vertexBuffers: [res.geometryBuffer, instanceBuffer],
         bindGroups: [
           createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
-          // rect gradients evaluate in uv space, bounds are the unit square
-          createGradientBindGroup(gradientResources(), gradientPipeline, fill, [0, 0, 1, 1]),
+          createGradientBindGroup(
+            gradientResources(),
+            gradientPipeline,
+            fill,
+            boxGradientBounds(item as SceneRectExt),
+          ),
         ],
         clip,
       });
