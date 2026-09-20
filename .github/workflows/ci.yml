@@ -88,6 +88,14 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+      # The report and the images are bare zips, so nothing in a run says where
+      # the browsable gallery is or what the run let through. This does both.
+      - name: Summarize the run
+        if: always()
+        run: node scripts/run-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+        env:
+          RENDER_DPR: ${{ matrix.dpr }}
+
       # Raw per-spec webgpu / canvas / diff PNGs for direct manual comparison.
       - name: Upload render images
         if: always()

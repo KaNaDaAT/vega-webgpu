@@ -68,23 +68,27 @@ An override says "the two renderers legitimately differ here". It is not for a c
 
 A case we know is wrong is skipped with its reason, in `skippedScenes`, and listed here. A skip is loud, an inflated budget is silent.
 
-### `text-variants`
+A skip is still drawn, still recorded and still shown. Its three pngs go to `output/` like any other case and its row is in the gallery, badged with the release it is queued for and carrying a banner that says the numbers below it are not held to anything. The test report gets the same milestone as an annotation, and [ToDo.md](../../ToDo.md) lists all four under "Skipped in the render suite". So a skip costs its coverage and nothing else: the difference it names is on screen beside the cases that pass, rather than missing from the run.
+
+`upstream` is the milestone for the one skip that is not ours to fix, where canvas is the side that is wrong and matching it would mean copying the defect.
+
+### `text-variants`, queued for 2.0.0
 
 Stroked text sits about a pixel off where canvas puts it. The worst block reads 171 against 60 for the same labels drawn without a stroke, and every stroked column of the grid is between 133 and 181 while the unstroked column passes. The single-pixel measure this suite used before hid it inside a budget of 230.
 
 Unstroked text is still covered, by `text-layout`, `text-gradients` and `text-baseline-phase`.
 
-Will be fixed in a future version.
+Queued for the release above.
 
-### `line-curve-caps`
+### `line-curve-caps`, queued for 2.0.0
 
 The curve shaders evaluate a cubic on the GPU and draw no cap, so a round stroke cap on a basis, cardinal, monotone, catmull-rom or natural line ends flat. `linear` and the step family tessellate and are exact.
 
 Routing a capped curve to the tessellated path does cap it, and moves the curve itself further from canvas: measured on this fixture the differing pixels went from 80 to 145. So the cap belongs in the curve shader, or as a pair of discs drawn through the segment shader at the ends of each run. A square cap already takes the tessellated path and is exact there.
 
-Will be fixed in a future version.
+Queued for the release above.
 
-### `gradient-diagonal`
+### `gradient-diagonal`, upstream
 
 `util/canvas/gradient.js` builds a canvas gradient only when the ramp is horizontal, vertical, or the item's bounds are square. Anything else it renders into an image the size of the bounds and hands to `createPattern(image, 'no-repeat')`, which is vega #2365. A pattern is placed at the origin of the coordinate space the fill happens in, and `drawPath` fills after the item translate has been undone, so it lands at the enclosing group's origin rather than at the mark. A mark further out than the bounds are wide is then filled with nothing at all.
 
@@ -92,13 +96,13 @@ Measured on this fixture: of the three non-square diagonal rects canvas draws on
 
 Matching this means deliberately not drawing marks, so it is a decision rather than a fix, and it wants reporting upstream first. A `symbol` reads differently again, drawn everywhere with a ramp that advances with x, which this has not pinned down.
 
-Will be fixed in a future version.
+Not ours to fix. The upstream report is the open item in ToDo.md.
 
-### `clip-path-round`
+### `clip-path-round`, queued for 2.0.0
 
 vega's `clip: {path}` and `clip: {sphere}` forms parse to a generator that draws the clip path, and canvas clips to the path itself. A mark here is held to a scissor rect and nothing else, so the path is taken as its own box and the corners canvas cuts away are still drawn: 14.004% of pixels, a 98.4% worst tile and a worst block of 179. A rectangular clip path is exact and `clip-path-box` gates it, inside a clipped group so the intersection is covered too.
 
-Clipping to the path itself wants a coverage mask sampled by every mark shader, or a stencil attachment on every pipeline. Will be fixed in a future version.
+Clipping to the path itself wants a coverage mask sampled by every mark shader, or a stencil attachment on every pipeline. Queued for the release above.
 
 ## Known differences that are gated rather than skipped
 

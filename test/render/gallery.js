@@ -53,7 +53,11 @@ function drawList() {
     el.setAttribute('aria-selected', String(c.file === state.pick?.file));
     el.innerHTML = '<span class="name"></span><span class="kind"></span><span class="meta"></span>';
     el.querySelector('.name').textContent = c.name;
-    el.querySelector('.kind').textContent = c.kind;
+    el.querySelector('.kind').textContent = c.skip ? skipTag(c.skip) : c.kind;
+    if (c.skip) {
+      el.classList.add('skipped');
+      el.querySelector('.kind').title = c.skip.summary;
+    }
     if (state.hasRecorded) {
       const flat = c.flatSample >= 1000 ? `flat ${c.flat.toFixed(2)}` : 'flat n/a';
       el.querySelector('.meta').textContent =
@@ -147,6 +151,50 @@ function disposeLive() {
 }
 
 /**
+ * The live pair for a fixture, which has no spec to run. The suite draws a
+ * fixture by handing the stored scenegraph straight to a renderer, and
+ * scene-fixture.js is that same code, so what the gallery shows here is what
+ * the suite measured rather than an approximation of it.
+ */
+async function liveFixturePair(c) {
+  const dir = (await fetch(`./scenes/${c.name}.json`, { method: 'HEAD' })).ok ? 'scenes' : 'scenes-hostile';
+  const fixture = await window.SceneFixture.load('./', c.name, dir);
+  const mine = liveToken;
+  const build = async renderer => {
+    const host = document.createElement('div');
+    const r = await window.SceneFixture.render(fixture, renderer, host);
+    // A renderer drawn without a View still has to be released, and the live
+    // views list is what disposeLive walks.
+    liveViews.push({ finalize: () => {}, _renderer: r });
+    return { host, r };
+  };
+  const canvas = await build('canvas');
+  const webgpu = await build('webgpu');
+  const canvasEl = canvas.host.querySelector('canvas');
+  const webgpuEl = webgpu.host.querySelector('canvas');
+  if (!canvasEl || !webgpuEl) {
+    throw new Error(
+      `${!canvasEl ? 'canvas' : 'webgpu'} drew nothing here. WebGPU needs a browser with an adapter available.`,
+    );
+  }
+  return {
+    canvasEl,
+    webgpuEl,
+    read: async () => {
+      if (liveToken !== mine) {
+        throw new Error('this pair was replaced before it could be read');
+      }
+      return {
+        left: RenderCompare.readCanvas(canvasEl),
+        // readRenderer only reaches through to captureFrame, so a fixture
+        // passes the renderer where a spec passes its view.
+        right: await RenderCompare.readRenderer({ _renderer: webgpu.r }),
+      };
+    },
+  };
+}
+
+/**
  * Renders a spec with both renderers, with no hover and no bound controls: this
  * is for looking at the pixels, and an interaction would only make the two
  * disagree about which frame they are on.
@@ -154,11 +202,10 @@ function disposeLive() {
 async function livePair(c) {
   await loadRuntime();
   disposeLive();
-  const url = c.kind === 'fixture' ? null : `../specs-valid/${c.name}.vg.json`;
-  if (!url) {
-    throw new Error(`${c.name} is a scenegraph fixture, which has no spec to run. Use the recorded pair.`);
+  if (c.kind === 'fixture') {
+    return liveFixturePair(c);
   }
-  const spec = await (await fetch(url)).json();
+  const spec = await (await fetch(`../specs-valid/${c.name}.vg.json`)).json();
 
   // The specs load their data from `data/...`, which is relative to test/ and
   // not to this page a directory below it.
@@ -217,6 +264,29 @@ function setNote(html) {
 const fact = (label, value, title) =>
   `<span class="fact"${title ? ` title="${title}"` : ''}><b>${label}</b>${value}</span>`;
 
+const escapeHtml = text =>
+  String(text).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+/** How a skip is labelled wherever it is shown, in the list and on the case. */
+const skipTag = skip => (skip.milestone === 'upstream' ? 'not ours' : `todo ${skip.milestone}`);
+
+/**
+ * A skipped case is drawn and recorded like any other and gated like none, so
+ * without this it reads as a case that passes with a large difference. The
+ * banner is the only thing on the page that says the numbers below it are not
+ * held to anything.
+ */
+function skipBanner(c) {
+  if (!c.skip) {
+    return '';
+  }
+  const upstream = c.skip.milestone === 'upstream';
+  return (
+    `<p class="skipped${upstream ? ' upstream' : ''}">` +
+    `<b>${escapeHtml(skipTag(c.skip))}</b> not gated. ${escapeHtml(c.skip.reason)}</p>`
+  );
+}
+
 function recordedNote(c) {
   const s = state.settings;
   const b = c.budgets;
@@ -250,7 +320,11 @@ function recordedNote(c) {
         ? `The same average away from any edge, over ${c.flatSample.toLocaleString()} pixels`
         : 'Too few flat pixels here to measure over',
     ),
-    fact('worst block', (c.quad ?? 0).toFixed(1), 'The furthest-off 2 scene pixel block average, which a moved edge does not shift'),
+    fact(
+      'worst block',
+      (c.quad ?? 0).toFixed(1),
+      'The furthest-off 2 scene pixel block average, which a moved edge does not shift',
+    ),
   ];
   if (b) {
     const budget =
@@ -273,11 +347,11 @@ function recordedNote(c) {
   // place that is written down: putting the names in the picture would add text
   // antialiasing to a test that exists to measure something else
   const what = c.note ? `<p class="what"><b>${c.name}</b> ${c.note}</p>` : '';
-  return `${what}<div class="facts">${facts.join('')}</div>`;
+  return `${skipBanner(c)}${what}<div class="facts">${facts.join('')}</div>`;
 }
 
 /** The live note, in the same shape, since the two are read one after the other. */
-function liveNote() {
+function liveNote(c) {
   const facts = [
     fact('source', 'live', 'Rendered here and now by both renderers'),
     fact('drawn', 'no hover, no bound controls', 'An interaction would leave the two on different frames'),
@@ -286,7 +360,8 @@ function liveNote() {
   if (!state.hasRecorded) {
     facts.push(fact('recorded', 'none yet', 'Run npm run gallery:record for the stored pairs and their numbers'));
   }
-  return `<div class="facts">${facts.join('')}</div>`;
+  // A skip is not gated whichever way it is being looked at.
+  return `${c ? skipBanner(c) : ''}<div class="facts">${facts.join('')}</div>`;
 }
 
 function applyView() {
@@ -416,7 +491,7 @@ async function show() {
       return;
     }
     current = pair;
-    setNote(state.source === 'live' ? liveNote() : recordedNote(c));
+    setNote(state.source === 'live' ? liveNote(c) : recordedNote(c));
     paint(current);
   } catch (err) {
     if (mine !== generation) {

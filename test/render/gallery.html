@@ -54,6 +54,42 @@
         color: #dbe6fb;
       }
 
+      .case.skipped .kind {
+        color: #f0b429;
+        font-weight: 600;
+      }
+
+      .case.skipped .name::before {
+        content: '! ';
+        color: #f0b429;
+        font-weight: 700;
+      }
+
+      .skipped {
+        margin: 0 0 8px;
+        max-width: 100ch;
+        padding: 8px 10px;
+        border-left: 3px solid #f0b429;
+        background: rgba(240, 180, 41, 0.1);
+      }
+
+      .skipped b {
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 11px;
+        color: #f0b429;
+        margin-right: 8px;
+      }
+
+      .skipped.upstream {
+        border-left-color: #6ba4f8;
+        background: rgba(107, 164, 248, 0.1);
+      }
+
+      .skipped.upstream b {
+        color: #6ba4f8;
+      }
+
       main {
         display: flex;
         flex-direction: column;
@@ -394,6 +430,7 @@
     </dialog>
 
     <script src="../compare-core.js"></script>
+    <script src="./scene-fixture.js"></script>
     <script src="./gallery.js"></script>
   </body>
 </html>

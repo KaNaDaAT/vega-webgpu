@@ -101,7 +101,16 @@ function renderScene(page: Page, sceneName: string, renderer: RendererName): Pro
 test.describe('scenes', () => {
   for (const name of renderScenes) {
     test(name, async ({ page }, testInfo: TestInfo) => {
-      test.skip(name in skippedScenes, skippedScenes[name]);
+      // A skipped case is still drawn, recorded and shown. It goes into the
+      // gallery and the report carrying the release it is queued for, so the
+      // difference it names is on screen rather than missing from the run.
+      const skip = skippedScenes[name];
+      if (skip) {
+        testInfo.annotations.push({
+          type: skip.milestone === 'upstream' ? 'not ours, upstream' : `todo ${skip.milestone}`,
+          description: skip.summary,
+        });
+      }
       const diff = Object.hasOwn(sceneCheckOverrides, name) ? sceneCheckOverrides[name] : SCENE_CHECK_DEFAULT;
       await compareCase(testInfo, {
         name,
@@ -109,6 +118,7 @@ test.describe('scenes', () => {
         file: `scene-${name}`,
         label: `scene:${name}`,
         note: sceneNote(name),
+        skip,
         render: (renderer: RendererName) => renderScene(page, name, renderer),
         budgets: {
           diff,
@@ -121,6 +131,9 @@ test.describe('scenes', () => {
           quad: quadDeltaOverrides[name] ?? QUAD_DELTA_DEFAULT,
         },
       });
+      if (skip) {
+        test.skip(true, `${skip.milestone}: ${skip.summary}`);
+      }
     });
   }
 });

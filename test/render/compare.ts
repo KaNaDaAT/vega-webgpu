@@ -7,6 +7,7 @@ import { PNG } from 'pngjs';
 import { shotToPng, type Shot } from './snapshot.js';
 import { waitForRender } from './drive.js';
 import { FLAT_MIN_SAMPLE, INK_MIN_RATIO } from './specs.js';
+import type { SkippedScene } from './scenes.js';
 
 // Per-pixel color tolerance when deciding whether two pixels differ. The
 // budgets are on the *fraction of differing pixels*, so this only needs to
@@ -78,6 +79,12 @@ export interface GalleryCase {
   budgets: { diff: number | null; tile: number; mean: number; bias: number; flat: number; quad?: number };
   /** What the case is for, from a fixture's own description. */
   note?: string;
+  /**
+   * Set where the case is recorded but not gated. A skip is still rendered and
+   * still shown, so the difference it names is on screen in the gallery beside
+   * the cases that pass, with the release it is queued for.
+   */
+  skip?: SkippedScene;
 }
 
 /**
@@ -562,6 +569,8 @@ export async function compareCase(
     source?: string;
     label?: string;
     note?: string;
+    /** Recorded and shown but not gated, with the release it is queued for. */
+    skip?: SkippedScene;
     budgets: CaseBudgets;
     render: (renderer: RendererName) => Promise<RenderResult>;
   },
@@ -596,6 +605,7 @@ export async function compareCase(
     flatSample: m.flatSample,
     quad: m.quadDelta,
     note: opts.note,
+    skip: opts.skip,
     budgets,
   });
   await testInfo.attach(`${name}-diff (${(m.diffRatio * 100).toFixed(2)}%)`, png(m.diff));
@@ -607,6 +617,13 @@ export async function compareCase(
         `QUAD ${m.quadDelta.toFixed(1)} FLAT ${m.flatMeanDelta.toFixed(2)} over ${m.flatSample}px ` +
         `INK ${(m.ink * 100).toFixed(2)}%`,
     );
+  }
+
+  // A skipped case is recorded and shown and nothing below applies to it. The
+  // difference it names is the reason it is skipped, so gating it would only
+  // restate that in a failure.
+  if (opts.skip) {
+    return;
   }
 
   // Every measure below compares the two renders, so two blank ones agree on
