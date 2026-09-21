@@ -8,6 +8,7 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import { CURVE_SUBDIVISIONS } from '../shaders/curve.js';
+import { BUTT_END, ROUND_END } from '../util/join.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry, lineSpans } from '../path/shapes.js';
 import {
@@ -143,10 +144,11 @@ type LineRoute = CurveKind | 'path' | 'segments';
  * polyline. linear and the step family tessellate, which is what gives their
  * corners a join, and so does a line with gaps.
  *
- * The curve shaders draw no cap. A square one takes the tessellated path,
- * which draws it exactly. A round one stays on the curve and loses its cap,
- * because the tessellated route's flattening is further from canvas than the
- * missing cap is: on line-curve-caps it doubles the differing pixels.
+ * The curve shaders draw no cap of their own. A square one takes the
+ * tessellated path, which draws it exactly. A round one stays on the curve and
+ * `drawCurve` adds the two discs, since the tessellated route's flattening is
+ * further from canvas than a cap is worth: routing there doubles the differing
+ * pixels on line-curve-caps.
  */
 function lineRoute(points: SceneLinePoint[]): LineRoute {
   const interpolate = points[0]?.interpolate;
@@ -216,7 +218,7 @@ function drawOutline(
  * `bundle` blends every point toward the straight chord by its tension first,
  * exactly as d3 does before running basis.
  */
-function basisInstances(points: SceneLinePoint[]): number[] {
+function basisInstances(points: SceneLinePoint[], stubs: CapStubs): number[] {
   const out: number[] = [];
   const first = points[0];
   const n = points.length;
@@ -272,13 +274,21 @@ function basisInstances(points: SceneLinePoint[]): number[] {
   };
 
   // the straight run into the first knot
-  push(xs[0], ys[0], basis(0, 0, cx), basis(0, 0, cy), 0, 0, 0, 0, 1);
+  const knot0: Point = [basis(0, 0, cx), basis(0, 0, cy)];
+  push(xs[0], ys[0], knot0[0], knot0[1], 0, 0, 0, 0, 1);
   const spans = cx.length - 3;
   for (let i = 0; i < spans; i++) {
     push(cx[i], cy[i], cx[i + 1], cy[i + 1], cx[i + 2], cy[i + 2], cx[i + 3], cy[i + 3], 0);
   }
   // and the straight run out of the last
-  push(basis(spans - 1, 1, cx), basis(spans - 1, 1, cy), xs[n - 1], ys[n - 1], 0, 0, 0, 0, 1);
+  const knotN: Point = [basis(spans - 1, 1, cx), basis(spans - 1, 1, cy)];
+  push(knotN[0], knotN[1], xs[n - 1], ys[n - 1], 0, 0, 0, 0, 1);
+
+  // basis takes a whole line, so there is one run and these are its ends
+  const head: Point = [xs[0], ys[0]];
+  const tail: Point = [xs[n - 1], ys[n - 1]];
+  stubs.open(head, [[knot0[0] - head[0], knot0[1] - head[1]]]);
+  stubs.extend(tail, [[tail[0] - knotN[0], tail[1] - knotN[1]]]);
   return out;
 }
 
@@ -287,31 +297,136 @@ function basisInstances(points: SceneLinePoint[]): number[] {
  * generator canvas draws through, so the control points are exactly its own.
  * A `moveTo` starts a run, which is how `defined: false` leaves its gaps.
  */
-function bezierInstances(points: SceneLinePoint[]): number[] {
+function bezierInstances(points: SceneLinePoint[], stubs: CapStubs): number[] {
   const out: number[] = [];
   const first = points[0];
   const col = Color.from(first.stroke, first.opacity, first.strokeOpacity);
   const width = first.strokeWidth ?? 1;
   let cx = 0;
   let cy = 0;
+  // A moveTo starts a run, which is how `defined: false` leaves its gaps, and
+  // canvas caps every run rather than only the first and the last.
+  let opening = false;
+  const leave = (towards: readonly Point[]): void => {
+    if (opening) {
+      stubs.open([cx, cy], towards);
+      opening = false;
+    }
+  };
   lineSpans(points, {
     moveTo(x, y) {
       cx = x;
       cy = y;
+      opening = true;
     },
     lineTo(x, y) {
+      leave([[x - cx, y - cy]]);
       out.push(cx, cy, x, y, 0, 0, 0, 0, col[0], col[1], col[2], col[3], width, 1);
+      stubs.extend([x, y], [[x - cx, y - cy]]);
       cx = x;
       cy = y;
     },
     bezierCurveTo(x1, y1, x2, y2, x, y) {
+      leave([
+        [x1 - cx, y1 - cy],
+        [x2 - cx, y2 - cy],
+        [x - cx, y - cy],
+      ]);
       out.push(cx, cy, x1, y1, x2, y2, x, y, col[0], col[1], col[2], col[3], width, 0);
+      stubs.extend(
+        [x, y],
+        [
+          [x - x2, y - y2],
+          [x - x1, y - y1],
+          [x - cx, y - cy],
+        ],
+      );
       cx = x;
       cy = y;
     },
     closePath() {},
   });
   return out;
+}
+
+/**
+ * How far a cap stub runs past its end point, in scene units. The disc is
+ * centred on the far end, so this is also how much further the cap reaches
+ * than canvas draws it, which at a tenth of a device pixel is under the grid.
+ */
+const CAP_STUB = 0.05;
+
+/** Unit vector along the first of these that has a length, or null. */
+function firstDirection(deltas: readonly Point[]): Point | null {
+  for (const [dx, dy] of deltas) {
+    const len = Math.hypot(dx, dy);
+    if (len > 1e-9) {
+      return [dx / len, dy / len];
+    }
+  }
+  return null;
+}
+
+/**
+ * Collects the round caps a curve route does not draw.
+ *
+ * The curve shaders cover the stroke across its width and stop at the end
+ * points, so the disc canvas adds at each end of each run has to come from
+ * somewhere else. Each is a two point stub along the end tangent, pointing
+ * away from the curve, drawn through the segment shader with a butt at the end
+ * point and a round cap at the far end. The butt keeps it to the half beyond
+ * the curve: a whole disc would sit over the curve body as well and composite
+ * twice there under any mode that reads the frame back.
+ *
+ * The writers report their own runs rather than the stubs being read back out
+ * of the instance rows. A basis span carries four B-spline control points, and
+ * a span starts at (P0 + 4*P1 + P2) / 6 rather than at P0, so rows alone
+ * cannot say where one run ends and the next begins.
+ */
+class CapStubs {
+  private stubs: Point[][] = [];
+  private at: Point | null = null;
+  private from: Point | null = null;
+
+  /**
+   * A run leaves `at`, heading along the first of `towards` that has a length.
+   * A cubic can repeat its endpoint as a control point, so the tangent is a
+   * list rather than one delta: taking the first alone leaves that end with no
+   * cap at all.
+   */
+  open(at: Point, towards: readonly Point[]): void {
+    this.close();
+    const ahead = firstDirection(towards);
+    this.at = at;
+    this.from = ahead && [-ahead[0], -ahead[1]];
+  }
+
+  /** The run now reaches `at`, arriving along the first of `towards`. */
+  extend(at: Point, towards: readonly Point[]): void {
+    this.last = { at, direction: firstDirection(towards) };
+  }
+
+  private last: { at: Point; direction: Point | null } | null = null;
+
+  private push(at: Point, outward: Point | null): void {
+    if (outward) {
+      this.stubs.push([at, [at[0] + outward[0] * CAP_STUB, at[1] + outward[1] * CAP_STUB]]);
+    }
+  }
+
+  private close(): void {
+    if (this.at && this.last) {
+      this.push(this.at, this.from);
+      this.push(this.last.at, this.last.direction);
+    }
+    this.at = null;
+    this.last = null;
+  }
+
+  done(): Point[][] {
+    this.close();
+    return this.stubs;
+  }
 }
 
 /**
@@ -330,7 +445,8 @@ function drawCurve(
   if (!first.stroke || (first.strokeWidth ?? 1) <= 0) {
     return;
   }
-  const rows = CURVES[kind].instances(points);
+  const stubs = new CapStubs();
+  const rows = CURVES[kind].instances(points, stubs);
   if (rows.length === 0) {
     return;
   }
@@ -363,6 +479,18 @@ function drawCurve(
     bindGroups: [held.group],
   });
   ctx._renderQueue.queueBatchInstance(rows);
+
+  if (first.strokeCap === 'round') {
+    const caps = segmentInstances(
+      stubs.done(),
+      Color.from(first.stroke, first.opacity, first.strokeOpacity),
+      first.strokeWidth ?? 1,
+      [BUTT_END, ROUND_END],
+    );
+    if (caps) {
+      queueSegments(device, ctx, res, caps, clip, blend);
+    }
+  }
 }
 
 /** Curved or gapped lines go through the shared path tessellation. */

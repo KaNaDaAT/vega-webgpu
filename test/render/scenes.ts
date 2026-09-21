@@ -123,16 +123,6 @@ export const skippedScenes: Record<string, SkippedScene> = {
       'the spec corpus uses the form, so it is the first candidate if that scope is cut. ' +
       'See README.md.',
   },
-  'line-curve-caps': {
-    milestone: '2.0.0',
-    summary: 'a round strokeCap on a curved line ends flat, so the property is parsed and ignored',
-    reason:
-      'the curve shaders evaluate a cubic on the gpu and draw no cap, so a round capped curve ends ' +
-      'flat. Routing it to the tessellated path caps it and moves the curve further from canvas, ' +
-      'measured 80 differing pixels to 145, so the cap belongs in the curve shader or as a pair of ' +
-      'discs drawn through the segment shader. A property vega expresses and we ignore is what ' +
-      '2.0.0 is defined as closing. See README.md.',
-  },
   'text-variants': {
     milestone: '2.0.0',
     summary: 'stroked text sits about a pixel off where canvas puts it',

@@ -80,14 +80,6 @@ Unstroked text is still covered, by `text-layout`, `text-gradients` and `text-ba
 
 Queued for the release above.
 
-### `line-curve-caps`, queued for 2.0.0
-
-The curve shaders evaluate a cubic on the GPU and draw no cap, so a round stroke cap on a basis, cardinal, monotone, catmull-rom or natural line ends flat. `linear` and the step family tessellate and are exact.
-
-Routing a capped curve to the tessellated path does cap it, and moves the curve itself further from canvas: measured on this fixture the differing pixels went from 80 to 145. So the cap belongs in the curve shader, or as a pair of discs drawn through the segment shader at the ends of each run. A square cap already takes the tessellated path and is exact there.
-
-Queued for the release above.
-
 ### `gradient-diagonal`, upstream
 
 `util/canvas/gradient.js` builds a canvas gradient only when the ramp is horizontal, vertical, or the item's bounds are square. Anything else it renders into an image the size of the bounds and hands to `createPattern(image, 'no-repeat')`, which is vega #2365. A pattern is placed at the origin of the coordinate space the fill happens in, and `drawPath` fills after the item translate has been undone, so it lands at the enclosing group's origin rather than at the mark. A mark further out than the bounds are wide is then filled with nothing at all.
