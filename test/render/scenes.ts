@@ -123,14 +123,4 @@ export const skippedScenes: Record<string, SkippedScene> = {
       'the spec corpus uses the form, so it is the first candidate if that scope is cut. ' +
       'See README.md.',
   },
-  'text-variants': {
-    milestone: '2.0.0',
-    summary: 'stroked text sits about a pixel off where canvas puts it',
-    reason:
-      'stroked text sits about a pixel off canvas, so the worst block reads 171 against 60 for the ' +
-      'same labels unstroked, and every stroked column of the grid is between 133 and 181 while ' +
-      'the unstroked column passes. Unstroked text is covered by text-layout, text-gradients, ' +
-      'text-flow and text-baseline-phase. Matching canvas is what 2.0.0 is defined as. ' +
-      'See README.md.',
-  },
 };

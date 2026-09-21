@@ -58,6 +58,7 @@ export default class WebGPURenderer extends Renderer {
   wgOptions: GPUVegaOptions = {
     debugLog: false,
     cacheShapes: true,
+    exactRotatedText: true,
     canvasTextDrift: false,
     renderLock: true,
     offscreen: false,

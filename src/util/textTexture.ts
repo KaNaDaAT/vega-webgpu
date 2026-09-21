@@ -2,7 +2,6 @@ import { Bounds, Marks } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneTextItem } from '../types/scene.js';
 
-
 const HALF_PI = Math.PI / 2;
 const textMark = Marks.text;
 
@@ -95,6 +94,21 @@ export function textCacheKey(item: SceneTextItem): string {
 }
 
 /**
+ * How far a stroke reaches past the glyph outline, in whole device pixels.
+ *
+ * A miter runs out to `miterLimit * width / 2` at a sharp enough corner, which
+ * is where canvas clamps it. Any other join stays inside half the width.
+ */
+function strokeReach(raster: SceneTextItem, dpi: number): number {
+  if (!raster.stroke) {
+    return 0;
+  }
+  const half = (raster.strokeWidth ?? 1) / 2;
+  const limit = (raster.strokeJoin ?? 'miter') === 'miter' ? (raster.strokeMiterLimit ?? 10) : 1;
+  return Math.ceil(half * Math.max(limit, 1) * dpi);
+}
+
+/**
  * Size of `raster`'s rasterization and where its anchor sits inside it. The
  * anchor offset is picked so that turning the quad about the anchor puts the
  * glyph's top-left corner on a whole device pixel, which for a quarter turn
@@ -111,12 +125,19 @@ export function glyphMetrics(
   const b = textMark.bound(new Bounds(), raster, 0);
   const [ax, ay] = textAnchor(raster);
 
+  // vega's text bound is the fill glyph box, since textMetrics reports an
+  // advance and a height and neither knows about a stroke, so a cell sized
+  // from it cuts the stroke off. Half the width is not the reach either: a
+  // glyph corner under a miter join carries out to miterLimit * width / 2,
+  // which is the bound canvas itself clamps to and the one geometryForItem
+  // pads by. Whole device pixels, so the anchor rounds the way it did.
+  const strokePad = strokeReach(raster, dpi);
   // At least 1px clearance so antialiased edges are never clipped.
-  const padLeft = Math.ceil(Math.max(0, (ax - b.x1) * dpi)) + 1;
-  const padTop = Math.ceil(Math.max(0, (ay - b.y1) * dpi)) + 1;
+  const padLeft = Math.ceil(Math.max(0, (ax - b.x1) * dpi)) + 1 + strokePad;
+  const padTop = Math.ceil(Math.max(0, (ay - b.y1) * dpi)) + 1 + strokePad;
   const [anchorTexX, anchorTexY] = anchorOffset((ax - vb.x1) * dpi, (ay - vb.y1) * dpi, padLeft, padTop, turn);
-  const physWidth = Math.ceil(anchorTexX + (b.x2 - ax) * dpi) + 1;
-  const physHeight = Math.ceil(anchorTexY + (b.y2 - ay) * dpi) + 1;
+  const physWidth = Math.ceil(anchorTexX + (b.x2 - ax) * dpi) + 1 + strokePad;
+  const physHeight = Math.ceil(anchorTexY + (b.y2 - ay) * dpi) + 1 + strokePad;
   if (physWidth <= 0 || physHeight <= 0) {
     return null;
   }

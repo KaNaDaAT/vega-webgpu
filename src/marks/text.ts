@@ -185,7 +185,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const drift = ctx._textDrift?.get(scene);
 
   const settling = ctx._renderer?.settling === true;
-  const exact = settling || res.exact;
+  // The option pins the cheaper path on, which nothing else can do: res.exact
+  // only ever drops under load and the settling frame puts it back.
+  const allowed = ctx._renderer?.wgOptions.exactRotatedText !== false;
+  const exact = allowed && (settling || res.exact);
   let deferred = false;
   res.atlas.begin();
   // Atlas coordinates stay in pixels until the batch closes, since begin may

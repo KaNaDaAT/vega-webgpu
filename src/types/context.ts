@@ -22,6 +22,17 @@ export interface GPUVegaOptions {
   /** Cache triangulated shape geometry between frames (experimental). */
   cacheShapes: boolean;
   /**
+   * Bake a label's rotation into its atlas cell, which is how a rotated label
+   * matches canvas. Off, a rotated label is rasterized upright and the quad
+   * turns it instead, which a label that only moves does not have to be
+   * re-rasterized for.
+   *
+   * On by default, and the renderer drops it for the rest of a frame anyway
+   * when an atlas upload passes its budget. The option exists so the cheaper
+   * path can be reached on purpose rather than only under load.
+   */
+  exactRotatedText: boolean;
+  /**
    * Place a label where the canvas renderer puts it rather than where its own
    * coordinates say, when the two disagree.
    *

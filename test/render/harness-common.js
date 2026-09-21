@@ -96,6 +96,10 @@ function applyTestOptions(renderer, params) {
   if (cacheShapes !== null && cacheShapes !== undefined) {
     options.cacheShapes = cacheShapes !== '0' && cacheShapes !== 'false';
   }
+  const exactRotatedText = params?.get('exactRotatedText');
+  if (exactRotatedText !== null && exactRotatedText !== undefined) {
+    options.exactRotatedText = exactRotatedText !== '0' && exactRotatedText !== 'false';
+  }
   const canvasTextDrift = params?.get('canvasTextDrift');
   if (canvasTextDrift !== null && canvasTextDrift !== undefined) {
     options.canvasTextDrift = canvasTextDrift !== '0' && canvasTextDrift !== 'false';

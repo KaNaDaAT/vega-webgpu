@@ -72,14 +72,6 @@ A skip is still drawn, still recorded and still shown. Its three pngs go to `out
 
 `upstream` is the milestone for the one skip that is not ours to fix, where canvas is the side that is wrong and matching it would mean copying the defect.
 
-### `text-variants`, queued for 2.0.0
-
-Stroked text sits about a pixel off where canvas puts it. The worst block reads 171 against 60 for the same labels drawn without a stroke, and every stroked column of the grid is between 133 and 181 while the unstroked column passes. The single-pixel measure this suite used before hid it inside a budget of 230.
-
-Unstroked text is still covered, by `text-layout`, `text-gradients` and `text-baseline-phase`.
-
-Queued for the release above.
-
 ### `gradient-diagonal`, upstream
 
 `util/canvas/gradient.js` builds a canvas gradient only when the ramp is horizontal, vertical, or the item's bounds are square. Anything else it renders into an image the size of the bounds and hands to `createPattern(image, 'no-repeat')`, which is vega #2365. A pattern is placed at the origin of the coordinate space the fill happens in, and `drawPath` fills after the item translate has been undone, so it lands at the enclosing group's origin rather than at the mark. A mark further out than the bounds are wide is then filled with nothing at all.

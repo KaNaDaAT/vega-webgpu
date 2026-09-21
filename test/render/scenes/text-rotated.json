@@ -1,0 +1,144 @@
+{
+  "description": "One label at ten angles, well apart, so a rotated label can be measured on its own. Rotation is normally baked into the atlas cell; exactRotatedText=0 rasterizes upright and turns the quad instead, and the two have to put the label in the same place.",
+  "width": 620,
+  "height": 250,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 60,
+                "y": 60,
+                "text": "Angle 0",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 0
+              },
+              {
+                "x": 180,
+                "y": 60,
+                "text": "Angle 15",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 15
+              },
+              {
+                "x": 300,
+                "y": 60,
+                "text": "Angle 30",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 30
+              },
+              {
+                "x": 420,
+                "y": 60,
+                "text": "Angle 45",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 45
+              },
+              {
+                "x": 540,
+                "y": 60,
+                "text": "Angle 60",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 60
+              },
+              {
+                "x": 60,
+                "y": 190,
+                "text": "Angle 90",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 90
+              },
+              {
+                "x": 180,
+                "y": 190,
+                "text": "Angle 120",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 120
+              },
+              {
+                "x": 300,
+                "y": 190,
+                "text": "Angle 135",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 135
+              },
+              {
+                "x": 420,
+                "y": 190,
+                "text": "Angle 180",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 180
+              },
+              {
+                "x": 540,
+                "y": 190,
+                "text": "Angle 270",
+                "fontSize": 15,
+                "font": "sans-serif",
+                "baseline": "middle",
+                "align": "center",
+                "fill": "#2b5d8a",
+                "angle": 270
+              }
+            ]
+          }
+        ],
+        "x": 0,
+        "y": 0,
+        "width": 620,
+        "height": 250
+      }
+    ]
+  }
+}
