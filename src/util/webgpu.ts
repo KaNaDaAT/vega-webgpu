@@ -60,11 +60,23 @@ export function createRenderPipeline(
   });
 }
 
+/**
+ * The group 0 bind group every mark pipeline takes: the shared uniform block
+ * and the clip path's coverage.
+ *
+ * The mask is not optional. Every shader built on `uniformBlock` declares it
+ * and every fragment entry reads it, so a call that left it out would build a
+ * bind group short of an entry the layout has, and WebGPU throws out the whole
+ * command buffer for that: the frame comes out blank and the reason goes to
+ * `onuncapturederror` rather than failing anything. `clipMaskView` hands back
+ * a placeholder where there is no clip, so there is always one to pass.
+ */
 export function createUniformBindGroup(
   name: string,
   device: GPUDevice,
   pipeline: GPURenderPipeline,
   uniforms: GPUBuffer,
+  clipMask: GPUTextureView,
 ): GPUBindGroup {
   return device.createBindGroup({
     label: `${name} Uniform Bind Group`,
@@ -76,6 +88,7 @@ export function createUniformBindGroup(
           buffer: uniforms,
         },
       },
+      { binding: 1, resource: clipMask },
     ],
   });
 }

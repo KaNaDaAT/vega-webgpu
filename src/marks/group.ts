@@ -10,6 +10,7 @@ import { createGradientBindGroup, getGradientResources } from '../util/gradient.
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { rectAttributes } from './rect.js';
 import {
+  clipMaskView,
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
@@ -111,7 +112,7 @@ function draw(
       pipeline: runPipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [createUniformBindGroup(drawName, device, runPipeline, uniformBuffer)],
+      bindGroups: [createUniformBindGroup(drawName, device, runPipeline, uniformBuffer, clipMaskView(ctx, device))],
       clip: ctx._clip,
     });
     run = [];
@@ -159,7 +160,13 @@ function draw(
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
-        createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
+        createUniformBindGroup(
+          `${drawName}Gradient`,
+          device,
+          gradientPipeline,
+          uniformBuffer,
+          clipMaskView(ctx, device),
+        ),
         createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item)),
       ],
       clip: ctx._clip,
@@ -204,8 +211,11 @@ function draw(
     const oldClip = ctx._clip;
     const oldRound = ctx._clipRound;
     if (group.clip) {
-      // canvas narrows whatever is already clipped rather than replacing it,
-      // so a clipped group inside a clipped one is cut by both
+      // A group item is cut to its own rectangle whatever its clip holds:
+      // vega's group mark calls clipGroup, which never reads the value, so a
+      // path there is the SVG renderer's route rather than anything canvas
+      // draws. canvas also narrows whatever is already clipped rather than
+      // replacing it, so a clipped group inside a clipped one is cut by both.
       const box = deviceClip(ctx, 0, 0, gw, gh);
       ctx._clip = intersectClip(oldClip, box);
       // canvas clips a group to its rounded rectangle, which a scissor cannot
@@ -246,7 +256,9 @@ function draw(
           pipeline: forePipeline,
           drawCounts: [6, 1],
           vertexBuffers: [res.geometryBuffer, res.bufferManager.createInstanceBuffer(rectAttributes([fore.rect]))],
-          bindGroups: [createUniformBindGroup(drawName, device, forePipeline, uniformBuffer)],
+          bindGroups: [
+            createUniformBindGroup(drawName, device, forePipeline, uniformBuffer, clipMaskView(ctx, device)),
+          ],
           clip: parentClip,
         });
       }

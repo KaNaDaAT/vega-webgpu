@@ -33,4 +33,14 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
 }
 
 ${fragmentTail(blend)}
+
+@fragment
+fn main_fragment_mask(in: VertexOutput) -> @location(0) vec4<f32> {
+    // Coverage of a clip path, into the single channel target a mask is. The
+    // mask already in force still applies, which is what makes a clip inside a
+    // clip the intersection of the two. The rounded box is kept out of this
+    // one by its caller, since every mark reading the mask cuts its own
+    // corners against the same box.
+    return vec4<f32>(in.fill.a * clipCoverage(in.pos.xy), 0.0, 0.0, 1.0);
+}
 `;

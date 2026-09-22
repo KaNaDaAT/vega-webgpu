@@ -15,13 +15,19 @@ export function uniformBlock(...extra: string[]): string {
     // the clipping box and its corner radii, both in device pixels
     'clip: vec4<f32>',
     'clipRadii: vec4<f32>',
+    // x is 1 where a clip path has a coverage mask to be read, 0 otherwise
+    'clipMask: vec4<f32>',
     ...extra.map(name => `${name}: f32`),
   ];
   return `struct Uniforms {
   ${fields.join(',\n  ')},
 }
 
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;`;
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+// Coverage of the clip path, where the clip is one. A 1x1 placeholder is bound
+// when it is not, and the clipMask flag is what stops anything reading it.
+@group(0) @binding(1) var clipMaskTexture: texture_2d<f32>;`;
 }
 
 /** Canvas pixels to clip space. y flips because canvas coordinates grow down. */
@@ -83,9 +89,19 @@ fn ${entryPoint}(in: VertexOutput) -> @location(0) vec4<f32> {
  * 93 against canvas where the fraction reads 25.
  */
 const INSIDE_CLIP = `fn clipCoverage(p: vec2<f32>) -> f32 {
+    var cov = 1.0;
+    // A clip that is a path is a mask rather than a box. It is single sampled
+    // and the frame may not be, so it is read by whole texel at the pixel
+    // centre rather than sampled, the way the stroke mask composite reads its.
+    if uniforms.clipMask.x > 0.5 {
+        cov = textureLoad(clipMaskTexture, vec2<i32>(p), 0).r;
+        if cov <= 0.0 {
+            return 0.0;
+        }
+    }
     let r = uniforms.clipRadii;
     if r.x <= 0.0 && r.y <= 0.0 && r.z <= 0.0 && r.w <= 0.0 {
-        return 1.0;
+        return cov;
     }
     let lo = uniforms.clip.xy;
     let hi = lo + uniforms.clip.zw;
@@ -104,9 +120,9 @@ const INSIDE_CLIP = `fn clipCoverage(p: vec2<f32>) -> f32 {
         c = vec2<f32>(lo.x + r.w, hi.y - r.w);
         radius = r.w;
     } else {
-        return 1.0;
+        return cov;
     }
-    return clamp(radius + 0.5 - distance(p, c), 0.0, 1.0);
+    return cov * clamp(radius + 0.5 - distance(p, c), 0.0, 1.0);
 }`;
 
 /**

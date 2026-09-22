@@ -1,0 +1,43 @@
+{
+  "description": "Two line marks in one group, each carrying a clip path of its own. The two paths are disjoint rectangles on integer coordinates, which a scissor rect states exactly, so what is left to measure is which coverage mask each mark reads. A mark handed its sibling's mask is cut away entirely.",
+  "width": 320,
+  "height": 220,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": { "__clipPath__": "M0,10 L200,10 L200,100 L0,100 Z" },
+            "items": [
+              { "x": 20, "y": 40, "stroke": "#4c78a8", "strokeWidth": 10 },
+              { "x": 300, "y": 40, "stroke": "#4c78a8", "strokeWidth": 10 },
+              { "x": 300, "y": 80, "stroke": "#4c78a8", "strokeWidth": 10 },
+              { "x": 20, "y": 80, "stroke": "#4c78a8", "strokeWidth": 10 }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": { "__clipPath__": "M120,120 L320,120 L320,210 L120,210 Z" },
+            "items": [
+              { "x": 20, "y": 150, "stroke": "#e45756", "strokeWidth": 10 },
+              { "x": 300, "y": 150, "stroke": "#e45756", "strokeWidth": 10 },
+              { "x": 300, "y": 190, "stroke": "#e45756", "strokeWidth": 10 },
+              { "x": 20, "y": 190, "stroke": "#e45756", "strokeWidth": 10 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

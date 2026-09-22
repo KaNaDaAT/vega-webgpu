@@ -97,6 +97,18 @@ export interface SkippedScene {
 }
 
 export const skippedScenes: Record<string, SkippedScene> = {
+  'clip-path-erase': {
+    milestone: '2.1.0',
+    summary: 'an erasing compositing operator inside a clip path erases the box of the path',
+    reason:
+      'five of the Porter Duff operators do something to the frame where the source is absent, so ' +
+      'their composite runs on every pixel it is scissored to rather than discarding them, and a ' +
+      'clip path is only its box to a scissor rect. canvas erases inside the path alone, which ' +
+      'reads 7.330% of pixels, a 69.9% worst tile, a signed mean of 22.08 and a worst block of ' +
+      '180.3 against this. Confining it wants the clip applied by the composite rather than by ' +
+      'the mark that fills the layer, since the layer alpha already carries the coverage and ' +
+      'applying it twice squares it. See README.md.',
+  },
   'gradient-diagonal': {
     milestone: 'upstream',
     summary: 'canvas draws a diagonal ramp as a pattern at the group origin and leaves marks blank',
@@ -108,19 +120,5 @@ export const skippedScenes: Record<string, SkippedScene> = {
       'worst tile and a signed mean of 76.52 against canvas. We are the correct side of this one, ' +
       'so matching it would mean deliberately not drawing marks. It wants an upstream report ' +
       'rather than a fix here. See README.md.',
-  },
-  'clip-path-round': {
-    milestone: '2.0.0',
-    summary: 'a clip that is a path is cut to the box of that path, so the corners are still drawn',
-    reason:
-      'a clip that is a path is taken as the box of that path, since a scissor rect is the only ' +
-      'clip a mark can be held to, so the corners canvas cuts away are still drawn: 14.004% of ' +
-      'pixels, worst block 179. clip-path-box holds the rectangular case, which is exact. ' +
-      'Clipping to the path itself wants a coverage mask sampled by every mark shader or a ' +
-      'stencil attachment on every pipeline, which is the same machinery two nested rounded ' +
-      'clips want. It is a vega form drawn differently with nothing said, which is what 2.0.0 ' +
-      'is defined as closing, and it is also the most expensive thing on that list. Nothing in ' +
-      'the spec corpus uses the form, so it is the first candidate if that scope is cut. ' +
-      'See README.md.',
   },
 };

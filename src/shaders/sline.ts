@@ -234,6 +234,13 @@ ${fragmentTail(blend, { main_fragment: 'fragmentColor', main_fragment_gradient: 
  */
 @fragment
 fn main_fragment_mask(in: VertexOutput) -> @location(0) vec4<f32> {
+    // Rejected rather than weighted: the composite that paints this mask
+    // applies the clip itself, so a fraction folded in here squares it and
+    // leaves a clip edge the stroke crosses fainter than canvas draws it. The
+    // read is also what keeps the mask texture in this pipeline's layout.
+    if clipCoverage(in.pos.xy) <= 0.0 {
+        discard;
+    }
     return vec4<f32>(fragmentColor(in).a, 0.0, 0.0, 1.0);
 }
 `;

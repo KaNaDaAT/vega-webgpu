@@ -12,6 +12,7 @@ import { BUTT_END, ROUND_END } from '../util/join.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry, lineSpans } from '../path/shapes.js';
 import {
+  clipMaskView,
   outlinePipelines,
   type OutlinePipelines,
   SEGMENT_STRIDE,
@@ -31,16 +32,31 @@ import {
 
 const drawName = 'Line';
 
+/**
+ * A group 0 bind group kept across draws, with everything it was built from.
+ *
+ * The clip mask belongs in there as much as the buffer and the pipeline do.
+ * The uniform block only says whether a mask is bound, so two marks in one
+ * group that each carry a clip path of their own share a uniform buffer, and
+ * the second was drawn cut by the first one's coverage.
+ */
+interface HeldBindGroup {
+  group: GPUBindGroup;
+  buffer: GPUBuffer;
+  pipeline: GPURenderPipeline;
+  mask: GPUTextureView;
+}
+
 interface LineResources {
   device: GPUDevice;
   bufferManager: BufferManager;
   /** Pipelines for a segment stroke, which is what a plain line is drawn as. */
   outline: OutlinePipelines;
-  segmentBindGroup: { group: GPUBindGroup; buffer: GPUBuffer; pipeline: GPURenderPipeline } | null;
+  segmentBindGroup: HeldBindGroup | null;
   curveVertexManager: VertexBufferManager;
   /** basis and bezier share this layout and differ only in the shader. */
   spanVertexManager: VertexBufferManager;
-  spanBindGroups: Map<string, { group: GPUBindGroup; buffer: GPUBuffer; pipeline: GPURenderPipeline }>;
+  spanBindGroups: Map<string, HeldBindGroup>;
   /** SolidFill for a tessellated curve, one per blend. */
   curvePipelineFor: (blend: string) => GPURenderPipeline;
 }
@@ -104,11 +120,17 @@ function queueSegments(
   // group from the normal pipeline on the blended one, which invalidates the
   // whole command buffer: a scene mixing a blended line with an unblended one
   // came out empty, every mark of it.
+  const mask = clipMaskView(ctx, device);
   const held = res.segmentBindGroup;
   const entry =
-    held !== null && held.buffer === buffer && held.pipeline === pipeline
+    held !== null && held.buffer === buffer && held.pipeline === pipeline && held.mask === mask
       ? held
-      : { group: createUniformBindGroup(drawName, device, pipeline, buffer), buffer, pipeline };
+      : {
+          group: createUniformBindGroup(drawName, device, pipeline, buffer, mask),
+          buffer,
+          pipeline,
+          mask,
+        };
   res.segmentBindGroup = entry;
   ctx._renderQueue.setupBatch({
     device,
@@ -465,9 +487,15 @@ function drawCurve(
   // a bind group belongs to the layout it was made from.
   const buffer = res.bufferManager.sharedUniformBuffer();
   const cacheKey = `${kind}|${blend}`;
+  const mask = clipMaskView(ctx, device);
   let held = res.spanBindGroups.get(cacheKey);
-  if (!held || held.buffer !== buffer || held.pipeline !== pipeline) {
-    held = { group: createUniformBindGroup(`${drawName} ${kind}`, device, pipeline, buffer), buffer, pipeline };
+  if (!held || held.buffer !== buffer || held.pipeline !== pipeline || held.mask !== mask) {
+    held = {
+      group: createUniformBindGroup(`${drawName} ${kind}`, device, pipeline, buffer, mask),
+      buffer,
+      pipeline,
+      mask,
+    };
     res.spanBindGroups.set(cacheKey, held);
   }
   ctx._renderQueue.setupBatch({
@@ -514,7 +542,15 @@ function drawPath(
     pipeline,
     drawCounts: [strokeData.length / res.curveVertexManager.getVertexLength()],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
-    bindGroups: [createUniformBindGroup(`${drawName}Curve`, device, pipeline, res.bufferManager.sharedUniformBuffer())],
+    bindGroups: [
+      createUniformBindGroup(
+        `${drawName}Curve`,
+        device,
+        pipeline,
+        res.bufferManager.sharedUniformBuffer(),
+        clipMaskView(ctx, device),
+      ),
+    ],
     clip,
   });
 }

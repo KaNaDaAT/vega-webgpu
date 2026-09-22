@@ -9,6 +9,7 @@ import { dashPolyline, type Point } from '../util/dash.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
+  clipMaskView,
   GeometryBatch,
   SEGMENT_STRIDE,
   segmentCount,
@@ -40,11 +41,14 @@ import {
 
 const drawName = 'Shape';
 
+const DEG_TO_RAD = Math.PI / 180;
+
 interface ShapeCacheEntry {
   fill: RGBA;
   stroke: RGBA;
   x?: number;
   y?: number;
+  angle?: number;
   bounds?: BoundsSnapshot;
   strokeWidth?: number;
   strokeIsGradient: boolean;
@@ -211,7 +215,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         pipeline,
         drawCounts: [6, run.count, 0, run.start],
         vertexBuffers: [buffer],
-        bindGroups: [createUniformBindGroup(`${drawName}Stroke`, device, pipeline, uniformBuffer)],
+        bindGroups: [
+          createUniformBindGroup(`${drawName}Stroke`, device, pipeline, uniformBuffer, clipMaskView(ctx, device)),
+        ],
         clip,
       });
     }
@@ -235,15 +241,37 @@ function pushOutline(out: OutlineBuffer, item: SceneShapeItem, lines: Point[][])
   out.length = writeSegments(out.reserve(needed), out.length, runs, color, width, caps, join, square);
 }
 
+/**
+ * Contours placed the way the fill is. vega translates to the item and rotates
+ * before it calls the generator and strokes the path it filled, so an outline
+ * walked off the raw contours was drawn at the origin whatever the item's x, y
+ * and angle said.
+ *
+ * Returned untouched where there is nothing to apply, which is every geo
+ * shape, so a choropleth allocates nothing here.
+ */
+function placeLines(item: SceneShapeItem, lines: Point[][]): Point[][] {
+  const dx = item.x || 0;
+  const dy = item.y || 0;
+  const angle = (item.angle || 0) * DEG_TO_RAD;
+  if (dx === 0 && dy === 0 && angle === 0) {
+    return lines;
+  }
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return lines.map(line => line.map(([x, y]): Point => [x * cos - y * sin + dx, x * sin + y * cos + dy]));
+}
+
 /** The drawn runs of one item's outline, or null when it has none. */
 function outlineRuns(item: SceneShapeItem, lines: Point[][]): Point[][] | null {
   if (!item.stroke || (item.strokeWidth ?? 1) <= 0) {
     return null;
   }
+  const placed = placeLines(item, lines);
   const pattern = dashPatternOf(item);
   const runs = pattern
-    ? lines.flatMap(line => dashPolyline(line, pattern, item.strokeDashOffset ?? 0, strokeEnds(item).bridge))
-    : lines;
+    ? placed.flatMap(line => dashPolyline(line, pattern, item.strokeDashOffset ?? 0, strokeEnds(item).bridge))
+    : placed;
   return segmentCount(runs) === 0 ? null : runs;
 }
 
@@ -349,6 +377,7 @@ function createGeometryData(
       item.strokeWidth === entry.strokeWidth &&
       item.x === entry.x &&
       item.y === entry.y &&
+      item.angle === entry.angle &&
       sameBounds(item.bounds, entry.bounds)
     ) {
       // re-insert to keep the map in least-recently-used order
@@ -371,7 +400,7 @@ function createGeometryData(
   // vega translates to the item and rotates before it calls the generator, so
   // a shape given an x, y or angle is drawn there rather than at the origin
   const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom, false, item.x || 0, item.y || 0, {
-    angle: ((item.angle || 0) * Math.PI) / 180,
+    angle: (item.angle || 0) * DEG_TO_RAD,
     scaleX: 1,
     scaleY: 1,
   });
@@ -389,6 +418,7 @@ function createGeometryData(
       stroke,
       x: item.x,
       y: item.y,
+      angle: item.angle,
       bounds: copyBounds(item.bounds),
       strokeWidth: item.strokeWidth,
       strokeIsGradient,

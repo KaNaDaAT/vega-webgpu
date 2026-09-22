@@ -19,6 +19,10 @@ export interface QueueElement {
    * mark's own colour over a copy of the frame (shaders/blendComposite.ts).
    */
   pass?: 'mask' | 'layer';
+  /** Where a mask run draws, for a clip path that needs a target of its own. */
+  maskView?: GPUTextureView;
+  /** Where that run resolves to, where it is multisampled. */
+  maskResolve?: GPUTextureView;
 }
 
 /** Where a frame draws, beyond its own attachment. */
@@ -223,7 +227,9 @@ function encodeSplit(
   for (const q of queue) {
     const kind = q.pass ?? 'frame';
     const last = segments[segments.length - 1];
-    if (last && last.kind === kind) {
+    // A run draws into one target, so two masks with different ones cannot
+    // share a pass however adjacent they are.
+    if (last && last.kind === kind && last.items[0].maskView === q.maskView) {
       last.items.push(q);
     } else {
       segments.push({ kind, items: [q] });
@@ -255,12 +261,18 @@ function encodeSplit(
     return encoder.beginRenderPass(pass);
   };
 
-  const beginRun = (kind: 'mask' | 'layer'): GPURenderPassEncoder => {
+  const beginRun = (kind: 'mask' | 'layer', view?: GPUTextureView, resolve?: GPUTextureView): GPURenderPassEncoder => {
     if (kind === 'mask') {
       return encoder.beginRenderPass({
         label: 'Coverage Mask',
         colorAttachments: [
-          { view: targets.maskView, clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: 'clear', storeOp: 'store' },
+          {
+            view: view ?? targets.maskView,
+            resolveTarget: resolve,
+            clearValue: { r: 0, g: 0, b: 0, a: 0 },
+            loadOp: 'clear',
+            storeOp: 'store',
+          },
         ],
       });
     }
@@ -294,7 +306,7 @@ function encodeSplit(
       continue;
     }
     passEncoder.end();
-    const runPass = beginRun(segment.kind);
+    const runPass = beginRun(segment.kind, segment.items[0].maskView, segment.items[0].maskResolve);
     let runScissored = false;
     for (const q of segment.items) {
       runScissored = encodeDraw(runPass, q, attachmentSize, runScissored);

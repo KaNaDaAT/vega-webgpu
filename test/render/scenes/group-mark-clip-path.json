@@ -1,0 +1,50 @@
+{
+  "description": "A group mark carrying a clip path of its own, which is what `clip: {path}` on a group in a spec parses to. The renderer clips a mark before it draws it whatever the mark is, so the path cuts the group's background and its contents alike. The path is a rounded blob, so a scissor rect cannot state it.",
+  "width": 340,
+  "height": 220,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "group",
+            "role": "mark",
+            "interactive": true,
+            "clip": {
+              "__clipPath__": "M170,20 C250,20 310,70 310,110 C310,150 250,200 170,200 C90,200 30,150 30,110 C30,70 90,20 170,20 Z"
+            },
+            "items": [
+              {
+                "x": 20,
+                "y": 20,
+                "width": 300,
+                "height": 180,
+                "fill": "#eef3f8",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 3,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": true,
+                    "clip": false,
+                    "items": [
+                      { "x": 0, "y": 0, "width": 140, "height": 180, "fill": "#54a24b" },
+                      { "x": 160, "y": 0, "width": 140, "height": 180, "fill": "#e45756" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "description": "A shape mark whose items carry an x, y and angle of their own. vega translates to the item and rotates before it calls the shape generator, and strokes the same path it fills, so the outline has to be placed the way the fill is. The third item is stroke only, where nothing else can cover the outline.",
+  "width": 340,
+  "height": 220,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "shape",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "shape": { "__shapePath__": "M-34,-28 L34,-28 L34,28 L-34,28 Z" },
+                "x": 70,
+                "y": 60,
+                "fill": "#c6dbef",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 6
+              },
+              {
+                "shape": { "__shapePath__": "M-34,-28 L34,-28 L34,28 L-34,28 Z" },
+                "x": 200,
+                "y": 60,
+                "angle": 35,
+                "fill": "#fdd0a2",
+                "stroke": "#e45756",
+                "strokeWidth": 6
+              },
+              {
+                "shape": { "__shapePath__": "M-40,0 L0,-32 L40,0 L0,32 Z" },
+                "x": 120,
+                "y": 155,
+                "angle": 20,
+                "stroke": "#54a24b",
+                "strokeWidth": 8,
+                "strokeJoin": "round"
+              },
+              {
+                "shape": { "__shapePath__": "M-34,-28 L34,-28 L34,28 L-34,28 Z" },
+                "x": 260,
+                "y": 155,
+                "angle": 70,
+                "stroke": "#8a5db0",
+                "strokeWidth": 5,
+                "strokeDash": [14, 8]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -11,6 +11,21 @@ export type ClipRect = [x: number, y: number, width: number, height: number];
 /** Corner radii of a clip, in device pixels, clockwise from the top left. */
 export type ClipRadii = [tl: number, tr: number, br: number, bl: number];
 
+/** A clip path's coverage target: where it is drawn, and where it is read from. */
+export interface ClipMaskTarget {
+  device: GPUDevice;
+  width: number;
+  height: number;
+  samples: number;
+  /** What the mask pass draws into, multisampled where the frame is. */
+  attachment: GPUTextureView;
+  /** Where that pass resolves to, unset when it is single sampled. */
+  resolve?: GPUTextureView;
+  /** The single sampled view a mark shader reads. */
+  read: GPUTextureView;
+  release: () => void;
+}
+
 export interface RenderUniforms {
   resolution: [width: number, height: number];
   origin: readonly [x: number, y: number];
@@ -113,6 +128,8 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
    * above may have narrowed, and the radii to cut at its corners.
    */
   _clipRound?: { box: ClipRect; radii: ClipRadii };
+  /** Coverage of the clip path in force, where the clip is a path rather than a box. */
+  _clipMask?: GPUTextureView;
 
   _renderer: WebGPURenderer;
   _renderQueue: RenderQueue;

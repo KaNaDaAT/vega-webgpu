@@ -6,7 +6,7 @@ import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey } from '../util/blend.js';
-import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
+import { clipMaskView, blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Image';
@@ -283,7 +283,7 @@ function draw(
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
-        createUniformBindGroup(drawName, device, imagePipeline, uniformBuffer),
+        createUniformBindGroup(drawName, device, imagePipeline, uniformBuffer, clipMaskView(ctx, device)),
         getBindGroup(res, image, item.smooth !== false, imagePipeline, blendKey(item.blend)),
       ],
       clip,

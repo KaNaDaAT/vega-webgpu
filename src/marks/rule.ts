@@ -10,6 +10,7 @@ import { createUniformBindGroup } from '../util/webgpu.js';
 import { dashPolyline, type Point } from '../util/dash.js';
 import type { RGBA } from '../util/color.js';
 import {
+  clipMaskView,
   dashPatternOf,
   outlinePipelines,
   type OutlinePipelines,
@@ -125,7 +126,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       pipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
+      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer, clipMaskView(ctx, device))],
       clip,
     });
     run = [];
@@ -168,13 +169,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (!data) {
       continue; // a zero length rule has no segment to draw
     }
-    enqueueOutline(
-      outlineTargetOf(ctx, device, res, uniformBuffer, clip),
-      data,
-      blend,
-      strokeGradient,
-      item.bounds,
-    );
+    enqueueOutline(outlineTargetOf(ctx, device, res, uniformBuffer, clip), data, blend, strokeGradient, item.bounds);
   }
   flushRun();
 }

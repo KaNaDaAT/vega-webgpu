@@ -1,6 +1,10 @@
 import { formatElementCount, formatSize } from './formatSize.js';
 
-function layoutOf(formats: GPUVertexFormat[], stepMode: GPUVertexStepMode, locationOffset: number): GPUVertexBufferLayout {
+function layoutOf(
+  formats: GPUVertexFormat[],
+  stepMode: GPUVertexStepMode,
+  locationOffset: number,
+): GPUVertexBufferLayout {
   const attributes: GPUVertexAttribute[] = [];
   let totalOffset = 0;
   formats.forEach((format, index) => {

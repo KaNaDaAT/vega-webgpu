@@ -66,11 +66,19 @@ An override says "the two renderers legitimately differ here". It is not for a c
 
 ## Skips
 
-A case we know is wrong is skipped with its reason, in `skippedScenes`, and listed here. A skip is loud, an inflated budget is silent.
+A case we know is wrong is skipped with its reason, in `skippedScenes`, and listed here. Two of them. A skip is loud, an inflated budget is silent.
 
-A skip is still drawn, still recorded and still shown. Its three pngs go to `output/` like any other case and its row is in the gallery, badged with the release it is queued for and carrying a banner that says the numbers below it are not held to anything. The test report gets the same milestone as an annotation, and [ToDo.md](../../ToDo.md) lists all four under "Skipped in the render suite". So a skip costs its coverage and nothing else: the difference it names is on screen beside the cases that pass, rather than missing from the run.
+A skip is still drawn, still recorded and still shown. Its three pngs go to `output/` like any other case and its row is in the gallery, badged with the release it is queued for and carrying a banner that says the numbers below it are not held to anything. The test report gets the same milestone as an annotation, and [ToDo.md](../../ToDo.md) lists them under "Skipped in the render suite". So a skip costs its coverage and nothing else: the difference it names is on screen beside the cases that pass, rather than missing from the run.
 
 `upstream` is the milestone for the one skip that is not ours to fix, where canvas is the side that is wrong and matching it would mean copying the defect.
+
+### `clip-path-erase`, 2.1.0
+
+Five of the Porter Duff operators, `source-in`, `destination-in`, `source-out`, `destination-atop` and `copy`, do something to the frame where the source is absent. Their composite therefore runs on every pixel it is scissored to rather than discarding the ones the mark does not cover, and a clip that is a path is only its bounding box to a scissor rect. canvas erases inside the path and leaves everything outside it alone.
+
+Measured on this fixture, a `destination-in` rect inside a rounded blob: 7.330% of pixels differ, the worst tile is 69.9%, the signed mean is 22.08 and the worst block 180.3. What differs is the corners of the path's box, which canvas keeps and this erases.
+
+The clip is applied by the mark that fills the layer, so the layer alpha already carries the coverage, and having the composite apply it again would square it on every blended mark. Confining an erasing operator properly means moving the clip off the mark and onto the composite for the layer route as a whole, which is a change to how every evaluated blend mode is drawn rather than a patch to this one case. A path clip with no blend on it is exact, and so is an erasing operator inside a box clip, which `blend-operators` covers.
 
 ### `gradient-diagonal`, upstream
 
@@ -81,12 +89,6 @@ Measured on this fixture: of the three non-square diagonal rects canvas draws on
 Matching this means deliberately not drawing marks, so it is a decision rather than a fix, and it wants reporting upstream first. A `symbol` reads differently again, drawn everywhere with a ramp that advances with x, which this has not pinned down.
 
 Not ours to fix. The upstream report is the open item in ToDo.md.
-
-### `clip-path-round`, queued for 2.0.0
-
-vega's `clip: {path}` and `clip: {sphere}` forms parse to a generator that draws the clip path, and canvas clips to the path itself. A mark here is held to a scissor rect and nothing else, so the path is taken as its own box and the corners canvas cuts away are still drawn: 14.004% of pixels, a 98.4% worst tile and a worst block of 179. A rectangular clip path is exact and `clip-path-box` gates it, inside a clipped group so the intersection is covered too.
-
-Clipping to the path itself wants a coverage mask sampled by every mark shader, or a stencil attachment on every pipeline. Queued for the release above.
 
 ## Known differences that are gated rather than skipped
 

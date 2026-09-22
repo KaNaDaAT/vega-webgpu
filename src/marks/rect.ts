@@ -9,6 +9,7 @@ import { createGradientBindGroup, getGradientResources } from '../util/gradient.
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
+  clipMaskView,
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
@@ -97,7 +98,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       pipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer)],
+      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer, clipMaskView(ctx, device))],
       clip,
     });
     run = [];
@@ -128,13 +129,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         drawCounts: [6, 1],
         vertexBuffers: [res.geometryBuffer, instanceBuffer],
         bindGroups: [
-          createUniformBindGroup(`${drawName}Gradient`, device, gradientPipeline, uniformBuffer),
-          createGradientBindGroup(
-            gradientResources(),
+          createUniformBindGroup(
+            `${drawName}Gradient`,
+            device,
             gradientPipeline,
-            fill,
-            boxGradientBounds(item as SceneRectExt),
+            uniformBuffer,
+            clipMaskView(ctx, device),
           ),
+          createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item as SceneRectExt)),
         ],
         clip,
       });

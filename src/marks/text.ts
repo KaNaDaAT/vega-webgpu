@@ -20,7 +20,7 @@ import {
 } from '../util/textTexture.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
-import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
+import { clipMaskView, blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
 
 const drawName = 'Text';
 
@@ -267,7 +267,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // a pipeline with a default layout owns its bind group layout, so both groups
   // have to come from the blend variant this mark draws with
   const textPipeline = res.pipelineFor(blendKey(items[0]?.blend));
-  const uniformBindGroup = createUniformBindGroup(drawName, device, textPipeline, uniformBuffer);
+  const uniformBindGroup = createUniformBindGroup(
+    drawName,
+    device,
+    textPipeline,
+    uniformBuffer,
+    clipMaskView(ctx, device),
+  );
 
   // One draw per label, see needsBackdrop. Two overlapping ones show it.
   const perLabel = needsBackdrop(blendKey(items[0]?.blend), ctx._opaqueBackdrop);

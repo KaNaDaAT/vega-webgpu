@@ -1,7 +1,6 @@
 import type { GPUVegaScene } from '../types/context.js';
 import type { SceneItem } from '../types/scene.js';
 
-
 /** Marks whose canvas draw translates to each item and back by the negated offset. */
 const PER_ITEM = new Set(['arc', 'shape', 'symbol', 'path']);
 

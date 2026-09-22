@@ -9,7 +9,7 @@ import { renderScenes } from './scenes.js';
  * per-spec budgets.
  *
  * Three numbers, because they say different things: `diff` is the share of
- * pixels that moved, `max` is how wrong the worst pixel is, and `mean` is the
+ * pixels that moved, `max` is how wrong the worst two-pixel block is, and `mean` is the
  * average error over inked pixels. A soft antialiasing difference shows a high
  * diff and a low max; a misplaced mark shows the reverse.
  *

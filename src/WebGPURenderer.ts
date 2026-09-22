@@ -1,8 +1,14 @@
 import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import { canvasTextDrift } from './util/canvasDrift.js';
 import marks from './marks/index.js';
-import { blendCompositeElement } from './marks/util.js';
-import type { GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene, RenderUniforms } from './types/context.js';
+import { drawClipMask, blendCompositeElement } from './marks/util.js';
+import type {
+  ClipMaskTarget,
+  GPUVegaCanvasContext,
+  GPUVegaOptions,
+  GPUVegaScene,
+  RenderUniforms,
+} from './types/context.js';
 import { Color } from './util/color.js';
 import { GpuTimer } from './util/gpuTimer.js';
 import { RenderQueue, type FrameTargets } from './util/renderQueue.js';
@@ -358,6 +364,10 @@ export default class WebGPURenderer extends Renderer {
     this._backdropTexture = null;
     this._blendTextureDevice = null;
     this._offscreen = { texture: null, device: null };
+    this._clipMasks = [];
+    this._clipMaskNext = 0;
+    this._clipPlaceholder = null;
+    this._clipPlaceholderView = null;
     if (this._ctx) {
       this._ctx._shaderCache = {};
       this._ctx._pipelineCache = {};
@@ -548,6 +558,8 @@ export default class WebGPURenderer extends Renderer {
     // frame gave up part way through one.
     ctx._clip = undefined;
     ctx._clipRound = undefined;
+    ctx._clipMask = undefined;
+    this._clipMaskNext = 0;
     // Read per frame rather than once: vega sets the background after it builds
     // the renderer, and a view can change it later.
     ctx._opaqueBackdrop = (this.clearColor() as GPUColorDict).a >= 1;
@@ -819,6 +831,34 @@ export default class WebGPURenderer extends Renderer {
       console.error(`[vega-webgpu] Unknown mark type: '${scene.marktype}'`);
       return;
     }
+    // A mark can carry a clip of its own, and where that clip is a path it is
+    // a coverage mask. It is drawn here rather than inside the mark because
+    // getMarkResources writes the flag that says a mask is bound, and every
+    // mark calls that before it reaches its own clip.
+    //
+    // A group mark carries one the same way any other mark does, and vega's
+    // renderer clips it here too, before the mark type has been looked at.
+    const outerMask = ctx._clipMask;
+    const own = (scene as { clip?: unknown }).clip;
+    if (typeof own === 'function') {
+      ctx._clipMask = drawClipMask(device, ctx, own as (c?: unknown) => unknown, bounds) ?? outerMask;
+    }
+    try {
+      this.drawMark(mark, device, ctx, scene, bounds, markTypes);
+    } finally {
+      ctx._clipMask = outerMask;
+    }
+  }
+
+  /** The mark's own draw, timed when a benchmark has asked for it. */
+  private drawMark(
+    mark: (typeof marks)[string],
+    device: GPUDevice,
+    ctx: GPUVegaCanvasContext,
+    scene: GPUVegaScene,
+    bounds: Bounds,
+    markTypes?: string[],
+  ): void {
     if (this.markTimings) {
       const t0 = performance.now();
       mark.draw.call(this, device, ctx, scene, bounds, markTypes);
@@ -828,6 +868,100 @@ export default class WebGPURenderer extends Renderer {
     }
     mark.draw.call(this, device, ctx, scene, bounds, markTypes);
   }
+
+  /**
+   * A 1x1 texture bound wherever a mark has no clip path, so the mask binding
+   * is always satisfiable. Nothing reads it: the uniform flag is what decides
+   * whether the shader looks at the mask at all.
+   */
+  clipMaskPlaceholder(device: GPUDevice): GPUTexture {
+    if (!this._clipPlaceholder || this._clipPlaceholder.device !== device) {
+      this._clipPlaceholder?.texture.destroy();
+      const texture = device.createTexture({
+        label: 'Clip Mask Placeholder',
+        size: [1, 1, 1],
+        format: 'r8unorm',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+      });
+      this._clipPlaceholder = { device, texture };
+      this._clipPlaceholderView = null;
+    }
+    return this._clipPlaceholder.texture;
+  }
+
+  /**
+   * A coverage target for one clip path, which has to survive while every mark
+   * inside that clip draws. The stroke mask is one texture cleared by each
+   * pass, so a clip cannot share it: two clipped groups in a frame would
+   * overwrite each other before either one's marks were encoded.
+   *
+   * Pooled by index and reset per frame, so a scene with the same clips each
+   * frame allocates nothing after the first.
+   */
+  acquireClipMask(device: GPUDevice, samples: number): ClipMaskTarget | null {
+    const canvas = this._canvas;
+    if (!canvas) {
+      return null;
+    }
+    const [w, h] = [canvas.width, canvas.height];
+    const held = this._clipMasks[this._clipMaskNext];
+    if (held && held.device === device && held.width === w && held.height === h && held.samples === samples) {
+      this._clipMaskNext++;
+      return held;
+    }
+    held?.release();
+    const resolved = device.createTexture({
+      label: `Clip Mask ${this._clipMaskNext}`,
+      size: [w, h, 1],
+      format: 'r8unorm',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    // Coverage of a filled path comes from rasterization rather than from a
+    // distance function, so a single sampled mask cuts with a hard edge where
+    // canvas antialiases the clip. Multisampled and resolved, it carries the
+    // same quarter steps every other triangulated edge does.
+    const multi =
+      samples > 1
+        ? device.createTexture({
+            label: `Clip Mask ${this._clipMaskNext} MSAA`,
+            size: [w, h, 1],
+            format: 'r8unorm',
+            sampleCount: samples,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+          })
+        : null;
+    const entry: ClipMaskTarget = {
+      device,
+      width: w,
+      height: h,
+      samples,
+      attachment: (multi ?? resolved).createView(),
+      resolve: multi ? resolved.createView() : undefined,
+      read: resolved.createView(),
+      release: () => {
+        resolved.destroy();
+        multi?.destroy();
+      },
+    };
+    this._clipMasks[this._clipMaskNext] = entry;
+    this._clipMaskNext++;
+    return entry;
+  }
+
+  private _clipMasks: ClipMaskTarget[] = [];
+  private _clipMaskNext = 0;
+
+  /** The placeholder's view, held so a bind group per draw does not build one. */
+  clipMaskPlaceholderView(device: GPUDevice): GPUTextureView {
+    const texture = this.clipMaskPlaceholder(device);
+    if (!this._clipPlaceholderView || this._clipPlaceholder?.texture !== texture) {
+      this._clipPlaceholderView = texture.createView();
+    }
+    return this._clipPlaceholderView;
+  }
+
+  private _clipPlaceholder: { device: GPUDevice; texture: GPUTexture } | null = null;
+  private _clipPlaceholderView: GPUTextureView | null = null;
 
   /**
    * Single sampled coverage target, for a stroke that has to be composited as

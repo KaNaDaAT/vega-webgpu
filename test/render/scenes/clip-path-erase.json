@@ -1,0 +1,37 @@
+{
+  "description": "An erasing compositing operator inside a clip path. destination-in does something to the frame where the source is absent, so the composite runs on every pixel it is scissored to rather than discarding them, and a clip path is only a box to a scissor rect. What canvas leaves alone is everything outside the path.",
+  "width": 320,
+  "height": 200,
+  "origin": [0, 0],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [{ "x": 20, "y": 20, "width": 280, "height": 160, "fill": "#54a24b" }]
+          },
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": {
+              "__clipPath__": "M160,40 C215,40 250,70 250,100 C250,130 215,160 160,160 C105,160 70,130 70,100 C70,70 105,40 160,40 Z"
+            },
+            "items": [
+              { "x": 100, "y": 60, "width": 120, "height": 80, "fill": "#4c78a8", "blend": "destination-in" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

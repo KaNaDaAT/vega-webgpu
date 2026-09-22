@@ -53,6 +53,7 @@ export class BufferManager {
   private dpi = 1;
   private clip: [number, number, number, number] = [0, 0, 0, 0];
   private clipRadii: [number, number, number, number] = [0, 0, 0, 0];
+  private clipMask: [number, number, number, number] = [0, 0, 0, 0];
 
   constructor(
     device: GPUDevice,
@@ -174,8 +175,27 @@ export class BufferManager {
     this.clipRadii = [radii?.[0] ?? 0, radii?.[1] ?? 0, radii?.[2] ?? 0, radii?.[3] ?? 0];
   }
 
+  /**
+   * Whether a clip path's coverage mask is bound and should be read. The mask
+   * itself is a texture binding, and this is what tells the shader to look at
+   * it rather than at the placeholder bound when there is no path clip.
+   */
+  setClipMask(on: boolean): void {
+    this.clipMask = [on ? 1 : 0, 0, 0, 0];
+  }
+
   /** The shared uniform block: resolution, group offset and device pixel ratio. */
   private uniformValues(): Float32Array {
-    return new Float32Array([...this.resolution, ...this.offset, ...this.clip, ...this.clipRadii, this.dpi, 0, 0, 0]);
+    return new Float32Array([
+      ...this.resolution,
+      ...this.offset,
+      ...this.clip,
+      ...this.clipRadii,
+      ...this.clipMask,
+      this.dpi,
+      0,
+      0,
+      0,
+    ]);
   }
 }
