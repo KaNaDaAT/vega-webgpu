@@ -65,9 +65,17 @@ function paintKey(paint: unknown): string {
  * which the shader applies). `radius`/`theta` are not included, because they
  * only move the anchor in scene space and cancel out of the anchor-relative
  * offset. `angle` is, and is zero for a glyph the quad will turn instead.
+ *
+ * A label is rasterized by vega's own canvas text mark, so everything its
+ * stroke helper sets belongs here: the dash, its offset, the cap, the join and
+ * the miter limit all change the glyph pixels, and the join and the limit
+ * change the cell size `strokeReach` asks for as well.
  */
 export function textCacheKey(item: SceneTextItem): string {
-  const text = Array.isArray(item.text) ? item.text.join('') : String(item.text ?? '');
+  // vega draws an array as one line per entry and a string as one line, so
+  // an array and its concatenation are two different pictures. Joined with
+  // nothing they were one key and the second label reused the first raster.
+  const text = Array.isArray(item.text) ? JSON.stringify(item.text) : String(item.text ?? '');
   return [
     text,
     item.font,
@@ -85,6 +93,11 @@ export function textCacheKey(item: SceneTextItem): string {
     paintKey(item.stroke),
     item.strokeOpacity,
     item.strokeWidth,
+    item.strokeCap,
+    item.strokeJoin,
+    item.strokeMiterLimit,
+    String(item.strokeDash),
+    item.strokeDashOffset,
     item.lineBreak,
     item.lineHeight,
     item.limit,

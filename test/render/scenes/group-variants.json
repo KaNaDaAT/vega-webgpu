@@ -1,5 +1,5 @@
 {
-  "description": "Every paint group takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
+  "description": "Every way a group border can draw, over a solid fill: no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. There is no gradient fill row, because boundMark inflates a group item's bounds in a serialized scenegraph and canvas maps a ramp onto those, so the row would compare two different boxes rather than two renderers. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
   "width": 680,
   "height": 124,
   "origin": [

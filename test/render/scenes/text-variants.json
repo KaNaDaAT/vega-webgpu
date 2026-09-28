@@ -73,7 +73,11 @@
                 "fontSize": 16,
                 "fill": "#9ecae9",
                 "stroke": "#2b5d8a",
-                "strokeWidth": 4
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
               },
               {
                 "x": 458,
@@ -99,7 +103,11 @@
                     }
                   ]
                 },
-                "strokeWidth": 4
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
               },
               {
                 "x": 566,
@@ -110,6 +118,10 @@
                 "fill": "#9ecae9",
                 "stroke": "#2b5d8a",
                 "strokeWidth": 5,
+                "strokeDash": [
+                  11,
+                  9
+                ],
                 "strokeCap": "square",
                 "strokeJoin": "bevel"
               },
@@ -245,7 +257,11 @@
                   ]
                 },
                 "stroke": "#2b5d8a",
-                "strokeWidth": 4
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
               },
               {
                 "x": 458,
@@ -291,7 +307,11 @@
                     }
                   ]
                 },
-                "strokeWidth": 4
+                "strokeWidth": 4,
+                "strokeDash": [
+                  9,
+                  7
+                ]
               },
               {
                 "x": 566,
@@ -322,6 +342,10 @@
                 },
                 "stroke": "#2b5d8a",
                 "strokeWidth": 5,
+                "strokeDash": [
+                  11,
+                  9
+                ],
                 "strokeCap": "square",
                 "strokeJoin": "bevel"
               }

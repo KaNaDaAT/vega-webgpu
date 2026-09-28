@@ -40,14 +40,23 @@ const cell = (i, j) => [16 + j * CELL_W, 16 + i * CELL_H];
 const size = (rows, cols) => [32 + cols * CELL_W, 32 + rows * CELL_H];
 const mark = (marktype, items) => ({ marktype, role: 'mark', interactive: true, clip: false, items });
 
-function write(name, rows, marks, what) {
+const COLUMNS = 'no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap';
+const WHY =
+  'One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.';
+
+/**
+ * Writes one grid. `lead` says what the grid holds, and defaults to the two
+ * fill rows against the six stroke columns. Three of the marks do not have
+ * that shape and pass their own, because a description that claims a row or a
+ * column the fixture does not draw is a fixture nobody can check against.
+ */
+function write(name, rows, marks, what, lead) {
   const [width, height] = size(rows, STROKES.length);
+  const says =
+    lead ??
+    `Every paint ${what} takes crossed with every way its stroke can draw: solid and gradient fills against ${COLUMNS}.`;
   const doc = {
-    description:
-      `Every paint ${what} takes crossed with every way its stroke can draw: solid and ` +
-      'gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and ' +
-      'a dashed square cap. One property at a time is what let a rect with a gradient ' +
-      'fill and a walked border go wrong unseen.',
+    description: `${says} ${WHY}`,
     width, height, origin: [0, 0],
     scene: {
       marktype: 'group', name: 'root', role: 'frame', interactive: true, clip: false,
@@ -59,7 +68,7 @@ function write(name, rows, marks, what) {
 }
 
 /** A mark drawn one item per cell. */
-function perItem(type, build, fills = FILLS) {
+function perItem(type, build, fills = FILLS, lead) {
   const items = [];
   fills.forEach((fill, i) =>
     STROKES.forEach((stroke, j) => {
@@ -67,11 +76,11 @@ function perItem(type, build, fills = FILLS) {
       items.push(build(x, y, fill, stroke));
     }),
   );
-  write(`${type}-variants`, fills.length, [mark(type, items)], type);
+  write(`${type}-variants`, fills.length, [mark(type, items)], type, lead);
 }
 
 /** A mark whose items are one shape, so one mark instance per cell. */
-function perMark(type, points, fills = FILLS) {
+function perMark(type, points, fills = FILLS, lead) {
   const marks = [];
   fills.forEach((fill, i) =>
     STROKES.forEach((stroke, j) => {
@@ -79,7 +88,7 @@ function perMark(type, points, fills = FILLS) {
       marks.push(mark(type, points(x, y, fill, stroke)));
     }),
   );
-  write(`${type}-variants`, fills.length, marks, type);
+  write(`${type}-variants`, fills.length, marks, type, lead);
 }
 
 perItem('arc', (x, y, fill, s) => ({
@@ -92,10 +101,13 @@ perItem('symbol', (x, y, fill, s) => ({ x: x + 44, y: y + 42, size: 1800, shape:
 perItem('path', (x, y, fill, s) => ({
   x: x + 10, y: y + 12, path: 'M0,56 L22,8 L44,56 L66,8 L86,56 Z', fill, ...s,
 }));
-perItem('text', (x, y, fill, s) => {
-  const { strokeDash: _dash, ...rest } = s;
-  return { x: x + 10, y: y + 56, text: 'Ag', font: 'sans-serif', fontSize: 16, fill, ...rest };
-});
+// A label is rasterized by vega's own text mark, so it dashes a stroke like
+// any other. The dash columns were dropped here once, which made four of the
+// twelve cells a copy of another four and hid a glyph cache key that left the
+// dash, the cap and the join out of it.
+perItem('text', (x, y, fill, s) => ({
+  x: x + 10, y: y + 56, text: 'Ag', font: 'sans-serif', fontSize: 16, fill, ...s,
+}));
 
 const span = (n, f) => Array.from({ length: n }, (_, k) => f(k));
 perMark('area', (x, y, fill, s) =>
@@ -117,6 +129,9 @@ perMark(
       ...(Object.keys(s).length ? s : { stroke: SOLID_S, strokeWidth: 4 }),
     })),
   [SOLID_F],
+  'Every way a line can draw its stroke: a solid one, a ramp, a dash, a dashed ramp, and a ' +
+    'dashed square cap. A line takes no fill, so there is no paint to cross the columns with, ' +
+    'and one with no stroke draws nothing, so the first column repeats the solid one.',
 );
 
 // rule has no fill, so its grid is the stroke kinds at two angles
@@ -128,14 +143,29 @@ const rules = [];
     rules.push({ x: x + 12, y: y + 20, x2: x + 12 + dx, y2: y + 20 + dy, ...s });
   }),
 );
-write('rule-variants', 2, [mark('rule', rules)], 'rule');
+write(
+  'rule-variants',
+  2,
+  [mark('rule', rules)],
+  'rule',
+  'Every way a rule can draw its stroke, axis aligned on the top row and diagonal below: a ' +
+    'solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. A rule takes no fill ' +
+    'and cannot draw with no stroke, so the first column is empty.',
+);
 
-// Solid fill only: boundMark inflates a group item's bounds in a serialized
-// scenegraph, and canvas maps a gradient onto those, so a gradient row would
-// compare two different boxes rather than two renderers.
+// Solid fill only, for the reason the description gives.
 const groups = [];
 STROKES.forEach((s, j) => {
   const [x, y] = cell(0, j);
   groups.push({ x: x + 10, y: y + 10, width: 76, height: 64, cornerRadius: 5, fill: SOLID_F, ...s, items: [] });
 });
-write('group-variants', 1, [mark('group', groups)], 'group');
+write(
+  'group-variants',
+  1,
+  [mark('group', groups)],
+  'group',
+  'Every way a group border can draw, over a solid fill: no stroke, a solid one, a ramp, a ' +
+    'dash, a dashed ramp, and a dashed square cap. There is no gradient fill row, because ' +
+    'boundMark inflates a group item\'s bounds in a serialized scenegraph and canvas maps a ' +
+    'ramp onto those, so the row would compare two different boxes rather than two renderers.',
+);

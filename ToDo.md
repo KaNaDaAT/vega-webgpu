@@ -32,7 +32,7 @@ Two fixtures are recorded and shown but not gated. A skip is the alternative to 
 
 `gradient-diagonal` is not ours: matching canvas there would mean deliberately not drawing marks, so it wants the upstream report below rather than a fix here.
 
-Eight more specs skip on a run, and none of them is a defect. They are the diagnostics that only run when asked: five under `WEBGPU_BENCH`, one under `WEBGPU_FIDELITY` and one under `WEBGPU_DIAGNOSE`, plus the half pixel baseline case in `textdrift.spec.ts`, which has nothing to reproduce at an even pixel ratio and so skips at dpr 2 only. A full run reports 10 skipped at dpr 1 and 11 at dpr 2, and two of those are the table above.
+Eight more specs skip on a run, and none of them is a defect. They are the diagnostics that only run when asked: six under `WEBGPU_BENCH`, one under `WEBGPU_FIDELITY` and one under `WEBGPU_DIAGNOSE`. A ninth is the half pixel baseline case in `textdrift.spec.ts`, which has nothing to reproduce at an even pixel ratio and so skips at dpr 2 only. A full run reports 10 skipped at dpr 1 and 11 at dpr 2, and two of those are the table above.
 
 ## Open: needed for 2.0.0
 

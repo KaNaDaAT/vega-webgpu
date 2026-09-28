@@ -61,10 +61,16 @@ function vegaRoot() {
 }
 
 const schema = JSON.parse(readFileSync(join(vegaRoot(), 'build', 'vega-schema.json'), 'utf8'));
+// align and baseline are here for the fixture coverage check in
+// test/render/scene.spec.ts rather than for the page, which has no picker for
+// either: they are text and image properties rather than properties every mark
+// takes, so the playground's table cannot carry them.
 const enums = {
   blend: valueEnum(schema, 'blendValue'),
   strokeCap: valueEnum(schema, 'strokeCapValue'),
   strokeJoin: valueEnum(schema, 'strokeJoinValue'),
+  align: valueEnum(schema, 'alignValue'),
+  baseline: valueEnum(schema, 'baselineValue'),
 };
 
 const body =

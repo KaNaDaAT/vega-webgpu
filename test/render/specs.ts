@@ -59,8 +59,9 @@ export const specCases: SpecCase[] = [...renderSpecs.map(spec => ({ name: spec, 
  * Densest 32px square of difference a spec may have, as a fraction of that
  * square. The whole-image percentage is diluted by however much of a spec is
  * empty or flat, so a small region that is badly wrong reads like a faint haze
- * over everything. The worst observed is 23%, so this only catches a gross
- * localized failure the percentage would hide, and needs no per-spec list.
+ * over everything. The worst gated case is `map-fit` at 23.7%, so this only
+ * catches a gross localized failure the percentage would hide, and needs no
+ * per-spec list.
  */
 export const TILE_CHECK_DEFAULT = 0.35;
 
@@ -106,14 +107,15 @@ export const MEAN_DELTA_DEFAULT = 10;
  * Dropping the edges drops the reason the budget above has to be loose. What is
  * left is mark interiors, where the two rasterizers agree to within rounding,
  * so this holds a far tighter number: over the corpus the worst is 1.55 against
- * a mean of up to 12.9, and it catches a 5 level colour error where the mean
+ * a mean of up to 13.09, and it catches a 5 level colour error where the mean
  * needs about 12.
  *
  * It does not apply everywhere, which is what the sample floor is for. Chart
- * ink is mostly edges: text and thin lines have no flat interior at all, and 29
- * of 132 pairs cannot fill the sample, so those keep the mean alone. This is
- * Skia Gold's Sobel matcher in miniature, which masks edges before diffing for
- * the same reason.
+ * ink is mostly edges: text and thin lines have no flat interior at all, and 37
+ * of the 191 gated pairs cannot fill the sample at dpr 1, so those keep the
+ * mean alone. A finer grid splits the same marks into more pixels and only 10
+ * fall short at dpr 2. This is Skia Gold's Sobel matcher in miniature, which
+ * masks edges before diffing for the same reason.
  */
 export const FLAT_MEAN_DEFAULT = 3;
 
@@ -123,8 +125,8 @@ export const FLAT_MEAN_DEFAULT = 3;
  * edges, because legitimate antialiasing differences there are larger than it:
  * text and thin lines sit at a floor of about 12 levels. A systematic error
  * shifts every pixel the same way and a coverage difference does not, so the
- * signed mean separates them, and 102 of the 145 cases in the corpus sit under
- * 0.5 of a level on it.
+ * signed mean separates them, and 145 of the 191 gated cases sit under 0.5 of a
+ * level on it.
  *
  * What is over it is known and listed below. Two populations: the polygon seam
  * model, where canvas leaves a pale line on a shared edge and one multisampled
@@ -169,7 +171,7 @@ export const FLAT_MIN_SAMPLE = 1000;
  * Every one of the six is a comparison, so two renders that both draw nothing
  * agree perfectly and the case goes green having tested nothing: a fixture
  * whose url 404s, a spec whose data fails to parse, or a mark dropped in both
- * renderers all pass silently. Over the 177 cases in the corpus the least
+ * renderers all pass silently. Over the 193 cases in the corpus the least
  * inked is `rule-degenerate` at 1.60%, and `panzoom` is the sparsest spec at
  * 1.70%, so this sits a third of the way under the real floor and only fires
  * on a case that is effectively blank.
@@ -186,18 +188,16 @@ export const flatMeanDeltaOverrides: Record<string, number> = {};
  */
 export const meanDeltaOverrides: Record<string, number> = {
   // Curve construction still differs from canvas.
-  'line-curves': 26, // 12.9
+  'line-curves': 26, // 13.09 at dpr 1, 7.15 at dpr 2
 
   // Geographic outlines: the seam between abutting fills is most of the ink.
-  'map-fit-stroked': 25, // 12.3
-  'map-fit': 21, // 10.1
-  'choropleth-stroked': 18, // 8.6
-  choropleth: 13, // 6.3
+  'map-fit': 21, // 10.42 at dpr 1, 5.89 at dpr 2
+  'map-fit-stroked': 21, // 10.10 at dpr 1, 5.59 at dpr 2
+  'choropleth-stroked': 16, // 8.02 at dpr 1, 3.18 at dpr 2
+  choropleth: 13, // 6.31 at dpr 1, 3.24 at dpr 2
 
   // GPU text, many small labels each carrying its own glyph fringe.
-  'layout-wrap': 15, // 7.4
-  regression: 15, // 7.3
-  barley: 13, // 6.4
+  regression: 15, // 7.19 at dpr 1, 5.21 at dpr 2
 };
 
 /**
@@ -228,40 +228,29 @@ export const ciTileOverrides: Record<string, number> = {
 
 /**
  * Measured locally, then given roughly 2x headroom because CI renders on a
- * different font stack and shifts glyph antialiasing. Tighten each toward the
- * default as the underlying gap closes. `null` skips the comparison.
+ * different font stack and shifts glyph antialiasing. `null` skips the
+ * comparison.
+ *
+ * An entry that loosens the default stays only while its case has under 1.5x
+ * headroom under it, since holding a spec to within a few percent of what it
+ * reads is a flake rather than a gate. Everything else goes, whatever it once
+ * needed: a budget left far above what its case measures cannot tell a
+ * legitimate difference from a defect. An entry that tightens the default is a
+ * separate thing and says so. Both readings are noted, because the worse of the
+ * two ratios is what the one number has to cover.
  */
 export const crossCheckOverrides: Record<string, number | null> = {
   // The four labels of `label` that sit on a half pixel, which is what the
   // drift option exists for. With it on they land on canvas's rows and what
   // is left is the glyph fringe, so the two readings are gated apart rather
   // than both sitting under the default.
-  label: 0.002, // 0.110%
-  'label-drift': 0.0002, // 0.003%
+  label: 0.002, // 0.110% at dpr 1, 0.000% at dpr 2
+  'label-drift': 0.0002, // 0.003% at dpr 1, 0.000% at dpr 2
 
-  // Curve construction still differs from canvas on these.
-  'contour-scatter': 0.05, // ~2.5%
-  'scatter-plot-contours': 0.015, // ~0.4%
-
-  // GPU text: each label is rasterized to a texture whose glyph-edge
-  // antialiasing differs subtly from canvas's direct drawing, and across many
-  // small labels the fringe accumulates. Position, shape and rotation are all
-  // correct. (roadmap: SDF/atlas text to close the residual fringe.)
-  'legends-symbol': 0.03, // ~1.4%
-  'nested-plot': 0.025, // ~1.2%
-  'arc-diagram': 0.025, // ~1.1%, rotated radial labels
-  'layout-wrap': 0.02, // ~0.8%
-  'dot-plot': 0.02, // ~0.8%
-  barley: 0.02, // ~0.7%
-  regression: 0.015, // ~0.5%
-
-  // Geographic outlines, see the roadmap.
-  'map-point-radius': 0.03, // ~1.5%
-  choropleth: 0.02, // ~0.8%
-  'map-bind': 0.015, // ~0.7%
-  'map-fit': 0.012, // ~0.5%
-
-  // Radial link curves.
-  'tree-radial': 0.012, // ~0.5%
-  'tree-radial-bundle': 0.012, // ~0.5%
+  // The three that are inside the default with under 1.5x of room, so a
+  // rasterizer that antialiases differently would fail a case that is not
+  // wrong. The twelve entries the text and curve work closed are gone.
+  choropleth: 0.016, // 0.770% at dpr 1, 0.363% at dpr 2: the seam between abutting fills
+  'dot-plot': 0.014, // 0.494% at dpr 1, 0.673% at dpr 2: many small labels, each with its own glyph fringe
+  'map-point-radius': 0.013, // 0.635% at dpr 1, 0.372% at dpr 2: geographic outlines
 };

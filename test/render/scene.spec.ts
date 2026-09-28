@@ -67,10 +67,10 @@ function valuesInFixtures(props: string[]): Record<string, Set<string>> {
  * to hold them to. See README.md.
  */
 test('every value vega enumerates is drawn by some fixture', () => {
-  // align, baseline, direction, orient and fontWeight are listed for the axis,
-  // legend and title as well as for a mark, and a fixture is a mark, so what
-  // is checked here is the three that are mark properties throughout.
-  const props = ['blend', 'strokeCap', 'strokeJoin'];
+  // The schema enumerates nine properties. `anchor`, `direction` and `orient`
+  // belong to a title, a legend or an axis rather than to a mark, and
+  // `fontWeight` is a mark property no fixture covers: see README.md.
+  const props = ['blend', 'strokeCap', 'strokeJoin', 'align', 'baseline'];
   const seen = valuesInFixtures(props);
   for (const prop of props) {
     const missing = (enums[prop] ?? []).filter(v => !seen[prop].has(v));

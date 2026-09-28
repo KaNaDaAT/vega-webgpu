@@ -1,5 +1,5 @@
 {
-  "description": "Every paint rule takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
+  "description": "Every way a rule can draw its stroke, axis aligned on the top row and diagonal below: a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. A rule takes no fill and cannot draw with no stroke, so the first column is empty. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
   "width": 680,
   "height": 216,
   "origin": [

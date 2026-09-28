@@ -22,4 +22,6 @@ export const VEGA_ENUMS = {
   ],
   strokeCap: ['butt', 'round', 'square'],
   strokeJoin: ['miter', 'round', 'bevel'],
+  align: ['left', 'right', 'center'],
+  baseline: ['top', 'middle', 'bottom', 'alphabetic'],
 };

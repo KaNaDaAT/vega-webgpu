@@ -28,7 +28,7 @@ export const SCENE_CHECK_DEFAULT = 0.002;
 export const sceneCheckOverrides: Record<string, number | null> = {
   // Six dashed and capped borders on a corner radius, which is where the dash
   // phase around a curve differs. group-corner-dash carries the same cause.
-  'group-variants': 0.004, // 0.230%
+  'group-variants': 0.004, // 0.230% at dpr 1, 0.019% at dpr 2
 };
 
 /**
@@ -57,7 +57,7 @@ export const sceneFlatMeanOverrides: Record<string, number> = {};
 /** Per-fixture mean channel error, roughly 2x the local measurement. */
 export const sceneMeanDeltaOverrides: Record<string, number> = {
   // both renderers approximate a slanted edge, see the note below
-  'rule-diagonals': 26, // 12.6
+  'rule-diagonals': 26, // 12.64 at dpr 1, 6.99 at dpr 2
 };
 
 /**
@@ -70,6 +70,10 @@ export const sceneMeanDeltaOverrides: Record<string, number> = {
  * for the finer grid and 4 more for CI, because one antialiased edge pixel
  * landing the other side of a rounding boundary reads 255 on a render that is
  * otherwise exact.
+ *
+ * The worst gated fixture is `line-interpolate` at 61.8, and 57.5 at dpr 2, so
+ * this is close enough to what the corpus reads to catch a mark drawn in the
+ * wrong place or the wrong colour without a per-fixture list.
  */
 export const QUAD_DELTA_DEFAULT = 70;
 

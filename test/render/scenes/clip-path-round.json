@@ -1,5 +1,5 @@
 {
-  "description": "A mark clipped by a path that is not a rectangle. canvas clips to the path, and a scissor rect can only state its box, so the four corners canvas cuts away are still drawn. Skipped, see README.md.",
+  "description": "A mark clipped by a path that is not a rectangle. canvas clips to the path, and a scissor rect can only state its box, so the four corners it cuts away are taken off by a coverage mask instead. Gated since the mask landed: dropping the mask reads 14.004% of pixels against this.",
   "width": 320,
   "height": 220,
   "origin": [0, 0],

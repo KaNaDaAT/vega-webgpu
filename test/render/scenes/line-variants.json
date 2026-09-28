@@ -1,5 +1,5 @@
 {
-  "description": "Every paint line takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
+  "description": "Every way a line can draw its stroke: a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. A line takes no fill, so there is no paint to cross the columns with, and one with no stroke draws nothing, so the first column repeats the solid one. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
   "width": 680,
   "height": 124,
   "origin": [
