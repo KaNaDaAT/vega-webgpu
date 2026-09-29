@@ -26,6 +26,12 @@ export const SCENE_CHECK_DEFAULT = 0.002;
 
 /** Per-fixture budgets. `null` skips the comparison. */
 export const sceneCheckOverrides: Record<string, number | null> = {
+  // A dash walked around a scaled curve, where the phase differs the way it
+  // does on group-corner-dash. The same four paths undashed are
+  // path-transforms and read 0.011% and 0.031%, so the exemption covers the
+  // dash and nothing else. Interiors are exact at both ratios (flat 0.00) and
+  // the worst block is 50.3 against a default of 70.
+  'path-transforms-dashed': 0.005, // 0.195% at dpr 1, 0.357% at dpr 2
   // Six dashed and capped borders on a corner radius, which is where the dash
   // phase around a curve differs. group-corner-dash carries the same cause.
   'group-variants': 0.004, // 0.230% at dpr 1, 0.019% at dpr 2

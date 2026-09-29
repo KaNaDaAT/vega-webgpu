@@ -1,0 +1,91 @@
+{
+  "description": "The same scaled paths with a dashed outline, which is walked rather than extruded. Held apart from path-transforms because the dash phase around a scaled curve is where the two renderers differ, and keeping it here leaves the solid cases gated at the default.",
+  "width": 560,
+  "height": 140,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 70,
+                "y": 70,
+                "path": "M0,-40 C22,-40 40,-22 40,0 C40,22 22,40 0,40 C-22,40 -40,22 -40,0 C-40,-22 -22,-40 0,-40 Z",
+                "scaleX": 0.6,
+                "scaleY": 1.35,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 6,
+                "strokeDash": [
+                  10,
+                  6
+                ]
+              },
+              {
+                "x": 210,
+                "y": 70,
+                "path": "M0,-40 C22,-40 40,-22 40,0 C40,22 22,40 0,40 C-22,40 -40,22 -40,0 C-40,-22 -22,-40 0,-40 Z",
+                "scaleX": 0.6,
+                "scaleY": 1.35,
+                "angle": 35,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5,
+                "strokeDash": [
+                  8,
+                  5
+                ],
+                "strokeCap": "round"
+              },
+              {
+                "x": 350,
+                "y": 70,
+                "path": "M-34,-26 L34,-26 L18,26 L-18,26 Z",
+                "scaleX": 1.6,
+                "scaleY": 0.55,
+                "angle": 20,
+                "stroke": "#2b5d8a",
+                "strokeWidth": 7,
+                "strokeDash": [
+                  12,
+                  5
+                ],
+                "strokeJoin": "bevel"
+              },
+              {
+                "x": 490,
+                "y": 70,
+                "path": "M-36,0 A36,18 30 1 1 36,0 A36,18 30 1 1 -36,0 Z",
+                "scaleX": 1.5,
+                "scaleY": 0.7,
+                "stroke": "#7a2b2b",
+                "strokeWidth": 4,
+                "strokeDash": [
+                  6,
+                  4
+                ]
+              }
+            ]
+          }
+        ],
+        "x": 0,
+        "y": 0,
+        "width": 560,
+        "height": 140
+      }
+    ]
+  }
+}

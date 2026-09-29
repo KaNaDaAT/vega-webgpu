@@ -33,7 +33,7 @@ let warnedPath = false;
  * and repeats and all, for the one caller that wants it: see the fallback in
  * geometryForPath.
  */
-function contoursOf(path: string, scale: number, subdivideStraight = false): Point[][] {
+function contoursOf(path: string, scale: number, subdivideStraight = false, scaleX = 1, scaleY = 1): Point[][] {
   const out: Point[][] = [];
   let points: Point[] = [];
   let px = 0;
@@ -101,6 +101,10 @@ function contoursOf(path: string, scale: number, subdivideStraight = false): Poi
       },
     },
     commands,
+    0,
+    0,
+    scaleX,
+    scaleY,
   );
   flush();
   return out;
@@ -163,6 +167,8 @@ export default function geometryForPath(
   context: GPUVegaCanvasContext,
   path: string | null | undefined,
   scale?: number,
+  scaleX = 1,
+  scaleY = 1,
 ): PathGeometry {
   if (!path) {
     return EMPTY;
@@ -175,14 +181,14 @@ export default function geometryForPath(
   const dpi = context._uniforms.dpi || 1;
   const flatness = scale ?? CURVE_FLATNESS * dpi;
 
-  const cacheKey = `${flatness}|${path}`;
+  const cacheKey = `${flatness}|${scaleX}|${scaleY}|${path}`;
   const cached = context._pathCache[cacheKey];
   if (cached !== undefined) {
     return cached;
   }
 
   // get a list of polylines/contours from svg contents
-  const flat = contoursOf(path, flatness);
+  const flat = contoursOf(path, flatness, false, scaleX, scaleY);
   let lines = flat.map(contour => simplify(contour, CURVE_TOLERANCE));
 
   // Simplifying can nudge a contour into a self intersection, which tess2

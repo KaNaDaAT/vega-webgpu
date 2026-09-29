@@ -1,0 +1,78 @@
+{
+  "description": "A non-uniform scaleX and scaleY meeting a stroke, an angle and a sharp miter, none of which any other fixture combines: path-shapes scales one fill-only item and rotates a different one. vega scales the path commands inside pathRender and rotates the context around them, so the scale belongs to the geometry rather than to a transform applied after it. The last cell is an elliptical arc carrying an x axis rotation, where that distinction is the whole difference: vega scales rx and ry and leaves the rotation alone, which is a different ellipse from the affine scale of the flattened curve.",
+  "width": 560,
+  "height": 140,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 70,
+                "y": 70,
+                "path": "M0,-40 C22,-40 40,-22 40,0 C40,22 22,40 0,40 C-22,40 -40,22 -40,0 C-40,-22 -22,-40 0,-40 Z",
+                "scaleX": 0.6,
+                "scaleY": 1.35,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 6
+              },
+              {
+                "x": 210,
+                "y": 70,
+                "path": "M0,-40 C22,-40 40,-22 40,0 C40,22 22,40 0,40 C-22,40 -40,22 -40,0 C-40,-22 -22,-40 0,-40 Z",
+                "scaleX": 0.6,
+                "scaleY": 1.35,
+                "angle": 35,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 5
+              },
+              {
+                "x": 350,
+                "y": 70,
+                "path": "M-34,-26 L34,-26 L18,26 L-18,26 Z",
+                "scaleX": 1.6,
+                "scaleY": 0.55,
+                "angle": 20,
+                "fill": "#72b7b2",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 7,
+                "strokeJoin": "miter",
+                "strokeMiterLimit": 8
+              },
+              {
+                "x": 490,
+                "y": 70,
+                "path": "M-36,0 A36,18 30 1 1 36,0 A36,18 30 1 1 -36,0 Z",
+                "scaleX": 1.5,
+                "scaleY": 0.7,
+                "fill": "#e45756",
+                "stroke": "#7a2b2b",
+                "strokeWidth": 4
+              }
+            ]
+          }
+        ],
+        "x": 0,
+        "y": 0,
+        "width": 560,
+        "height": 140
+      }
+    ]
+  }
+}

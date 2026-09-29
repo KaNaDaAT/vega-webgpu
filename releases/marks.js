@@ -9,18 +9,18 @@
 
 /** yes, no, partial or na, per mark, for the five properties the table covers. */
 const SUPPORT = {
-  arc: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  arc: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
   area: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
-  group: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  group: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
   image: { gradientFill: 'na', gradientStroke: 'na', strokeDash: 'na', strokeJoin: 'na', strokeCap: 'na', blend: 'yes' },
   line: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
   path: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
-  rect: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  rect: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
   rule: { gradientFill: 'na', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'na', strokeCap: 'yes', blend: 'yes' },
   shape: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
-  symbol: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
-  text: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'na', strokeJoin: 'na', strokeCap: 'na', blend: 'yes' },
-  trail: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'na', blend: 'yes' },
+  symbol: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
+  text: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
+  trail: { gradientFill: 'yes', gradientStroke: 'yes', strokeDash: 'yes', strokeJoin: 'yes', strokeCap: 'yes', blend: 'yes' },
 };
 
 import { VEGA_ENUMS } from './vega-enums.js';
