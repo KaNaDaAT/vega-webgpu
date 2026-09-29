@@ -27,10 +27,40 @@ fn gradientT(p: vec2<f32>, wh: vec2<f32>) -> f32 {
         let len2 = max(dot(ab, ab), 1e-6);
         return clamp(dot(p - a, ab) / len2, 0.0, 1.0);
     }
-    // radial: concentric-circle approximation around (x2, y2)
+    // Radial: the pencil of circles running from (x1, y1, r1) to (x2, y2, r2),
+    // which is what createRadialGradient interpolates. The stop is the largest
+    // t whose circle passes through the point, so it solves
+    // a*t*t - 2*b*t + c = 0 for the circle centre and radius at t. Taking the
+    // distance from the outer centre instead is exact only where the two are
+    // concentric. Canvas draws nothing outside the cone the circles sweep,
+    // which is what a negative discriminant means here.
     let m = max(wh.x, wh.y);
-    let c = gradient.coords.zw * wh;
+    let c1 = gradient.coords.xy * wh;
+    let c2 = gradient.coords.zw * wh;
     let r1 = gradient.misc.y * m;
     let r2 = gradient.misc.z * m;
-    return clamp((distance(p * wh, c) - r1) / max(r2 - r1, 1e-6), 0.0, 1.0);
+    let cd = c2 - c1;
+    let dr = r2 - r1;
+    let pd = p * wh - c1;
+    let a = dot(cd, cd) - dr * dr;
+    let b = dot(pd, cd) + r1 * dr;
+    let c = dot(pd, pd) - r1 * r1;
+    if abs(a) < 1e-6 {
+        if abs(b) < 1e-6 {
+            return 1.0;
+        }
+        return clamp(c / (2.0 * b), 0.0, 1.0);
+    }
+    let disc = b * b - a * c;
+    if disc < 0.0 {
+        return 1.0;
+    }
+    let root = sqrt(disc);
+    let hi = (b + root) / a;
+    let lo = (b - root) / a;
+    // the larger t wins, but only where its circle has a radius to draw with
+    if r1 + hi * dr >= 0.0 {
+        return clamp(hi, 0.0, 1.0);
+    }
+    return clamp(lo, 0.0, 1.0);
 }`;

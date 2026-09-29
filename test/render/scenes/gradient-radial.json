@@ -1,0 +1,150 @@
+{
+  "description": "Radial gradients, which no other fixture draws. vega builds createRadialGradient from two circles, an inner one at x1,y1 with r1 and an outer at x2,y2 with r2. The first two are concentric, which is the case the shader approximation is exact for, and the last two move the inner circle off the outer one, which is the case it cannot express.",
+  "width": 710,
+  "height": 220,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 40,
+                "width": 140,
+                "height": 140,
+                "fill": {
+                  "gradient": "radial",
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#ffffff"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ],
+                  "x1": 0.5,
+                  "y1": 0.5,
+                  "r1": 0,
+                  "x2": 0.5,
+                  "y2": 0.5,
+                  "r2": 0.5
+                }
+              },
+              {
+                "x": 200,
+                "y": 40,
+                "width": 140,
+                "height": 140,
+                "fill": {
+                  "gradient": "radial",
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#ffffff"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ],
+                  "x1": 0.5,
+                  "y1": 0.5,
+                  "r1": 0.25,
+                  "x2": 0.5,
+                  "y2": 0.5,
+                  "r2": 0.5
+                }
+              },
+              {
+                "x": 370,
+                "y": 40,
+                "width": 140,
+                "height": 140,
+                "fill": {
+                  "gradient": "radial",
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#ffffff"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ],
+                  "x1": 0.28,
+                  "y1": 0.28,
+                  "r1": 0,
+                  "x2": 0.5,
+                  "y2": 0.5,
+                  "r2": 0.5
+                }
+              },
+              {
+                "x": 540,
+                "y": 40,
+                "width": 140,
+                "height": 140,
+                "fill": {
+                  "gradient": "radial",
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#ffffff"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ],
+                  "x1": 0.72,
+                  "y1": 0.66,
+                  "r1": 0.1,
+                  "x2": 0.5,
+                  "y2": 0.5,
+                  "r2": 0.55
+                }
+              }
+            ]
+          }
+        ],
+        "x": 0,
+        "y": 0,
+        "width": 710,
+        "height": 220
+      }
+    ]
+  }
+}
