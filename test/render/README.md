@@ -2,6 +2,22 @@
 
 Every case renders the same scene with the canvas renderer and with this one and compares the two. Canvas is the ground truth. There are no stored baseline images, so a case cannot drift by having its baseline re-blessed.
 
+## A fixture and a spec
+
+Every case is one of two kinds, and which one it is decides what a failure means.
+
+A **fixture** is a stored scenegraph in `scenes/`, handed straight to `renderer.renderAsync`. There is no View, no dataflow, no scales and no layout between the JSON and the mark code, so when a fixture differs from canvas the renderer did it. That is why almost every bug is pinned with one.
+
+A **spec** is a real vega spec in `../specs-valid/`, parsed into a View which runs its transforms and layout and builds a scenegraph of its own. A spec covers the whole stack, so a difference could be ours or anything vega did upstream of it. It tells you something broke rather than where.
+
+Three consequences worth knowing before adding a case.
+
+- A fixture is held to all six measures and a spec to five: `render.spec.ts` passes no `quad`, because a spec carries enough text that the worst block fires on rasterization differences that are not defects. The differing-pixel default is 0.2% for a fixture against 0.8% for a spec, since a fixture is small synthetic geometry where a local difference means something.
+- A fixture cannot change out from under you. vega changing how it lays a chart out cannot move a stored scenegraph.
+- A fixture cannot carry a function, because `sceneToJSON` cannot serialize one. A shape generator and vega's `clip: {path}` form are both functions, which is what the `__shapePath__` and `__clipPath__` revivers in `scene-harness.js` exist for. Nor can a fixture reach anything a View does: hover, brush, a data update, a mark added between frames. That category is spec only.
+
+Reach for a fixture first. A spec earns its place where the thing under test is the stack rather than the renderer.
+
 ## The measures
 
 Six, each answering a question the others cannot. A fixture is held to all six; a spec carries too much text for `quad`, so it is held to the other five.
@@ -61,6 +77,16 @@ Emptying the items of `shape-placement` reads 0.00% ink, and every one of the si
 - **Curve types have no enum to check against.** `releases/vega-enums.js` is generated from vega's schema and carries `blend`, `strokeCap`, `strokeJoin`, `align` and `baseline`. Every value of those five is drawn by some fixture, and `scene.spec.ts` holds that against the same generator, so a vega release adding one fails here. The schema does not enumerate `interpolate` or a symbol `shape`, and vega-scenegraph keeps both lists private to their own modules, so there is no authority to audit those two against. `line-interpolate` covers all 17 keys of the curve lookup as it stands today and `symbol-shapes` with `symbol-analytic` covers all 12 built-in symbols, but neither will notice vega adding one.
 - **`fontWeight`, which is the sixth enumerable mark property.** The schema lists 13 values for it, `normal`, `bold`, `lighter`, `bolder` and the nine hundreds, and the fixtures draw three of them: `bold` and `lighter` in `text-flow` and `500` in `text-layout`. It is left out of the check rather than held, because a browser maps a range of weights onto whatever faces the family ships, so most of the missing ten would rasterize identically to one already drawn and the coverage would be nominal. The three that are drawn are three different faces, which is what the glyph cache key has to tell apart. The other three enumerable properties, `anchor`, `direction` and `orient`, belong to a title, a legend or an axis rather than to a mark, so a fixture cannot set them at all.
 - **A clip edge whose antialiasing is half as dark as canvas leaves it.** `clip-coverage` is the case for it and records it rather than gating it. Applying the clip coverage twice on a stroke drawn through the mask moves the fixture from 0.011% of pixels to 0.023% and its worst block from 18.3 to 23.5, against a 0.2% and a 70 budget, and at dpr 2 from 0.002% to 0.003%. Folding the rounded box into the clip path's own mask moves it to 0.042% and 28.0, and to 0.015% at dpr 2. Both are the defects the fixture names, and every reading stays an order of magnitude inside the budgets, because the difference is one pixel wide along an arc a few hundred pixels long. Raising the contrast or lengthening the arc raises the noise with the signal. What the fixture does hold is that the clip is applied at all: dropping the coverage mask reads 14.004% on `clip-path-round`.
+
+## The gallery
+
+`gallery.html` browses what a run left in `output/`, side by side, wiped, blinked or as the diff, ranked by any of the numbers. `npm run gallery:record` fills it.
+
+It has two sources. **Recorded** reads the pngs and the measurements a run wrote, which are the numbers the suite gated on. **Live** draws both renderers here and now, which is the only way to look at a case the run did not reach, or to see what this browser's own adapter does rather than the run's.
+
+Live reports the same measures, computed in the browser by `compare-core.js` rather than read from the manifest, so they can be compared with the recorded ones directly. Two of them differ on purpose. The differing-pixel count is labelled `any difference`, because the gated count is pixelmatch on the node side at a colour threshold and that is not what runs here. And the whole live pair is this browser at its own pixel ratio on its own adapter, so a live number that disagrees with a recorded one by a little is the two machines disagreeing rather than a defect. The budgets are shown beside them for reference, and nothing in live mode is gated.
+
+A fixture can be viewed live as well as a spec. It has no spec to run, so `scene-fixture.js` hands the stored scenegraph straight to a renderer, which is the same code the suite drives.
 
 ## Overrides
 

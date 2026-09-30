@@ -119,6 +119,64 @@
    * reason: an edge landing on the other side of a rounding boundary is not a
    * defect, and a mark filled with the wrong colour is.
    */
+  /**
+   * The gated measures, so the live view can say what the recorded one says.
+   *
+   * `bias` is the signed mean over inked pixels and `quad` the worst channel
+   * between block averages, which is the local measure the suite holds a
+   * fixture to. Both are what compare.ts computes on the node side, in the
+   * same units, so a number here means the same thing as a number there.
+   */
+  function gatedMeasures(left, right, blockSide) {
+    const side = Math.max(1, Math.round(blockSide || 2));
+    const w = left.width;
+    const h = left.height;
+    let inked = 0;
+    const signed = [0, 0, 0];
+    for (let i = 0; i < left.data.length; i += 4) {
+      const lit =
+        left.data[i] !== 255 ||
+        left.data[i + 1] !== 255 ||
+        left.data[i + 2] !== 255 ||
+        right.data[i] !== 255 ||
+        right.data[i + 1] !== 255 ||
+        right.data[i + 2] !== 255;
+      if (!lit) {
+        continue;
+      }
+      inked++;
+      for (let c = 0; c < 3; c++) {
+        signed[c] += right.data[i + c] - left.data[i + c];
+      }
+    }
+    const bias = inked ? Math.max(...signed.map(v => Math.abs(v / inked))) : 0;
+
+    let quad = 0;
+    for (let by = 0; by < h; by += side) {
+      for (let bx = 0; bx < w; bx += side) {
+        const sums = [0, 0, 0, 0, 0, 0];
+        let n = 0;
+        for (let y = by; y < Math.min(by + side, h); y++) {
+          for (let x = bx; x < Math.min(bx + side, w); x++) {
+            const i = (y * w + x) * 4;
+            for (let c = 0; c < 3; c++) {
+              sums[c] += left.data[i + c];
+              sums[c + 3] += right.data[i + c];
+            }
+            n++;
+          }
+        }
+        if (!n) {
+          continue;
+        }
+        for (let c = 0; c < 3; c++) {
+          quad = Math.max(quad, Math.abs(sums[c] - sums[c + 3]) / n);
+        }
+      }
+    }
+    return { bias, quad, inked, ink: inked / (w * h) };
+  }
+
   function diffImages(left, right, options) {
     const opts = options ?? {};
     const threshold = Math.max(0, Number(opts.threshold) || 0);
@@ -264,5 +322,6 @@
     ramp,
     spread,
     FLAT_EPS,
+    gatedMeasures,
   };
 })(window);

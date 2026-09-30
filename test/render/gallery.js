@@ -351,12 +351,44 @@ function recordedNote(c) {
 }
 
 /** The live note, in the same shape, since the two are read one after the other. */
-function liveNote(c) {
+function liveNote(c, live) {
   const facts = [
     fact('source', 'live', 'Rendered here and now by both renderers'),
     fact('drawn', 'no hover, no bound controls', 'An interaction would leave the two on different frames'),
     fact('at', `dpr ${window.devicePixelRatio}`, "This browser's own pixel ratio and adapter, not the run's"),
   ];
+  // The same numbers the recorded note carries, measured on what is on screen
+  // rather than on what a run left behind. The run's are at its own pixel
+  // ratio on its own adapter, so the two can differ honestly.
+  if (live) {
+    facts.push(
+      fact(
+        'any difference',
+        `${(live.diffRatio * 100).toFixed(3)}%`,
+        'Share of the frame where at least one channel differs at all, which is the recorded note second chip rather than its first. The gated count ignores anything under a colour threshold and is measured by pixelmatch on the node side, which is not what runs here',
+      ),
+      fact('worst channel', String(live.worst), 'Largest single channel difference anywhere'),
+      fact('mean', live.mean.toFixed(2), 'Average channel error over inked pixels, 0 to 255'),
+      fact('bias', live.bias.toFixed(2), 'The same average, signed, which is what sees a one sided error'),
+      fact(
+        'worst block',
+        live.quad.toFixed(1),
+        'The furthest off 2 pixel block average, which a moved edge does not shift',
+      ),
+      fact('ink', `${(live.ink * 100).toFixed(2)}%`, 'Share of the frame either side drew on'),
+    );
+  }
+  if (c?.budgets) {
+    const b = c.budgets;
+    facts.push(
+      fact(
+        'budgets',
+        `${b.diff === null ? 'count skipped' : `${(b.diff * 100).toFixed(1)}%`} / mean ${b.mean} / bias ${b.bias}` +
+          `${b.quad ? ` / block ${b.quad}` : ''}`,
+        'What the suite allows this case, for comparison. Nothing here is gated',
+      ),
+    );
+  }
   if (!state.hasRecorded) {
     facts.push(fact('recorded', 'none yet', 'Run npm run gallery:record for the stored pairs and their numbers'));
   }
@@ -491,7 +523,20 @@ async function show() {
       return;
     }
     current = pair;
-    setNote(state.source === 'live' ? liveNote(c) : recordedNote(c));
+    let live = null;
+    if (state.source === 'live') {
+      try {
+        const pixels = await current.read();
+        const d = RenderCompare.diffImages(pixels.left, pixels.right, { threshold: 0 });
+        const g = RenderCompare.gatedMeasures(pixels.left, pixels.right, 2);
+        if (!d.error) {
+          live = { diffRatio: d.shown / d.total, worst: d.worst, mean: d.mean, ...g };
+        }
+      } catch {
+        // a pair replaced while it was being read has nothing to report
+      }
+    }
+    setNote(state.source === 'live' ? liveNote(c, live) : recordedNote(c));
     paint(current);
   } catch (err) {
     if (mine !== generation) {
