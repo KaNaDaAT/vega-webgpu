@@ -311,6 +311,8 @@
       async function render() {
         for (const v of views) {
           v.finalize();
+          // View.finalize stops at the view, and the renderer holds a GPU device
+          v._renderer?.finalize?.();
         }
         views = [];
         window.__views = views; // the page's own test drives it through this

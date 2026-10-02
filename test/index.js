@@ -243,11 +243,17 @@ for (const control of [thresholdInput, styleSelect, colorInput]) {
  */
 let loadRun = 0;
 
+/** View.finalize stops at the view, and the renderer holds a GPU device. */
+function dispose(v) {
+  v.finalize().container().innerHTML = '';
+  v._renderer?.finalize?.();
+}
+
 /** Finalizes views a superseded load had already built. */
 function dropViews(...views) {
   for (const v of views) {
     if (v) {
-      v.finalize().container().innerHTML = '';
+      dispose(v);
     }
   }
 }
@@ -294,10 +300,10 @@ selectDrive?.addEventListener('change', applyDrive);
 function disposeAll() {
   window.resetRenderers?.();
   if (view) {
-    view.finalize().container().innerHTML = '';
+    dispose(view);
     view = null;
   }
-  compared.forEach(v => (v.finalize().container().innerHTML = ''));
+  compared.forEach(dispose);
   compared = [];
 }
 
