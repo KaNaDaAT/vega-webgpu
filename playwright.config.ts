@@ -20,7 +20,7 @@ function findBrowser(): string | undefined {
   if (override) {
     return override;
   }
-  // CI installs its own Chrome, so don't pick up a stray system browser.
+  // CI installs its own chromium, so don't pick up a stray system browser.
   if (process.env.CI) {
     return undefined;
   }
@@ -62,9 +62,7 @@ export default defineConfig({
     // analytic coverage shader works in device pixels, so dpr 1 exercises none
     // of that arithmetic.
     deviceScaleFactor: Number(process.env.RENDER_DPR ?? 1),
-    // Stable Chrome on CI, the release a local Chromium tracks. Canvas is the
-    // reference and draws differently between releases.
-    ...(executablePath ? {} : { channel: process.env.CI ? ('chrome' as const) : ('chromium' as const) }),
+    ...(executablePath ? {} : { channel: 'chromium' as const }),
     launchOptions: {
       ...(executablePath ? { executablePath } : {}),
       // WEBGPU_HARDWARE runs on the machine's real adapter, for benchmarking.

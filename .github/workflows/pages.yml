@@ -39,8 +39,7 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # the same Chrome ci.yml gates on, see there
-      - run: npx playwright install chrome --with-deps
+      - run: npx playwright install chromium --no-shell --with-deps
 
       # The gallery is the corpus as this commit draws it. It is one gallery,
       # not one per version: nothing is committed, so only what this deploy
