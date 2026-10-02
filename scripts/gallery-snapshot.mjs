@@ -71,7 +71,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const dest = outArg ? resolve(root, outArg) : join(root, 'releases', version.replaceAll('.', '_'), 'gallery');
 
 /** Worst first, so the order holds whether or not anything is narrowed. */
-const ranked = [...manifest.cases].sort((a, b) => b.mean - a.mean || b.max - a.max);
+const ranked = [...manifest.cases].sort((a, b) => b.mean - a.mean || b.quad - a.quad);
 const overThreshold = MEAN > 0 ? ranked.filter(c => c.mean > MEAN) : ranked;
 const kept = MAX_CASES > 0 ? overThreshold.slice(0, MAX_CASES) : overThreshold;
 if (!kept.length) {
