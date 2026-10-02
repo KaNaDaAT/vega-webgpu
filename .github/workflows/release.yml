@@ -15,6 +15,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      # to start the site deploy, see the step after hosting
+      actions: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -67,6 +69,14 @@ jobs:
             git commit -m "release: host $VERSION"
             git push origin main
           fi
+
+      # A push made with this token starts no workflow, so without this the site
+      # stays whatever the last deploy built, which is the tree before the
+      # hosted files. A dispatch is the one event the token may start.
+      - name: Deploy the site with the hosted build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

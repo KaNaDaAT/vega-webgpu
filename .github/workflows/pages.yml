@@ -5,9 +5,9 @@ name: Pages
 # repository, so committing one per release was never going to work, and an
 # artifact deployment keeps it off main entirely.
 #
-# The repository setting has to match: Settings, Pages, Source set to GitHub
-# Actions. While it is still set to a branch this workflow runs and deploys
-# nothing.
+# The repository setting should match: Settings, Pages, Source set to GitHub
+# Actions. While it is still set to a branch, the branch build deploys too, and
+# whichever of the two finishes last is the site.
 on:
   push:
     branches: [main]
