@@ -75,10 +75,6 @@ export const REPLACE: GPUBlendState = {
  */
 const layerModes = new WeakMap<GPURenderPipeline, string>();
 
-function rememberLayerMode(pipeline: GPURenderPipeline, mode: string): void {
-  layerModes.set(pipeline, mode);
-}
-
 /**
  * The mode to build a pipeline with, given the one it was asked for. A mode the
  * blend state cannot express builds unblended, and `record` then ties the
@@ -92,7 +88,7 @@ export function buildBlend(
   if (!needsBackdrop(blend, opaqueBackdrop)) {
     return { blend, record: () => {} };
   }
-  return { blend: 'normal', record: pipeline => rememberLayerMode(pipeline, blend) };
+  return { blend: 'normal', record: pipeline => layerModes.set(pipeline, blend) };
 }
 
 /** The mode a pipeline's draws are composited with, or undefined for the frame. */

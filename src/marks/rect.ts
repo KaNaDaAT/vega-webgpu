@@ -40,7 +40,7 @@ interface RectResources {
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RectResources {
   return getMarkResources(ctx, 'rect', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const bufferManager = new BufferManager(device, drawName);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, dimensions, fill color, stroke color, stroke width, corner radii
@@ -60,7 +60,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     // walked as a polyline and drawn as segments, the way a group's is.
     const outline = outlinePipelines(ctx, device, `${drawName}Dash`);
 
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, true);
     return {
       device,
       bufferManager,
@@ -74,7 +74,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = markItems(scene);
-  if (!items?.length) {
+  if (items.length === 0) {
     return;
   }
 
@@ -231,7 +231,4 @@ export function rectAttributes(items: SceneItem[], whiteGradientFill = false): F
   return out;
 }
 
-export default {
-  type: 'rect',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;

@@ -31,7 +31,6 @@ import type WebGPURenderer from '../WebGPURenderer.js';
 
 /** A mark renderer module, as registered in marks/index.ts. */
 export interface MarkModule {
-  type: string;
   draw: (
     this: WebGPURenderer,
     device: GPUDevice,
@@ -75,7 +74,7 @@ export function getMarkResources<T extends { device: GPUDevice }>(
  * `geometryVertexData` writes and every draw that consumes one is this wide,
  * which is also the layout `fillResources` builds its pipelines with.
  */
-export const GEOMETRY_STRIDE = 7;
+const GEOMETRY_STRIDE = 7;
 
 /**
  * Interleaves triangulated fill and stroke geometry with their colors
@@ -187,7 +186,7 @@ export function markClip(ctx: GPUVegaCanvasContext, scene: GPUVegaScene): ClipRe
  * and the group translation reaches the shader through the offset uniform, so
  * adding it here once more moved a ramp by the group offset.
  */
-export function gradientBounds(bounds: Bounds): [number, number, number, number] {
+function gradientBounds(bounds: Bounds): [number, number, number, number] {
   return [bounds.x1, bounds.y1, Math.max(bounds.width(), 1e-6), Math.max(bounds.height(), 1e-6)];
 }
 
@@ -482,7 +481,7 @@ export function fillResources(
   name: string,
   outlineName = `${name}Dash`,
 ): FillResources {
-  const bufferManager = new BufferManager(device, name, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+  const bufferManager = new BufferManager(device, name);
   const vertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, colour
   return {
     device,
@@ -612,7 +611,7 @@ function getClipMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: 
     const vertexManager = new VertexBufferManager(['float32x3', 'float32x4']);
     return {
       device,
-      bufferManager: new BufferManager(device, 'ClipMask', [0, 0]),
+      bufferManager: new BufferManager(device, 'ClipMask'),
       pipeline: createRenderPipeline(
         'Clip Mask',
         device,
@@ -662,7 +661,7 @@ export function drawClipMask(
   }
   // Taken once there is something to draw into it, so a path that triangulates
   // to nothing does not hold a pooled target for the rest of the frame.
-  const target = ctx._renderer?.acquireClipMask(device, ctx._sampleCount);
+  const target = ctx._renderer.acquireClipMask(device, ctx._sampleCount);
   if (!target) {
     return undefined;
   }
@@ -777,7 +776,7 @@ export function blendCompositeElement(
   clip: ClipRect | undefined,
 ): QueueElement {
   const pipeline = getBlendResources(device, ctx).compositeFor(blend);
-  const targets = ctx._renderer.blendTargets(device);
+  const targets = ctx._renderer.blendTargets(device, ctx._sampleCount);
   return {
     pipeline,
     drawCounts: [3],
@@ -936,7 +935,7 @@ export function strokeOutline(
  * finishes, as a flat cut, a round cap or the bisector of a corner, and the
  * last pair how far the neighbour at each end runs.
  */
-export const SEGMENT_LAYOUT: GPUVertexFormat[] = [
+const SEGMENT_LAYOUT: GPUVertexFormat[] = [
   'float32x2',
   'float32x2',
   'float32x4',

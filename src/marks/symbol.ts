@@ -7,7 +7,6 @@ import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
-import { symbolSdfKey } from '../shaders/index.js';
 import { hasSdf } from '../shaders/symbolSdf.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
@@ -69,7 +68,7 @@ interface SymbolResources {
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): SymbolResources {
   return getMarkResources(ctx, 'symbol', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const bufferManager = new BufferManager(device, drawName);
     const circleVertexManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, radius, fill color, stroke color, stroke width
@@ -90,7 +89,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     // winding the two used to differ by was never observable.
     const quadGeometry = bufferManager.createGeometryBuffer(
       Float32Array.from([-1, -1, -1, 1, 1, -1, 1, -1, -1, 1, 1, 1]),
-      undefined,
       true,
     );
     const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
@@ -118,7 +116,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = markItems<SceneSymbolExt>(scene);
-  if (!items?.length) {
+  if (items.length === 0) {
     return;
   }
 
@@ -159,7 +157,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         ctx,
         device,
         `${drawName}Sdf ${shape}`,
-        symbolSdfKey(shape),
+        `SymbolSdf:${shape}`,
         res.sdfVertexManager,
         undefined,
         runBlend,
@@ -426,16 +424,12 @@ function getShapeGeometry(
   const entry: ShapeGeometry = {
     fill:
       geometry.fillCount > 0
-        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.fillTriangles, geometry.fillCount), undefined, true)
+        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.fillTriangles, geometry.fillCount), true)
         : null,
     fillCount: geometry.fillCount,
     stroke:
       geometry.strokeCount > 0
-        ? res.bufferManager.createGeometryBuffer(
-            stripZ(geometry.strokeTriangles, geometry.strokeCount),
-            undefined,
-            true,
-          )
+        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.strokeTriangles, geometry.strokeCount), true)
         : null,
     strokeCount: geometry.strokeCount,
   };
@@ -446,10 +440,10 @@ function getShapeGeometry(
       res.shapeCache.delete(oldest);
       if (evicted) {
         if (evicted.fill) {
-          ctx._renderer?.deferDestroy(evicted.fill);
+          ctx._renderer.deferDestroy(evicted.fill);
         }
         if (evicted.stroke) {
-          ctx._renderer?.deferDestroy(evicted.stroke);
+          ctx._renderer.deferDestroy(evicted.stroke);
         }
       }
     }
@@ -508,7 +502,4 @@ function createCircleAttributes(items: SceneItem[]): Float32Array {
   return result;
 }
 
-export default {
-  type: 'symbol',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;

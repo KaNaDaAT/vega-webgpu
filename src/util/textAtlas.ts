@@ -37,10 +37,11 @@ export class TextAtlas {
   private _batchArea = 0;
   private _lastBatchArea = 0;
 
-  /** Called with a texture the atlas has replaced, which a queued draw may still hold. */
-  onRelease: ((texture: GPUTexture) => void) | null = null;
-
-  constructor(private readonly _device: GPUDevice) {
+  /** `release` takes a texture the atlas replaced, which a queued draw may still hold. */
+  constructor(
+    private readonly _device: GPUDevice,
+    private readonly _release: (texture: GPUTexture) => void,
+  ) {
     this._max = Math.min(MAX_SIZE, _device.limits.maxTextureDimension2D);
     this._canvas = document.createElement('canvas');
     this._c2d = this._canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
@@ -113,11 +114,6 @@ export class TextAtlas {
     );
   }
 
-  destroy(): void {
-    this._texture.destroy();
-    this._slots.clear();
-  }
-
   private _place(w: number, h: number): [x: number, y: number] | null {
     if (w + PAD > this._size || h + PAD > this._size) {
       return null;
@@ -148,12 +144,7 @@ export class TextAtlas {
       this._c2d.clearRect(0, 0, size, size);
     }
     if (!first) {
-      const old = this._texture;
-      if (this.onRelease) {
-        this.onRelease(old);
-      } else {
-        old.destroy();
-      }
+      this._release(this._texture);
     }
     this._slots.clear();
     this._shelfY = 0;

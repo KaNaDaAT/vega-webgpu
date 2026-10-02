@@ -33,7 +33,7 @@ function rampKey(gradient: SceneGradient): string {
 }
 
 /** Bakes the gradient's color stops into a RAMP_SIZE x 1 texture. */
-export function getStopRamp(res: GradientResources, gradient: SceneGradient): GPUTexture {
+function getStopRamp(res: GradientResources, gradient: SceneGradient): GPUTexture {
   const key = rampKey(gradient);
   const cached = res.ramps.get(key);
   if (cached) {
@@ -94,7 +94,7 @@ export function getStopRamp(res: GradientResources, gradient: SceneGradient): GP
  * the normalized gradient space, misc = [kind, r1, r2, 0].
  * A radial runs between the circles (x1, y1, r1) and (x2, y2, r2), as canvas does.
  */
-export function gradientParams(
+function gradientParams(
   gradient: SceneGradient,
   bounds: [x: number, y: number, w: number, h: number],
 ): Float32Array<ArrayBuffer> {

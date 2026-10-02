@@ -51,8 +51,6 @@ export interface SceneItem {
   y?: number;
   opacity?: number;
   zindex?: number;
-  /** Assigned during z-order sorting. */
-  index?: number;
 }
 
 export type SceneRectExt = SceneItem &
@@ -143,7 +141,6 @@ export interface SceneImageSource {
   complete?: boolean;
   width: number;
   height: number;
-  src?: string;
   url?: string;
   toDataURL?: () => string;
 }

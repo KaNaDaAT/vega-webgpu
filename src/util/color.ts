@@ -100,7 +100,7 @@ export class Color {
     if (isGradient(value)) {
       if (!warnedGradient) {
         warnedGradient = true;
-        console.warn('[vega-webgpu] A gradient stroke is only sampled where the mark triangulates it.');
+        console.warn('[vega-webgpu] A gradient on an item without bounds is drawn as a flat colour.');
       }
       return GRADIENT_FALLBACK;
     }

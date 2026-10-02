@@ -44,35 +44,31 @@ export function bufferPool(device: GPUDevice): FrameBuffers {
   return pool;
 }
 
+/**
+ * A mark's buffers and the uniform block they share. getMarkResources sets the
+ * resolution, offset and clip before every draw, since the manager outlives the
+ * frame that made it.
+ */
 export class BufferManager {
-  private device: GPUDevice;
   private uniformCache = new Map<string, GPUBuffer>();
-  private bufferName: string;
-  private resolution: [width: number, height: number];
-  private offset: [x: number, y: number];
+  private resolution: [width: number, height: number] = [0, 0];
+  private offset: [x: number, y: number] = [0, 0];
   private dpi = 1;
   private clip: [number, number, number, number] = [0, 0, 0, 0];
   private clipRadii: [number, number, number, number] = [0, 0, 0, 0];
   private clipMask: [number, number, number, number] = [0, 0, 0, 0];
 
   constructor(
-    device: GPUDevice,
-    bufferName = 'Unknown',
-    resolution: [width: number, height: number] = [0, 0],
-    offset: [x: number, y: number] = [0, 0],
-  ) {
-    this.device = device;
-    this.bufferName = bufferName;
-    this.resolution = resolution;
-    this.offset = offset;
-  }
+    private readonly device: GPUDevice,
+    private readonly bufferName: string,
+  ) {}
 
-  createUniformBuffer(
-    data?: Float32Array,
-    usage: GPUBufferUsageFlags = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  ): GPUBuffer {
-    const values = data ?? this.uniformValues();
-    return this.createBuffer(`${this.bufferName} Uniform Buffer`, values, usage);
+  createUniformBuffer(): GPUBuffer {
+    return this.createBuffer(
+      `${this.bufferName} Uniform Buffer`,
+      this.uniformValues(),
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    );
   }
 
   /**
@@ -111,19 +107,17 @@ export class BufferManager {
     return buffer;
   }
 
-  createGeometryBuffer(
-    data: Float32Array,
-    usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    lasting = false,
-  ): GPUBuffer {
-    return this.createBuffer(`${this.bufferName} Geometry Buffer`, data, usage, lasting);
+  createGeometryBuffer(data: Float32Array, lasting = false): GPUBuffer {
+    return this.createBuffer(
+      `${this.bufferName} Geometry Buffer`,
+      data,
+      GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      lasting,
+    );
   }
 
-  createInstanceBuffer(
-    data: Uint16Array | Uint32Array | Float32Array,
-    usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  ): GPUBuffer {
-    return this.createBuffer(`${this.bufferName} Instance Buffer`, data, usage);
+  createInstanceBuffer(data: Float32Array): GPUBuffer {
+    return this.createBuffer(`${this.bufferName} Instance Buffer`, data, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST);
   }
 
   /**

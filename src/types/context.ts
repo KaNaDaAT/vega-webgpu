@@ -28,7 +28,6 @@ export interface ClipMaskTarget {
 
 export interface RenderUniforms {
   resolution: [width: number, height: number];
-  origin: readonly [x: number, y: number];
   dpi: number;
 }
 
@@ -88,9 +87,6 @@ export interface GPUVegaOptions {
 /** A scenegraph mark node as passed to mark draw functions. */
 export interface GPUVegaScene {
   marktype: string;
-  name?: string;
-  role?: string;
-  interactive?: boolean;
   /**
    * `true` clips the mark to its enclosing group. vega's `{path}` and
    * `{sphere}` clip forms parse to a generator that draws the clip path
@@ -162,6 +158,4 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   _pathCacheSize: number;
   _geometryCache: Record<string, ItemGeometry>;
   _geometryCacheSize: number;
-
-  /** Adds random depth jitter to path geometry (unused by default). */
 };

@@ -53,7 +53,7 @@ interface TextResources {
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): TextResources {
   return getMarkResources(ctx, 'text', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const bufferManager = new BufferManager(device, drawName);
     const vertexManager = new VertexBufferManager([], LABEL_LAYOUT);
     // a blend is baked into the pipeline state, so each mode needs its own
     const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
@@ -62,8 +62,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       magFilter: 'linear',
       minFilter: 'linear',
     });
-    const atlas = new TextAtlas(device);
-    atlas.onRelease = texture => ctx._renderer?.deferDestroy(texture);
+    const atlas = new TextAtlas(device, texture => ctx._renderer.deferDestroy(texture));
     const scratch = document.createElement('canvas');
     const scratchCtx = scratch.getContext('2d') as CanvasRenderingContext2D;
     return {
@@ -85,18 +84,13 @@ interface Placement {
   turn: Turn;
 }
 
-/**
- * Slot for one rasterization of a label. On a miss it draws the label into the
- * atlas, unless `rasterize` is false, which asks only whether it is already
- * there.
- */
+/** Slot for one rasterization of a label, drawn into the atlas on a miss. */
 function getSlot(
   ctx: GPUVegaCanvasContext,
   res: TextResources,
   raster: SceneTextItem,
   vb: Bounds,
   turn: Turn,
-  rasterize: boolean,
 ): GlyphSlot | null {
   const dpi = ctx._uniforms.dpi || 1;
   const metrics = glyphMetrics(ctx, raster, vb, turn);
@@ -108,9 +102,6 @@ function getSlot(
   const cached = res.atlas.find(key);
   if (cached) {
     return cached;
-  }
-  if (!rasterize) {
-    return null;
   }
   const slot = res.atlas.alloc(key, metrics);
   if (!slot) {
@@ -138,10 +129,10 @@ function place(
   exact: boolean,
 ): Placement | null {
   if (turn === NO_TURN || exact) {
-    const slot = getSlot(ctx, res, item, vb, NO_TURN, true);
+    const slot = getSlot(ctx, res, item, vb, NO_TURN);
     return slot && { slot, turn: NO_TURN };
   }
-  const slot = getSlot(ctx, res, upright(item), vb, turn, true);
+  const slot = getSlot(ctx, res, upright(item), vb, turn);
   return slot && { slot, turn };
 }
 
@@ -175,7 +166,7 @@ function labelRect(
  */
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = markItems<SceneTextItem>(scene);
-  if (!items?.length) {
+  if (items.length === 0) {
     return;
   }
 
@@ -184,10 +175,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const dpi = ctx._uniforms.dpi || 1;
   const drift = ctx._textDrift?.get(scene);
 
-  const settling = ctx._renderer?.settling === true;
+  const settling = ctx._renderer.settling;
   // The option pins the cheaper path on, which nothing else can do: res.exact
   // only ever drops under load and the settling frame puts it back.
-  const allowed = ctx._renderer?.wgOptions.exactRotatedText !== false;
+  const allowed = ctx._renderer.wgOptions.exactRotatedText !== false;
   const exact = allowed && (settling || res.exact);
   let deferred = false;
   res.atlas.begin();
@@ -236,12 +227,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (!metrics) {
       continue;
     }
-    const tex = rasterizeText(device, res.scratch, res.scratchCtx, dpi, raster, metrics);
-    ctx._renderer?.deferDestroy(tex.texture);
+    const texture = rasterizeText(device, res.scratch, res.scratchCtx, dpi, raster, metrics);
+    ctx._renderer.deferDestroy(texture);
     const [x1, y1, x2, y2] = labelRect(vb, dpi, item, metrics, driftShift(ctx, item, vb, spun ? turn : NO_TURN, drift));
     const [cos, sin] = spun ? turn : NO_TURN;
     oversized.push({
-      texture: tex.texture,
+      texture,
       data: Float32Array.from([x1, y1, x2, y2, 0, 0, 1, 1, ax, ay, cos, sin, opacity]),
     });
   }
@@ -252,7 +243,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     res.exact = false;
   }
   if (deferred) {
-    ctx._renderer?.requestSettle();
+    ctx._renderer.requestSettle();
   }
 
   const size = res.atlas.size;
@@ -318,7 +309,4 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 }
 
-export default {
-  type: 'text',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;

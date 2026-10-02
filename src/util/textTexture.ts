@@ -16,10 +16,6 @@ export interface GlyphMetrics {
   anchorTexY: number;
 }
 
-export interface TextTexture extends GlyphMetrics {
-  texture: GPUTexture;
-}
-
 /**
  * Sub-pixel phases are quantized to this many steps per device pixel so the
  * glyph cache does not grow unbounded when the same string is drawn at many
@@ -29,7 +25,7 @@ export interface TextTexture extends GlyphMetrics {
  * nothing on a static scene, since each label still has one phase, and only
  * churns the cache faster while text is moving.
  */
-export const PHASE_STEPS = 64;
+const PHASE_STEPS = 64;
 
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -164,7 +160,7 @@ export function glyphMetrics(
  */
 export type Drift = readonly [dx: number, dy: number];
 
-export const NO_DRIFT: Drift = [0, 0];
+const NO_DRIFT: Drift = [0, 0];
 
 /** How near a half pixel a baseline has to be for canvas to disagree with us. */
 const TIE_WINDOW = 1e-3;
@@ -293,7 +289,7 @@ export function rasterizeText(
   dpi: number,
   raster: SceneTextItem,
   m: GlyphMetrics,
-): TextTexture {
+): GPUTexture {
   // Grow-only. Resizing a canvas recreates its backing store, which invalidates
   // the external image reference the GPU copy takes (an OperationError on Linux
   // Dawn). The glyph is drawn at the top-left and only that region is copied.
@@ -316,5 +312,5 @@ export function rasterizeText(
     m.physHeight,
   ]);
 
-  return { texture, ...m };
+  return texture;
 }

@@ -71,7 +71,7 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
 }: ItemShapeMark<T>): MarkModule {
   function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
     const items = markItems<T>(scene);
-    if (!items?.length) {
+    if (items.length === 0) {
       return;
     }
 
@@ -162,5 +162,5 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
     flushBatch();
   }
 
-  return { type, draw } satisfies MarkModule;
+  return { draw } satisfies MarkModule;
 }

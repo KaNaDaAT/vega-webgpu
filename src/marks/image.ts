@@ -31,14 +31,14 @@ interface ImageResources {
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): ImageResources {
   return getMarkResources(ctx, 'image', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const bufferManager = new BufferManager(device, drawName);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
       ['float32x2', 'float32x2', 'float32'], // origin, size, opacity
     );
     // a blend is baked into the pipeline state, so each mode needs its own
     const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, true);
     const smoothSampler = device.createSampler({
       label: 'Image Sampler (smooth)',
       magFilter: 'linear',
@@ -232,7 +232,7 @@ function draw(
   vb: Bounds,
 ): void {
   const items = markItems<SceneImageItem>(scene);
-  if (!items?.length) {
+  if (items.length === 0) {
     return;
   }
 
@@ -291,7 +291,4 @@ function draw(
   }
 }
 
-export default {
-  type: 'image',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;

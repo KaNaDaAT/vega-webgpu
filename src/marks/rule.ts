@@ -40,7 +40,7 @@ interface RuleResources {
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RuleResources {
   return getMarkResources(ctx, 'rule', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const bufferManager = new BufferManager(device, drawName);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, scale, color, half-thickness offset
@@ -51,7 +51,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     // axis-aligned quad cannot express. Those go through the single-segment
     // line shader instead.
     const outline = outlinePipelines(ctx, device, `${drawName}Diagonal`);
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, true);
     return {
       device,
       bufferManager,
@@ -105,7 +105,7 @@ function isDiagonal(item: SceneRule): boolean {
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = markItems<SceneRule>(scene);
-  if (!items?.length) {
+  if (items.length === 0) {
     return;
   }
 
@@ -215,7 +215,4 @@ function createDiagonalAttributes(item: SceneRule, color: RGBA): Float32Array | 
   );
 }
 
-export default {
-  type: 'rule',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;

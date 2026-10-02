@@ -55,7 +55,7 @@ export function createRenderPipeline(
       topology: 'triangle-list',
     },
     multisample: {
-      count: normalizeSampleCount(sampleCount),
+      count: sampleCount,
     },
   });
 }
@@ -93,26 +93,3 @@ export function createUniformBindGroup(
   });
 }
 
-/**
- * The frame renders in a single pass: the color attachment is cleared to the
- * view background on load, drawn in scenegraph order (painter's algorithm,
- * there is no depth attachment), and resolved once when multisampled.
- */
-export function createRenderPassDescriptor(
-  name: string,
-  clearColor: GPUColor,
-): GPURenderPassDescriptor & { colorAttachments: GPURenderPassColorAttachment[] } {
-  return {
-    label: `${name} Render Pass Descriptor`,
-    colorAttachments: [
-      {
-        // Views are assigned by the renderer before submission.
-        view: undefined as unknown as GPUTextureView,
-        resolveTarget: undefined,
-        clearValue: clearColor,
-        loadOp: 'clear',
-        storeOp: 'store',
-      },
-    ],
-  };
-}

@@ -114,5 +114,5 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
     }
   }
 
-  return { type, draw } satisfies MarkModule;
+  return { draw } satisfies MarkModule;
 }

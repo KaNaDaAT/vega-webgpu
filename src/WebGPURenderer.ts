@@ -2,24 +2,13 @@ import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import { canvasTextDrift } from './util/canvasDrift.js';
 import marks from './marks/index.js';
 import { drawClipMask, blendCompositeElement } from './marks/util.js';
-import type {
-  ClipMaskTarget,
-  GPUVegaCanvasContext,
-  GPUVegaOptions,
-  GPUVegaScene,
-  RenderUniforms,
-} from './types/context.js';
+import type { ClipMaskTarget, GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene } from './types/context.js';
 import { Color } from './util/color.js';
 import { GpuTimer } from './util/gpuTimer.js';
 import { RenderQueue, type FrameTargets } from './util/renderQueue.js';
 import resize, { pixelRatio } from './util/resize.js';
 import { bufferPool } from './util/bufferManager.js';
-import {
-  createRenderPassDescriptor,
-  defaultSampleCount,
-  normalizeSampleCount,
-  preferredColorFormat,
-} from './util/webgpu.js';
+import { defaultSampleCount, normalizeSampleCount, preferredColorFormat } from './util/webgpu.js';
 
 const viewBounds = (origin: readonly [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
@@ -90,10 +79,8 @@ export default class WebGPURenderer extends Renderer {
   private _blendTextureDevice: GPUDevice | null = null;
   private _offscreen: TextureSlot = { texture: null, device: null };
   private _queue = new RenderQueue();
-  private _uniforms: RenderUniforms = { resolution: [0, 0], origin: [0, 0], dpi: 1 };
 
   private _renderCount = 0;
-  private _warnedTextureSize = false;
 
   /** Reason the GPU device was lost, if it ever was. Set for every reason. */
   deviceLostReason: string | null = null;
@@ -170,7 +157,7 @@ export default class WebGPURenderer extends Renderer {
     }
     ctx._renderer = this;
     ctx._renderQueue = this._queue;
-    ctx._uniforms = this._uniforms;
+    ctx._uniforms = { resolution: [0, 0], dpi: 1 };
     ctx._tx = 0;
     ctx._ty = 0;
     ctx._origin = [0, 0];
@@ -202,12 +189,7 @@ export default class WebGPURenderer extends Renderer {
 
       // devicePixelRatio disagrees with this for a detached canvas or an
       // explicit scaleFactor.
-      this._uniforms = {
-        resolution: [width, height],
-        origin: o,
-        dpi: this._ctx._ratio,
-      };
-      this._ctx._uniforms = this._uniforms;
+      this._ctx._uniforms = { resolution: [width, height], dpi: this._ctx._ratio };
     }
 
     return this;
@@ -496,20 +478,6 @@ export default class WebGPURenderer extends Renderer {
     return this._gpuTimer?.lastMs ?? 0;
   }
 
-  /** Resolves once the GPU has finished everything submitted so far. */
-  async idle(): Promise<void> {
-    if (!this._device) {
-      return;
-    }
-    // A lost device rejects this. Loss is handled by _handleDeviceLoss and the
-    // pixel output is the real check, so do not fail over it.
-    await this._device.queue.onSubmittedWorkDone().catch((err: unknown) => {
-      if (this.wgOptions.debugLog === true) {
-        console.warn('[vega-webgpu] onSubmittedWorkDone rejected:', err);
-      }
-    });
-  }
-
   /** Applies a changed wgOptions.sampleCount: pipelines bake the sample
    * count, so the per-mark GPU resources and attachments are rebuilt. */
   private _applySampleCount(ctx: GPUVegaCanvasContext): void {
@@ -531,27 +499,8 @@ export default class WebGPURenderer extends Renderer {
     const tFrameStart = performance.now();
     const { device, ctx } = await this._reinit();
 
-    // WebGPU textures (and the swapchain) are capped at maxTextureDimension2D
-    // (commonly 8192). Very tall or wide canvases, e.g. a long sorted bar list,
-    // would otherwise fail attachment creation and spam validation errors.
-    const maxDim = device.limits.maxTextureDimension2D;
-    const cw = this._canvas?.width ?? 0;
-    const chh = this._canvas?.height ?? 0;
-    if (cw > maxDim || chh > maxDim) {
-      if (!this._warnedTextureSize) {
-        this._warnedTextureSize = true;
-        console.warn(
-          `[vega-webgpu] Canvas ${cw}x${chh} exceeds the GPU's maximum texture size ` +
-            `(${maxDim}px); skipping WebGPU rendering for this view. Consider the canvas ` +
-            `or svg renderer for very large outputs.`,
-        );
-      }
-      this._finishFrame();
-      return;
-    }
-
     this._applySampleCount(ctx);
-    this._queue.startFrame();
+    this._queue.startFrame((blendMode, clip) => blendCompositeElement(ctx, device, blendMode, clip));
 
     const o = this._origin;
     const w = this._width;
@@ -573,7 +522,6 @@ export default class WebGPURenderer extends Renderer {
 
     const t1 = performance.now();
     this._settling = settle === true;
-    this._queue.setCompositor((blendMode, clip) => blendCompositeElement(ctx, device, blendMode, clip));
     try {
       this.draw(device, ctx, scene, vb, markTypes);
     } finally {
@@ -581,18 +529,25 @@ export default class WebGPURenderer extends Renderer {
     }
     const t2 = performance.now();
 
-    // One pass for the whole frame: clears to the background color, draws
-    // in scenegraph order, and resolves the MSAA attachment once.
-    const renderPassDescriptor = createRenderPassDescriptor('Frame', this.clearColor());
+    // One pass for the whole frame: clears to the background color, draws in
+    // scenegraph order (there is no depth attachment), and resolves the MSAA
+    // attachment once.
+    const target = this.wgOptions.offscreen ? this.offscreenTexture(device) : ctx.getCurrentTexture();
+    const multisampled = ctx._sampleCount > 1;
+    const renderPassDescriptor: GPURenderPassDescriptor = {
+      label: 'Frame Render Pass Descriptor',
+      colorAttachments: [
+        {
+          view: multisampled ? this.msaaTexture(device, ctx._sampleCount).createView() : target.createView(),
+          resolveTarget: multisampled ? target.createView() : undefined,
+          clearValue: this.clearColor(),
+          loadOp: 'clear',
+          storeOp: 'store',
+        },
+      ],
+    };
     if (this._gpuTimer) {
       renderPassDescriptor.timestampWrites = this._gpuTimer.timestampWrites();
-    }
-    const target = this.wgOptions.offscreen ? this.offscreenTexture(device) : ctx.getCurrentTexture();
-    if (ctx._sampleCount > 1) {
-      renderPassDescriptor.colorAttachments[0].view = this.msaaTexture(device).createView();
-      renderPassDescriptor.colorAttachments[0].resolveTarget = target.createView();
-    } else {
-      renderPassDescriptor.colorAttachments[0].view = target.createView();
     }
     const tSubmit = performance.now();
     this._offFrame = this._queue.drawsOffFrame();
@@ -600,7 +555,7 @@ export default class WebGPURenderer extends Renderer {
     // and a frame that neither masks nor blends should not carry them.
     let targets: FrameTargets | null = null;
     if (this._offFrame) {
-      const blend = this.blendTargets(device);
+      const blend = this.blendTargets(device, ctx._sampleCount);
       targets = {
         target,
         maskView: this.maskTexture(device).createView(),
@@ -1016,12 +971,11 @@ export default class WebGPURenderer extends Renderer {
    * copy of the frame underneath it. The layer takes the frame's own format and
    * sample count, so a mark draws into it through the pipelines it already has.
    */
-  blendTargets(device: GPUDevice): { layer: GPUTexture; resolve: GPUTexture; backdrop: GPUTexture } {
+  blendTargets(device: GPUDevice, samples: number): { layer: GPUTexture; resolve: GPUTexture; backdrop: GPUTexture } {
     const canvas = this._canvas;
     if (!canvas) {
       throw new Error('[vega-webgpu] Cannot create the blend targets before initialization.');
     }
-    const samples = this._ctx?._sampleCount ?? defaultSampleCount;
     const stale =
       this._blendTextureDevice !== device ||
       !this._layerResolve ||
@@ -1073,13 +1027,13 @@ export default class WebGPURenderer extends Renderer {
   }
 
   /** Multisampled color attachment, resolved into the canvas each frame. */
-  msaaTexture(device?: GPUDevice): GPUTexture {
+  msaaTexture(device: GPUDevice, samples: number): GPUTexture {
     return this.canvasTexture(this._msaa, device, 'MSAA texture', size => ({
       label: 'MSAA Color Texture',
       size,
       format: preferredColorFormat(),
       dimension: '2d',
-      sampleCount: this._ctx?._sampleCount ?? defaultSampleCount,
+      sampleCount: samples,
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     }));
   }

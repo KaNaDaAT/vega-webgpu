@@ -74,7 +74,7 @@ type CurveKind = keyof typeof CURVES;
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): LineResources {
   return getMarkResources(ctx, 'line', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const bufferManager = new BufferManager(device, drawName);
     const outline = outlinePipelines(ctx, device, drawName);
     const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
     const spanVertexManager = new VertexBufferManager(
@@ -613,7 +613,4 @@ function createAttributes(points: SceneLinePoint[]): Float32Array {
   return result;
 }
 
-export default {
-  type: 'line',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;

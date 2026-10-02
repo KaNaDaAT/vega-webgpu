@@ -26,7 +26,7 @@ export default function resize(
   pickCanvas: HTMLCanvasElement,
   pickContext: CanvasRenderingContext2D,
   ratio: number,
-): HTMLCanvasElement {
+): void {
   canvas.width = width * ratio;
   canvas.height = height * ratio;
 
@@ -44,8 +44,4 @@ export default function resize(
 
   context._origin = origin;
   context._ratio = ratio;
-  context._clip = undefined;
-  context._clipRound = undefined;
-
-  return canvas;
 }

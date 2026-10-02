@@ -42,11 +42,12 @@ export interface RenderBatchInfo {
   pipeline: GPURenderPipeline;
   clip?: ClipRect;
   bindGroups: GPUBindGroup[];
-  geometryBuffer?: GPUBuffer;
-  geometryCount?: number;
-  /** Vertices per instance when there is no geometry buffer. Defaults to a quad. */
+  /** Vertices per instance. Defaults to a quad. */
   vertexCount?: number;
 }
+
+/** Builds the draw that folds a layer back into the frame. */
+export type Compositor = (blend: string, clip: ClipRect | undefined) => QueueElement;
 
 /**
  * Collects draw calls for one frame and submits them in a single command
@@ -59,13 +60,16 @@ export class RenderQueue {
   private batchLength = 0;
   private batchInfo: RenderBatchInfo | null = null;
   private offFrame = false;
+  private compositor: Compositor | null = null;
 
-  startFrame(): void {
+  /** Starts a frame, with the compositor its layered draws fold back through. */
+  startFrame(compositor: Compositor): void {
     this.queue = [];
     this.batch = [];
     this.batchLength = 0;
     this.batchInfo = null;
     this.offFrame = false;
+    this.compositor = compositor;
   }
 
   /** Whether anything this frame draws somewhere other than the frame itself. */
@@ -73,17 +77,6 @@ export class RenderQueue {
     // an open batch only joins the queue when it closes, and it may be a layer
     this.flushBatch();
     return this.offFrame;
-  }
-
-  /**
-   * Builds the draw that folds a layer back into the frame, installed once per
-   * frame by the renderer. Without one a layered pipeline draws into the frame
-   * unblended, which is what it used to do anyway.
-   */
-  private compositor: ((blend: string, clip: ClipRect | undefined) => QueueElement) | null = null;
-
-  setCompositor(build: ((blend: string, clip: ClipRect | undefined) => QueueElement) | null): void {
-    this.compositor = build;
   }
 
   enqueue(element: QueueElement): void {
@@ -100,11 +93,11 @@ export class RenderQueue {
     // A mode the blend state cannot express draws into a layer and is folded in
     // straight after, so each draw meets the frame on its own the way canvas
     // composites a fill and then a stroke.
-    const blend = this.compositor ? layerMode(element.pipeline) : undefined;
-    if (blend !== undefined) {
+    const blend = layerMode(element.pipeline);
+    if (blend !== undefined && this.compositor) {
       this.offFrame = true;
       this.queue.push({ ...element, pass: 'layer' });
-      this.queue.push((this.compositor as (b: string, c: ClipRect | undefined) => QueueElement)(blend, element.clip));
+      this.queue.push(this.compositor(blend, element.clip));
       return;
     }
     if (element.pass) {
@@ -142,7 +135,7 @@ export class RenderQueue {
     this.batchLength += values.length;
   }
 
-  flushBatch(): void {
+  private flushBatch(): void {
     const info = this.batchInfo;
     if (info === null || this.batchLength === 0) {
       this.batchInfo = null;
@@ -161,11 +154,10 @@ export class RenderQueue {
     this.batch = [];
     this.batchLength = 0;
 
-    const geometry = info.geometryBuffer;
     this.enqueue({
       pipeline: info.pipeline,
-      drawCounts: [geometry ? (info.geometryCount ?? 1) : (info.vertexCount ?? 6), instanceCount],
-      vertexBuffers: geometry ? [geometry, data] : [data],
+      drawCounts: [info.vertexCount ?? 6, instanceCount],
+      vertexBuffers: [data],
       bindGroups: info.bindGroups,
       clip: info.clip,
     });
@@ -361,12 +353,7 @@ function encodeDraw(
  * differently clipped groups into one draw carrying the first mark's clip.
  */
 function sameBatchTarget(a: RenderBatchInfo, b: RenderBatchInfo): boolean {
-  if (
-    a.pipeline !== b.pipeline ||
-    a.geometryBuffer !== b.geometryBuffer ||
-    a.geometryCount !== b.geometryCount ||
-    a.vertexCount !== b.vertexCount
-  ) {
+  if (a.pipeline !== b.pipeline || a.vertexCount !== b.vertexCount) {
     return false;
   }
   if (!sameClip(a.clip, b.clip)) {

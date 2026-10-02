@@ -41,7 +41,7 @@ interface GroupResources {
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): GroupResources {
   return getMarkResources(ctx, 'group', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    const bufferManager = new BufferManager(device, drawName);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, dimensions, fill color, stroke color, stroke width, corner radii
@@ -60,7 +60,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     );
 
     const outline = outlinePipelines(ctx, device, `${drawName}Dash`);
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, undefined, true);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, true);
     return {
       device,
       bufferManager,
@@ -224,19 +224,9 @@ function draw(
       const radii = clipRadii(group, ctx._uniforms.dpi);
       ctx._clipRound = radii ? { box, radii } : oldRound;
     }
-    if (vb) {
-      vb.translate(-gx, -gy);
-    }
-
-    sceneVisit(group, (item: GPUVegaScene) => {
-      if (item.marktype === 'group' || markTypes == null || markTypes.includes(item.marktype)) {
-        this.draw(device, ctx, item, vb, markTypes);
-      }
-    });
-
-    if (vb) {
-      vb.translate(gx, gy);
-    }
+    vb.translate(-gx, -gy);
+    sceneVisit(group, (item: GPUVegaScene) => this.draw(device, ctx, item, vb, markTypes));
+    vb.translate(gx, gy);
     if (group.clip) {
       ctx._clip = oldClip;
       ctx._clipRound = oldRound;
@@ -312,10 +302,7 @@ function paintsOver(a: SceneGroupExt, b: SceneGroupExt): boolean {
   return x1 < bounds.x2 && x1 + (a.width || 0) > bounds.x1 && y1 < bounds.y2 && y1 + (a.height || 0) > bounds.y1;
 }
 
-export default {
-  type: 'group',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;
 /**
  * A clipping group's corner radii in device pixels, clockwise from top left.
  *

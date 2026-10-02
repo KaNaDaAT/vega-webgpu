@@ -98,7 +98,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = markItems<SceneShapeItem>(scene);
-  if (!items?.length) {
+  if (items.length === 0) {
     return;
   }
 
@@ -142,8 +142,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     const bounds = item.bounds;
     const gradient = isGradient(item.fill) && bounds ? item.fill : null;
-    // A gradient stroke samples the ramp per fragment, which the segment shader
-    // cannot do, so it keeps the triangulated ribbon and the gradient pipeline.
     const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
     let shapeGeom: PathGeometry | null = null;
     const geom = () => (shapeGeom ??= shape(ctx, item));
@@ -430,7 +428,4 @@ function createGeometryData(
   return [data, shapeGeom.lines, false];
 }
 
-export default {
-  type: 'shape',
-  draw,
-} satisfies MarkModule;
+export default { draw } satisfies MarkModule;

@@ -34,11 +34,6 @@ const BUILDERS = {
 /** A builder name, optionally followed by a sub-variant after a colon. */
 export type ShaderKey = keyof typeof BUILDERS | `${keyof typeof BUILDERS}:${string}`;
 
-/** Shader key for one analytic symbol shape. */
-export function symbolSdfKey(shape: string): ShaderKey {
-  return `SymbolSdf:${shape}`;
-}
-
 /**
  * The compiled module for one shader variant, built on first use and cached on
  * the context for the life of the device. `key` names a builder, optionally
