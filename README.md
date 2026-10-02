@@ -208,4 +208,4 @@ Contributions are welcome. WebGPU 2D rendering has few reference implementations
 
 ## License
 
-ISC
+BSD-3-Clause, the same as Vega. See [LICENSE](LICENSE).

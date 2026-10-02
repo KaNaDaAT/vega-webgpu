@@ -11,7 +11,7 @@
     "charts",
     "gpu"
   ],
-  "license": "ISC",
+  "license": "BSD-3-Clause",
   "author": {
     "name": "Kalian Danzer (KaNaDaAT)",
     "url": "https://github.com/KaNaDaAT"
