@@ -294,12 +294,16 @@ export default class WebGPURenderer extends Renderer {
       this._dpr.query.removeEventListener('change', this._dpr.onChange);
     }
     const query = window.matchMedia(`(resolution: ${ratio}dppx)`);
+    // Weak, since the query outlives a renderer vega dropped without finalizing.
+    const self = new WeakRef(this);
     const onChange = () => {
-      if (this._finalized) {
+      const renderer = self.deref();
+      if (!renderer || renderer._finalized) {
+        query.removeEventListener('change', onChange);
         return;
       }
-      this.resize(this._width, this._height, this._origin);
-      this.frame();
+      renderer.resize(renderer._width, renderer._height, renderer._origin);
+      renderer.frame();
     };
     query.addEventListener('change', onChange);
     this._dpr = { query, onChange };
