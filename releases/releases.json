@@ -41,7 +41,7 @@
       "sampleCount, to pick 4x MSAA or none",
       "redrawOnZoom, to follow browser zoom or hold the ratio the canvas was first sized at",
       "canvasTextDrift, to place a label where the canvas renderer places it rather than where its own coordinates say",
-      "The canvas fits itself to the GPU maximum texture size instead of failing"
+      "The canvas fits itself to the GPU maximum texture size instead of failing, and asks the adapter for its own limit, 16384 on most desktop GPUs, rather than the 8192 default"
     ],
     "performance": [
       "Text draws from a single glyph atlas: a rotating radial tree went from 328 ms a frame to 8.5",

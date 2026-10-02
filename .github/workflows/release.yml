@@ -65,7 +65,7 @@ jobs:
           if git diff --quiet && git diff --cached --quiet; then
             echo "main already hosts $VERSION, nothing to commit."
           else
-            git add releases index.html
+            git add releases index.html README.md
             git commit -m "release: host $VERSION"
             git push origin main
           fi

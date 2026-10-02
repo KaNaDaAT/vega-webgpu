@@ -210,7 +210,7 @@ const pending = dirty();
 const untracked = gitRaw('status', '--porcelain').split('\n').filter(Boolean);
 if (pending.length || (host && untracked.length)) {
   say('Committing:', ...pending.map(f => `    ${f}`), '');
-  run('git', ['add', 'package.json', 'package-lock.json', 'releases', 'index.html']);
+  run('git', ['add', 'package.json', 'package-lock.json', 'releases', 'index.html', 'README.md']);
   if (run('git', ['commit', '-m', `release: ${version}`]).status !== 0) {
     die('The commit failed.');
   }

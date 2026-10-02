@@ -52,7 +52,10 @@
             canvasTextDrift, to place a label where the canvas renderer places it rather than where its own coordinates
             say
           </li>
-          <li>The canvas fits itself to the GPU maximum texture size instead of failing</li>
+          <li>
+            The canvas fits itself to the GPU maximum texture size instead of failing, and asks the adapter for its own
+            limit, 16384 on most desktop GPUs, rather than the 8192 default
+          </li>
         </ul>
 
         <h2>Performance</h2>

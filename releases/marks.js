@@ -119,9 +119,8 @@ const H = 220;
 
 /** Base scene per mark: enough items to overlap, so blend has something to do. */
 function baseSpec(mark) {
-  // An opaque background, which a chart normally has. A blend mode needs one:
-  // WebGPU's fixed function blending cannot add the term that keeps a source
-  // unchanged where the backdrop is empty, so multiply over nothing goes black.
+  // An opaque background, which a chart normally has, so a blend has a backdrop
+  // to mix with.
   const base = {
     $schema: 'https://vega.github.io/schema/vega/v6.json',
     width: W,

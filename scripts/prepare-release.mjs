@@ -4,7 +4,8 @@
  *
  * - copies the build output to releases/<x_y_z>/
  * - records the notes in releases/releases.json
- * - regenerates releases/versions.js and releases/index.html
+ * - regenerates releases/versions.js, the version table in index.html and the
+ *   script tag in index.html and README.md
  *
  * Run by .github/workflows/release.yml; safe to run locally as well.
  * The build must exist (npm run build) before invoking this script.
@@ -198,11 +199,21 @@ const pendingNote = pending.length
         </p>
       `
   : '\n      ';
-// the copy and paste snippet points at the newest stable build. An rc is
-// hosted so it can be tried, not so it can be the one people paste.
-const stable = listed.find(v => !prerelease(v));
-if (stable) {
-  page = splice(page, indexPath, 'latest', stable.replaceAll('.', '_'));
+// The copy and paste snippet loads the newest Vega, so it points at the newest
+// major: its stable build, or its newest rc until it has one. An older major
+// needs an older Vega and fails next to it.
+const major = v => v.split('.')[0];
+const snippet = listed[0] && (listed.find(v => !prerelease(v) && major(v) === major(listed[0])) ?? listed[0]);
+if (snippet) {
+  page = splice(page, indexPath, 'latest', snippet.replaceAll('.', '_'));
+  const readmePath = join(root, 'README.md');
+  const readme = readFileSync(readmePath, 'utf8');
+  const hostedScript = /(kanadaat\.github\.io\/vega-webgpu\/releases\/)[\w-]+(\/vega-webgpu-renderer\.js)/;
+  if (hostedScript.test(readme)) {
+    writeFileSync(readmePath, readme.replace(hostedScript, `$1${snippet.replaceAll('.', '_')}$2`));
+  } else {
+    console.warn('README.md has no hosted script tag, so it was left alone.');
+  }
 }
 page = splice(page, indexPath, 'pending', pendingNote);
 page = splice(page, indexPath, 'updated', new Date().toISOString().slice(0, 10));

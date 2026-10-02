@@ -20,8 +20,8 @@
         <p class="actions">
           <a class="btn primary" href="./test/">Live demo</a>
           <a class="btn" href="./releases/marks.html">Mark playground</a>
+          <a class="btn" href="./gallery/">Render gallery</a>
           <a class="btn" href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
-          <span class="btn off" aria-disabled="true">npm, not published yet</span>
         </p>
       </div>
     </header>
@@ -52,8 +52,8 @@
           under <a href="#features">features</a> and <a href="#roadmap">roadmap</a>.
         </p>
         <p class="note">
-          Needs a browser with WebGPU. If <code>navigator.gpu</code> is undefined the renderer will not register, so
-          keep <code>canvas</code> as the fallback.
+          Needs a browser with WebGPU. Without one, <code>'webgpu'</code> draws with the canvas renderer, see
+          <a href="#fallback">falling back</a>.
         </p>
       </section>
 
@@ -63,7 +63,7 @@
         <h3>Script tag</h3>
         <p>The renderer registers itself when loaded after Vega.</p>
         <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"&gt;&lt;/script&gt;
-&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/<!-- latest:start -->1_2_0<!-- latest:end -->/vega-webgpu-renderer.js"&gt;&lt;/script&gt;
+&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/<!-- latest:start -->2_0_0-rc4<!-- latest:end -->/vega-webgpu-renderer.js"&gt;&lt;/script&gt;
 &lt;div id="vis"&gt;&lt;/div&gt;
 &lt;script&gt;
   fetch('https://vega.github.io/vega/examples/bar-chart.vg.json')
@@ -103,19 +103,13 @@
           </table>
         </div>
 
-        <h3>npm</h3>
-        <p class="note">Not published yet. Until it is, take a hosted build with the script tag above.</p>
-        <pre><code>npm install vega-webgpu-renderer</code></pre>
-        <pre><code>import 'vega-webgpu-renderer'; // registers the 'webgpu' renderer
-
-const view = new vega.View(vega.parse(spec), {
-  renderer: 'webgpu',
-  container: '#vis',
-});</code></pre>
-
-        <h3>Falling back</h3>
-        <p>Pick the renderer once, at view construction.</p>
-        <pre><code>const renderer = navigator.gpu ? 'webgpu' : 'canvas';
+        <h3 id="fallback">Falling back</h3>
+        <p>
+          Without <code>navigator.gpu</code>, <code>'webgpu'</code> draws with the canvas renderer and warns. A browser
+          can also have <code>navigator.gpu</code> and no adapter, a blocklisted GPU for instance, and then nothing is
+          drawn. To fall back there too, pick the renderer from the adapter:
+        </p>
+        <pre><code>const renderer = (await navigator.gpu?.requestAdapter()) ? 'webgpu' : 'canvas';
 new vega.View(vega.parse(spec), { renderer, container: '#vis' }).runAsync();</code></pre>
       </section>
 
@@ -189,6 +183,15 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
                 <td><code>false</code></td>
                 <td>2.0.0</td>
               </tr>
+              <tr>
+                <td><code>canvasTextDrift</code></td>
+                <td>
+                  Place each label where the canvas renderer would, which can be a row off on a half pixel baseline.
+                  Only for matching a canvas view side by side.
+                </td>
+                <td><code>false</code></td>
+                <td>2.0.0</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -203,37 +206,23 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
         <p>
           All twelve of Vega's mark types are drawn: arc, area, group, image, line, path, rect, rule, shape, symbol,
           text and trail. Fill, stroke, opacity, clipping, corner radii, symbol shapes and rotation, and text layout all
-          work on every mark that has them. What follows is the properties that do not yet reach every mark.
+          work on every mark that has them. The table is the properties that used to stop at some marks, and each now
+          reaches every mark that has it.
         </p>
         <div class="scroll">
           <table class="matrix">
+            <!-- filled from marks.js, which the playground reads too, so the two cannot disagree -->
             <thead>
-              <tr>
+              <tr id="matrixHead">
                 <th>Mark</th>
-                <th>Gradient fill</th>
-                <th>Gradient stroke</th>
-                <th>strokeDash</th>
-                <th>strokeCap</th>
-                <th>blend</th>
               </tr>
             </thead>
-            <!-- filled from marks.js, which the playground reads too, so the two cannot disagree -->
             <tbody id="matrix"></tbody>
           </table>
         </div>
         <p>
           Every mark name is a link into the <a href="./releases/marks.html">playground</a>, where you can tick these
           properties on and off and watch canvas and WebGPU draw the same spec side by side.
-        </p>
-        <p>
-          Where a gradient is not supported the mark draws a flat colour from the gradient's first stop. Where
-          <code>strokeDash</code> is not read the stroke draws solid, which is most visible on a dashed axis grid, since
-          Vega renders those as rule marks.
-        </p>
-        <p>
-          <code>strokeJoin</code> and <code>strokeMiterLimit</code> are read by nobody. Triangulated marks miter at
-          Vega's default limit of 10 and the rest join round, so only a spec that asks for something other than the
-          default differs.
         </p>
 
         <h3>Known differences from canvas</h3>
@@ -252,19 +241,16 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
             against canvas. rect, rule, symbol and line segments compute coverage analytically and do not have this.
           </li>
           <li>
-            <strong>A blend mode needs an opaque backdrop.</strong> WebGPU's fixed function blending cannot express the
-            term that leaves a source colour unchanged where the backdrop is empty, so a blended mark over a fully
-            transparent background comes out dark where canvas leaves it alone. Charts normally set a background, and
-            with one the four supported modes match canvas exactly.
+            <strong>Maximum canvas size.</strong> The canvas is a GPU texture, so its device pixels are capped at the
+            adapter's <code>maxTextureDimension2D</code>, usually 16384 on a desktop GPU and never less than 8192. A
+            view past that draws at a lower pixel ratio that fits, softer than asked for, with one warning. Keep width
+            and height times <code>devicePixelRatio</code> under the cap for full sharpness.
           </li>
           <li>
-            <strong>Downscaled images.</strong> The GPU samples bilinearly where canvas box filters a large reduction,
-            so an icon shrunk about five times is softer than canvas draws it.
-          </li>
-          <li>
-            <strong>Maximum canvas size.</strong> WebGPU caps a texture at <code>maxTextureDimension2D</code>, 8192 on
-            most GPUs. A view whose device pixels exceed that drops its pixel ratio to fit and draws softer, with a
-            warning. A view over the cap at ratio 1 cannot be drawn at all and falls back with a warning.
+            <strong>An erasing operator inside a clip path.</strong> <code>source-in</code>,
+            <code>destination-in</code>, <code>source-out</code>, <code>destination-atop</code> and <code>copy</code>
+            clear what lies outside the source, and inside a clip path they clear the path's whole bounding box where
+            canvas clears only the path. Queued for 2.1.0.
           </li>
         </ul>
       </section>
@@ -278,18 +264,14 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
         <div class="cards">
           <div class="card">
             <h3>2.0.0</h3>
-            <p class="cardnote">In progress. Parity, not improvement.</p>
+            <p class="cardnote">In release candidates. Parity, not improvement.</p>
             <ul>
               <li>
-                The properties still ignored above: dashes outside line and group, gradient strokes on the rest, blend
-                on group, image and text, joins and miter limit, round caps on path, area and shape
+                Analytic edge coverage for triangulated fills, so an edge on a pixel boundary matches canvas rather than
+                landing a quarter step off
               </li>
-              <li>
-                Analytic edge coverage for triangulated marks, the largest single difference from canvas and the cause
-                of most of the rest
-              </li>
-              <li>A stroked path drawn as segments rather than a triangulated ribbon</li>
-              <li>Widen the vega-typings renderer union to include <code>webgpu</code>, then publish</li>
+              <li>Report the bugs found in the canvas renderer along the way to Vega</li>
+              <li>Propose it to Vega as an official renderer</li>
             </ul>
           </div>
           <div class="card">
@@ -299,8 +281,6 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
               <li>Viewport clipping, so a very tall view draws only what is on screen</li>
               <li>Tiled rendering for a canvas past the GPU's texture cap</li>
               <li>Per-item compositing, which is what would reproduce canvas's polygon seams</li>
-              <li>The eleven blend modes WebGPU cannot express without reading the destination</li>
-              <li>Mipmaps, so a heavily downscaled image matches canvas</li>
               <li>Performance: feed d3-geo a path sink, reuse buffers, cache bind groups</li>
             </ul>
           </div>
@@ -335,11 +315,19 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
               </tr>
               <tr>
                 <td><code>npm test</code></td>
-                <td>Render every spec both ways and compare</td>
+                <td>Render every spec both ways and compare, from the build</td>
               </tr>
               <tr>
                 <td><code>npm run test:report</code></td>
-                <td>Open the comparison gallery from the last run</td>
+                <td>Open the last run's HTML report</td>
+              </tr>
+              <tr>
+                <td><code>npm run gallery:record</code></td>
+                <td>Record every case to <code>test/render/output</code></td>
+              </tr>
+              <tr>
+                <td><code>npm run gallery</code></td>
+                <td>Browse the recorded cases, or render them live</td>
               </tr>
               <tr>
                 <td><code>npm run typecheck</code></td>
@@ -444,6 +432,13 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
 
     <script type="module">
       import { SUPPORT, MARKS, FEATURES, CELL_TEXT, CELL_CLASS } from './releases/marks.js';
+
+      const head = document.getElementById('matrixHead');
+      for (const f of FEATURES) {
+        const th = document.createElement('th');
+        th.textContent = f.label;
+        head.append(th);
+      }
 
       const body = document.getElementById('matrix');
       for (const mark of MARKS) {

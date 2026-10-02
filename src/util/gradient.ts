@@ -92,7 +92,7 @@ export function getStopRamp(res: GradientResources, gradient: SceneGradient): GP
  * Gradient parameters as consumed by the gradient shaders:
  * coords = [x1, y1, x2, y2], bounds = [x, y, w, h] mapping positions into
  * the normalized gradient space, misc = [kind, r1, r2, 0].
- * Radial gradients use the concentric-circle approximation around (x2, y2).
+ * A radial runs between the circles (x1, y1, r1) and (x2, y2, r2), as canvas does.
  */
 export function gradientParams(
   gradient: SceneGradient,
