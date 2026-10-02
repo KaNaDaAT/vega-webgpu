@@ -86,22 +86,28 @@ export class BufferManager {
     const values = this.uniformValues();
     const key = values.join(',');
     let buffer = this.uniformCache.get(key);
-    if (!buffer) {
-      // cached across frames by value, so it cannot come from the frame pool
-      buffer = this.createBuffer(
-        `${this.bufferName} Uniform`,
-        values,
-        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        true,
-      );
-      if (this.uniformCache.size >= MAX_UNIFORM_CACHE) {
-        const oldest = this.uniformCache.keys().next().value;
-        if (oldest !== undefined) {
-          this.uniformCache.delete(oldest);
-        }
-      }
+    if (buffer) {
+      // re-insert to keep the map in least-recently-used order
+      this.uniformCache.delete(key);
       this.uniformCache.set(key, buffer);
+      return buffer;
     }
+    // cached across frames by value, so it cannot come from the frame pool
+    buffer = this.createBuffer(
+      `${this.bufferName} Uniform`,
+      values,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      true,
+    );
+    if (this.uniformCache.size >= MAX_UNIFORM_CACHE) {
+      const oldest = this.uniformCache.keys().next().value;
+      if (oldest !== undefined) {
+        // a draw queued this frame may still read it, so the pool frees it later
+        bufferPool(this.device).hold(this.uniformCache.get(oldest) as GPUBuffer);
+        this.uniformCache.delete(oldest);
+      }
+    }
+    this.uniformCache.set(key, buffer);
     return buffer;
   }
 
