@@ -337,6 +337,8 @@ export default class WebGPURenderer extends Renderer {
       device = await adapter.requestDevice({
         // timestamps measure gpu time without stalling the frame, where offered
         requiredFeatures: adapter.features.has('timestamp-query') ? ['timestamp-query'] : [],
+        // a device gets the 8192 default unless it asks for what the adapter has
+        requiredLimits: { maxTextureDimension2D: adapter.limits.maxTextureDimension2D },
       });
       this._gpuTimer = GpuTimer.create(device);
       this._device = device;
