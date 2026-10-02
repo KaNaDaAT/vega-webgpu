@@ -112,6 +112,7 @@ writeFileSync(
   `${JSON.stringify(
     {
       generated: manifest.generated,
+      run: manifest.run ?? null,
       settings: manifest.settings ?? null,
       snapshot: { version, of: manifest.cases.length, partial: kept.length < manifest.cases.length },
       cases: kept,

@@ -634,6 +634,8 @@ async function loadCases() {
         settings: manifest.settings ?? null,
         recorded: true,
         snapshot: manifest.snapshot ?? null,
+        run: manifest.run ?? null,
+        generated: manifest.generated ?? null,
       };
     }
   } catch {
@@ -648,7 +650,24 @@ async function loadCases() {
   };
 }
 
-loadCases().then(({ cases, settings, recorded, snapshot }) => {
+/** Which run the recorded cases come from, which a hosted page says nowhere else. */
+function showRun(run, generated) {
+  if (!run && !generated) {
+    return;
+  }
+  const sha = run?.sha ? escapeHtml(run.sha.slice(0, 7)) : null;
+  const parts = [
+    sha && (run.repo ? `<a href="${escapeHtml(run.repo)}/commit/${escapeHtml(run.sha)}">${sha}</a>` : sha),
+    run?.version ? escapeHtml(run.version) : null,
+    generated ? `${new Date(generated).toISOString().slice(0, 16).replace('T', ' ')} UTC` : null,
+    run?.url ? `<a href="${escapeHtml(run.url)}">CI run</a>` : 'local run',
+  ].filter(Boolean);
+  $('runInfo').innerHTML = `recorded from ${parts.join(', ')}`;
+  $('runInfo').hidden = false;
+}
+
+loadCases().then(({ cases, settings, recorded, snapshot, run, generated }) => {
+  showRun(run, generated);
   state.cases = cases;
   state.settings = settings;
   state.hasRecorded = recorded;

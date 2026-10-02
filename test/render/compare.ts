@@ -1,4 +1,5 @@
 import { expect, type Page, type TestInfo } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -103,6 +104,29 @@ function runSettings() {
   };
 }
 
+/** Which commit, version and CI run the pngs came from, for the gallery to say. */
+function runIdentity() {
+  const env = process.env;
+  let sha = env.GITHUB_SHA ?? null;
+  if (!sha) {
+    try {
+      sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    } catch {
+      sha = null;
+    }
+  }
+  const pkg = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
+  const repo = env.GITHUB_REPOSITORY ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}` : null;
+  return {
+    sha,
+    version: (JSON.parse(readFileSync(pkg, 'utf8')) as { version: string }).version,
+    repo,
+    url: repo && env.GITHUB_RUN_ID ? `${repo}/actions/runs/${env.GITHUB_RUN_ID}` : null,
+  };
+}
+
+let identity: ReturnType<typeof runIdentity> | null = null;
+
 const MANIFEST = join(OUTPUT_DIR, 'index.json');
 const SCENES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'scenes');
 const SPECS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'specs-valid');
@@ -154,7 +178,7 @@ export function recordCase(entry: GalleryCase): void {
     .sort((a, b) => a.file.localeCompare(b.file));
   writeFileSync(
     MANIFEST,
-    `${JSON.stringify({ generated: new Date().toISOString(), settings: runSettings(), cases }, null, 2)}
+    `${JSON.stringify({ generated: new Date().toISOString(), run: (identity ??= runIdentity()), settings: runSettings(), cases }, null, 2)}
 `,
   );
 }

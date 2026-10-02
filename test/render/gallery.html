@@ -270,6 +270,18 @@
         padding: 1px 5px;
         border-radius: 3px;
       }
+
+      #runInfo {
+        margin: 0;
+        color: var(--dim);
+        font-size: 11px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+
+      #runInfo a {
+        color: inherit;
+      }
     </style>
   </head>
 
@@ -297,6 +309,7 @@
           <option value="quad">sort by worst block</option>
           <option value="name">sort by name</option>
         </select>
+        <p id="runInfo" hidden></p>
       </header>
       <div id="list"></div>
     </aside>
