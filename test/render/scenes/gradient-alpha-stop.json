@@ -1,0 +1,103 @@
+{
+  "description": "Gradient stops at zero alpha. d3-color drops the rgb of a colour whose alpha is zero, so the ramp faded from black where canvas keeps the stop's own rgb: a transparent red, a transparent teal between two opaque stops, and the keyword transparent.",
+  "width": 420,
+  "height": 150,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 30,
+                "width": 120,
+                "height": 90,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "rgba(228,87,86,0)"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                }
+              },
+              {
+                "x": 150,
+                "y": 30,
+                "width": 120,
+                "height": 90,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 0.5,
+                      "color": "rgba(114,183,178,0)"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                }
+              },
+              {
+                "x": 280,
+                "y": 30,
+                "width": 120,
+                "height": 90,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "transparent"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#2b5d8a"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

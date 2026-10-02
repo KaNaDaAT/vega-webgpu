@@ -35,6 +35,60 @@ function channel(value: number): number {
   return Number.isFinite(value) ? value / 255 : 0;
 }
 
+/** Channels 0 to 255, alpha 0 to 1. */
+export type CssColor = [r: number, g: number, b: number, a: number];
+
+let probe: CanvasRenderingContext2D | null | undefined;
+const cssCache = new Map<string, CssColor | null>();
+
+/**
+ * A colour as canvas parses it, or null when it does not. d3-color sets the
+ * channels of a colour at zero alpha to NaN, and a gradient interpolates
+ * through them, so a stop like rgba(255,0,0,0) fades from red on canvas.
+ */
+export function cssColor(value: string): CssColor | null {
+  let parsed = cssCache.get(value);
+  if (parsed === undefined) {
+    parsed = parseCss(value);
+    cssCache.set(value, parsed);
+  }
+  return parsed;
+}
+
+function parseCss(value: string): CssColor | null {
+  probe ??= typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  if (probe) {
+    // an invalid colour leaves fillStyle as it was, so two starting points differ
+    probe.fillStyle = '#000000';
+    probe.fillStyle = value;
+    const read = String(probe.fillStyle);
+    probe.fillStyle = '#ffffff';
+    probe.fillStyle = value;
+    if (String(probe.fillStyle) !== read) {
+      return null;
+    }
+    const css = readCss(read);
+    if (css) {
+      return css;
+    }
+  }
+  const c = parseColor(value)?.rgb();
+  return c ? [c.r, c.g, c.b, c.opacity] : null;
+}
+
+/** The two forms canvas serializes an sRGB colour in. */
+function readCss(s: string): CssColor | null {
+  if (/^#[0-9a-f]{6}$/i.test(s)) {
+    return [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16), 1];
+  }
+  const rgba = /^rgba?\(([^)]*)\)$/.exec(s);
+  if (!rgba) {
+    return null;
+  }
+  const [r, g, b, a = 1] = rgba[1].split(',').map(Number);
+  return [r, g, b, a].every(Number.isFinite) ? [r, g, b, a] : null;
+}
+
 export class Color {
   private static cache: Record<string, RGBA> = {};
 

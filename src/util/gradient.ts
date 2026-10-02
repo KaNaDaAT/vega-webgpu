@@ -1,8 +1,8 @@
-import { color as parseColor } from 'd3-color';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneGradient } from '../types/scene.js';
 import { getMarkResources } from '../marks/util.js';
 import { bufferPool } from './bufferManager.js';
+import { cssColor } from './color.js';
 
 /** Texels in a baked gradient stop ramp. */
 const RAMP_SIZE = 256;
@@ -42,13 +42,13 @@ export function getStopRamp(res: GradientResources, gradient: SceneGradient): GP
 
   const stops = (gradient.stops ?? [])
     .map(s => {
-      const c = parseColor(s.color)?.rgb();
+      const c = cssColor(s.color);
       return {
         offset: Math.min(Math.max(s.offset, 0), 1),
-        r: c ? c.r : 0,
-        g: c ? c.g : 0,
-        b: c ? c.b : 0,
-        a: c ? c.opacity : 1,
+        r: c ? c[0] : 0,
+        g: c ? c[1] : 0,
+        b: c ? c[2] : 0,
+        a: c ? c[3] : 1,
       };
     })
     .sort((a, b) => a.offset - b.offset);
