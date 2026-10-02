@@ -9,13 +9,14 @@ import {
   BIAS_DELTA_DEFAULT,
   MEAN_DELTA_DEFAULT,
   TILE_CHECK_DEFAULT,
+  ciBiasDeltaOverrides,
   ciCrossCheckOverrides,
   ciTileOverrides,
+  cpuCanvas,
   crossCheckOverrides,
   flatMeanDeltaOverrides,
   biasDeltaOverrides,
   meanDeltaOverrides,
-  onCi,
   specCases,
   type SpecCase,
 } from './specs.js';
@@ -53,6 +54,7 @@ test.describe('WebGPU vs canvas', () => {
     const name = kase.name;
     test(name, async ({ page }, testInfo: TestInfo) => {
       const own = Object.hasOwn(crossCheckOverrides, name) ? crossCheckOverrides[name] : CROSS_CHECK_DEFAULT;
+      const bias = biasDeltaOverrides[name] ?? BIAS_DELTA_DEFAULT;
       await compareCase(testInfo, {
         name,
         kind: 'spec',
@@ -60,10 +62,10 @@ test.describe('WebGPU vs canvas', () => {
         source: kase.spec,
         render: (renderer: RendererName) => renderSpec(page, kase, renderer),
         budgets: {
-          diff: onCi && own !== null ? (ciCrossCheckOverrides[name] ?? own) : own,
-          tile: onCi ? (ciTileOverrides[name] ?? TILE_CHECK_DEFAULT) : TILE_CHECK_DEFAULT,
+          diff: cpuCanvas && own !== null ? (ciCrossCheckOverrides[name] ?? own) : own,
+          tile: cpuCanvas ? (ciTileOverrides[name] ?? TILE_CHECK_DEFAULT) : TILE_CHECK_DEFAULT,
           mean: meanDeltaOverrides[name] ?? MEAN_DELTA_DEFAULT,
-          bias: biasDeltaOverrides[name] ?? BIAS_DELTA_DEFAULT,
+          bias: cpuCanvas ? (ciBiasDeltaOverrides[name] ?? bias) : bias,
           flat: flatMeanDeltaOverrides[name] ?? FLAT_MEAN_DEFAULT,
         },
       });

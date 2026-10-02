@@ -75,6 +75,8 @@ export default defineConfig({
             '--enable-features=Vulkan',
             '--disable-vulkan-surface',
             '--use-webgpu-adapter=swiftshader',
+            // canvas on the CPU, the reference the GPU-less CI runner draws
+            ...(process.env.CPU_CANVAS ? ['--disable-accelerated-2d-canvas'] : []),
           ],
     },
   },

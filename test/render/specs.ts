@@ -201,13 +201,14 @@ export const meanDeltaOverrides: Record<string, number> = {
 };
 
 /**
- * The CI runner rasterizes on SwiftShader, and its numbers are not the numbers
- * a real adapter gives. Windows SwiftShader passes the budgets below; the Linux
- * build on the runner does not, on cases whose difference is antialiasing
- * coverage rather than placement. Only the runner reads these, so the budget a
- * developer sees stays as tight as it was.
+ * The CI runner has no GPU, so canvas, the reference, is rasterized on the CPU
+ * there and on the GPU on a desktop. The two differ in antialiased coverage and
+ * in how a dash wraps the start of a closed path, so a few cases carry budgets
+ * for the runner below. CPU_CANVAS=1 rasterizes canvas the same way locally and
+ * reads the runner's numbers. Only those runs use the tables, so the budget a
+ * developer normally sees stays as tight as it was.
  */
-export const onCi = !!process.env.CI;
+export const cpuCanvas = !!process.env.CI || !!process.env.CPU_CANVAS;
 
 /** The pixel ratio the suite is running at, which RENDER_DPR sets. */
 export const renderDpr = Number(process.env.RENDER_DPR ?? 1);
@@ -218,6 +219,21 @@ export const ciCrossCheckOverrides: Record<string, number> = {
   'choropleth-stroked': 0.016,
   // 0.875% there, 0.365% on a real adapter
   'map-fit-stroked': 0.012,
+  // 0.914% there
+  'map-bind': 0.012,
+};
+
+/** Per-spec signed-mean budgets for the CI rasterizer. */
+export const ciBiasDeltaOverrides: Record<string, number> = {
+  // the polygon seam model again, where the two rasterizers differ most
+  'map-fit-stroked': 11, // 8.66 there, 3.17 here
+  'choropleth-stroked': 5.5, // 4.49 there, 1.81 here
+  // dense small marks, so most inked pixels are antialiased edge
+  'scatter-brush-panzoom': 3.5, // 2.72 there
+  'dot-plot': 3.5, // 2.67 there
+  'legends-ordinal': 3.5, // 2.58 there
+  'quantile-dot-plot': 3, // 2.31 there
+  'map-bind': 3, // 2.26 there
 };
 
 /** Per-spec densest-tile budgets for the CI rasterizer. */

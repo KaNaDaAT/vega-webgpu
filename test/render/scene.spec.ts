@@ -10,6 +10,8 @@ import {
   SCENE_FLAT_MEAN_DEFAULT,
   SCENE_BIAS_DELTA_DEFAULT,
   SCENE_MEAN_DELTA_DEFAULT,
+  ciQuadDeltaOverrides,
+  ciSceneBiasDeltaOverrides,
   quadDeltaOverrides,
   skippedScenes,
   renderScenes,
@@ -18,7 +20,7 @@ import {
   sceneBiasDeltaOverrides,
   sceneMeanDeltaOverrides,
 } from './scenes.js';
-import { TILE_CHECK_DEFAULT } from './specs.js';
+import { TILE_CHECK_DEFAULT, cpuCanvas } from './specs.js';
 
 /**
  * The fixture list is a directory read with nothing behind it, so an empty or
@@ -112,6 +114,8 @@ test.describe('scenes', () => {
         });
       }
       const diff = Object.hasOwn(sceneCheckOverrides, name) ? sceneCheckOverrides[name] : SCENE_CHECK_DEFAULT;
+      const bias = sceneBiasDeltaOverrides[name] ?? SCENE_BIAS_DELTA_DEFAULT;
+      const quad = quadDeltaOverrides[name] ?? QUAD_DELTA_DEFAULT;
       await compareCase(testInfo, {
         name,
         kind: 'fixture',
@@ -124,11 +128,11 @@ test.describe('scenes', () => {
           diff,
           tile: TILE_CHECK_DEFAULT,
           mean: sceneMeanDeltaOverrides[name] ?? SCENE_MEAN_DELTA_DEFAULT,
-          bias: sceneBiasDeltaOverrides[name] ?? SCENE_BIAS_DELTA_DEFAULT,
+          bias: cpuCanvas ? (ciSceneBiasDeltaOverrides[name] ?? bias) : bias,
           flat: sceneFlatMeanOverrides[name] ?? SCENE_FLAT_MEAN_DEFAULT,
           // A fixture is small synthetic geometry, so a local measure means
           // something here in a way it does not on a full spec.
-          quad: quadDeltaOverrides[name] ?? QUAD_DELTA_DEFAULT,
+          quad: cpuCanvas ? (ciQuadDeltaOverrides[name] ?? quad) : quad,
         },
       });
       if (skip) {

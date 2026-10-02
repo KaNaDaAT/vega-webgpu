@@ -86,6 +86,20 @@ export const QUAD_DELTA_DEFAULT = 70;
 /** Per-fixture, where the default does not fit. Measured, with the reason. */
 export const quadDeltaOverrides: Record<string, number> = {};
 
+/** Per-fixture signed-mean budgets for the CI rasterizer. See cpuCanvas in specs.ts. */
+export const ciSceneBiasDeltaOverrides: Record<string, number> = {
+  // both renderers approximate a slanted edge, see sceneMeanDeltaOverrides
+  'rule-diagonals': 4, // 3.04 there
+};
+
+/** Per-fixture block budgets for the CI rasterizer. */
+export const ciQuadDeltaOverrides: Record<string, number> = {
+  // A dash running across the start of a closed square. canvas on the CPU joins
+  // it to the last dash and mitres the corner, on the GPU it caps both ends,
+  // which is what this draws.
+  'symbol-variants': 160, // 135.8 there
+};
+
 /**
  * Fixtures that are not gated, and why. A budget raised past what a measure
  * says is a defect written down as if it were a tolerance, so a case we know
