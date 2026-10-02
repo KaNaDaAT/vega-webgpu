@@ -289,9 +289,7 @@
     <aside>
       <header>
         <div class="modes" id="source">
-          <button data-source="recorded" aria-pressed="true" title="The pngs a test run left in test/render/output">
-            recorded
-          </button>
+          <button data-source="recorded" aria-pressed="true" title="The pngs a test run recorded">recorded</button>
           <button
             data-source="live"
             aria-pressed="false"
@@ -300,6 +298,8 @@
             live
           </button>
         </div>
+        <select id="run" hidden aria-label="recorded run" title="The run the recorded cases come from"></select>
+        <p id="runInfo" hidden></p>
         <input id="filter" type="search" placeholder="filter cases" autocomplete="off" />
         <select id="sort">
           <option value="flat">sort by flat mean</option>
@@ -309,7 +309,6 @@
           <option value="quad">sort by worst block</option>
           <option value="name">sort by name</option>
         </select>
-        <p id="runInfo" hidden></p>
       </header>
       <div id="list"></div>
     </aside>

@@ -81,7 +81,11 @@ npm run gallery:record
 
 That renders every spec and fixture through the comparison suite and writes a canvas, webgpu and diff png for each to `test/render/output/`, with an `index.json` of every measurement and the settings that produced it. The gallery then lists every case ranked by any of the numbers, and says which budgets each case was held to. `npm run gallery:record -- --grep bar` does only the matching ones. Everything it writes is gitignored.
 
-`npm run gallery:snapshot -- 2.1.0` assembles a self-contained copy under `releases/2.1.0/gallery/`, for keeping a version around to look at. That copy is gitignored: a gallery is about 20MB of pngs against a 19MB repository, so none of them are committed. The pages workflow builds one fresh and uploads it with the site, which is why the repository's Pages source has to be set to GitHub Actions rather than a branch.
+`npm run gallery:snapshot -- 2.1.0` assembles a self-contained copy under `releases/2.1.0/gallery/`, for keeping a version around to look at. That copy is gitignored: a gallery is about 20MB of pngs against a 19MB repository, so none of them are committed.
+
+The hosted gallery keeps the last ten runs on main instead, recorded by the pages workflow on every push and picked with `?run=<sha>`. Each png is stored once, under its hash, so ten runs of an unchanged renderer weigh what one does. That is why the repository's Pages source is GitHub Actions rather than a branch.
+
+A run at a release's tagged commit is kept past the ten: every full release for good, and the newest rc until the next one. `?run=2.1.0` opens it, and the release's own page and its GitHub release link it. Pages runs queue rather than cancel each other, so that run deploys even when another push follows the release straight away.
 
 ## Regenerating the site without releasing
 

@@ -1,7 +1,8 @@
 /**
  * Browses what a render run produced, and renders the same specs live for
  * comparison. Two sources for the same question, so the two share the viewer:
- * `recorded` reads the pngs in test/render/output, `live` builds both renderers
+ * `recorded` reads the pngs a run left in test/render/output, or on the hosted
+ * page one of the runs it keeps, and `live` builds both renderers
  * here and now. The measuring and the diff painting come from compare-core.js,
  * which is also what the demo page uses.
  */
@@ -12,6 +13,8 @@ const state = {
   settings: null,
   hasRecorded: false,
   snapshot: null,
+  /** png name to hash, when the run comes from the hosted history rather than output/. */
+  images: null,
   pick: null,
   view: 'side',
   source: 'recorded',
@@ -83,7 +86,10 @@ function select(c) {
 
 /* ------------------------------------------------------------ the sources */
 
-const src = (c, which) => `./output/${c.file}-${which}.png`;
+const src = (c, which) => {
+  const name = `${c.file}-${which}.png`;
+  return state.images ? `./runs/png/${state.images[name]}.png` : `./output/${name}`;
+};
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -625,6 +631,20 @@ RenderCompare.bindListKeys({
  * measurements and the stored pngs on top.
  */
 async function loadCases() {
+  const history = await loadHistory();
+  if (history) {
+    const { manifest } = history;
+    return {
+      cases: manifest.cases,
+      settings: manifest.settings ?? null,
+      recorded: true,
+      snapshot: null,
+      run: manifest.run ?? null,
+      generated: manifest.generated ?? null,
+      images: manifest.images,
+      history,
+    };
+  }
   try {
     const res = await fetch('./output/index.json');
     if (res.ok) {
@@ -650,28 +670,81 @@ async function loadCases() {
   };
 }
 
+/**
+ * The hosted gallery keeps its last runs and its releases in runs/
+ * (scripts/gallery-history.mjs), and `?run=` names one by sha or by release. A
+ * checkout has no history, only the run in output/.
+ */
+async function loadHistory() {
+  try {
+    const res = await fetch('./runs/index.json');
+    if (!res.ok) {
+      return null;
+    }
+    const { runs } = await res.json();
+    if (!runs?.length) {
+      return null;
+    }
+    const want = new URLSearchParams(location.search).get('run');
+    const found = want ? runs.find(r => r.id === want || r.release === want || r.sha?.startsWith(want)) : null;
+    const run = found ?? runs[0];
+    const manifest = await (await fetch(`./runs/${run.id}.json`)).json();
+    return { runs, run, gone: want && !found ? want : null, manifest };
+  } catch {
+    return null;
+  }
+}
+
+const utc = iso => `${new Date(iso).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+
+function showHistory(history) {
+  const pick = $('run');
+  history.runs.forEach((r, i) => {
+    const o = document.createElement('option');
+    o.value = r.id;
+    // the sidebar is narrow, and the line under it has the year and the zone
+    const when = r.generated && utc(r.generated).slice(5, 16);
+    const what = r.release ? `release ${r.release}` : r.version;
+    o.textContent = [r.id, when, what, i === 0 && 'newest'].filter(Boolean).join(', ');
+    o.selected = r.id === history.run.id;
+    pick.append(o);
+  });
+  pick.title = 'The run the recorded cases come from: the last ten on main, and the runs releases were hosted from';
+  pick.hidden = false;
+  pick.addEventListener('change', () => {
+    const url = new URL(location.href);
+    url.searchParams.set('run', pick.value);
+    location.href = url.href;
+  });
+}
+
 /** Which run the recorded cases come from, which a hosted page says nowhere else. */
-function showRun(run, generated) {
+function showRun(run, generated, gone, release) {
   if (!run && !generated) {
     return;
   }
   const sha = run?.sha ? escapeHtml(run.sha.slice(0, 7)) : null;
   const parts = [
     sha && (run.repo ? `<a href="${escapeHtml(run.repo)}/commit/${escapeHtml(run.sha)}">${sha}</a>` : sha),
-    run?.version ? escapeHtml(run.version) : null,
-    generated ? `${new Date(generated).toISOString().slice(0, 16).replace('T', ' ')} UTC` : null,
+    release ? `release ${escapeHtml(release)}` : run?.version ? escapeHtml(run.version) : null,
+    generated ? utc(generated) : null,
     run?.url ? `<a href="${escapeHtml(run.url)}">CI run</a>` : 'local run',
   ].filter(Boolean);
-  $('runInfo').innerHTML = `recorded from ${parts.join(', ')}`;
+  const note = gone ? `. Run ${escapeHtml(gone)} is no longer kept, so this is the newest` : '';
+  $('runInfo').innerHTML = `recorded from ${parts.join(', ')}${note}`;
   $('runInfo').hidden = false;
 }
 
-loadCases().then(({ cases, settings, recorded, snapshot, run, generated }) => {
-  showRun(run, generated);
+loadCases().then(({ cases, settings, recorded, snapshot, run, generated, images, history }) => {
+  if (history) {
+    showHistory(history);
+  }
+  showRun(run, generated, history?.gone, history?.manifest.release);
   state.cases = cases;
   state.settings = settings;
   state.hasRecorded = recorded;
   state.snapshot = snapshot ?? null;
+  state.images = images ?? null;
   if (state.snapshot) {
     // a published snapshot is the pngs and nothing else: no dev build to load
     // and no spec to run, so there is nothing for live mode to render

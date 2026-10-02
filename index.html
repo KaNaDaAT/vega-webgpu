@@ -20,7 +20,12 @@
         <p class="actions">
           <a class="btn primary" href="./test/">Live demo</a>
           <a class="btn" href="./releases/marks.html">Mark playground</a>
-          <a class="btn" href="./gallery/">Render gallery</a>
+          <a
+            class="btn"
+            href="./gallery/"
+            title="Every case drawn by both renderers, for each of the last ten runs on main and every release"
+            >Render gallery</a
+          >
           <a class="btn" href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
         </p>
       </div>
@@ -48,8 +53,10 @@
         </p>
         <p>
           The canvas renderer is the reference. Every spec in the corpus is rendered both ways and compared pixel by
-          pixel on every commit, so a difference is a tracked defect rather than a surprise. What is still off is listed
-          under <a href="#features">features</a> and <a href="#roadmap">roadmap</a>.
+          pixel on every commit, so a difference is a tracked defect rather than a surprise. The
+          <a href="./gallery/">render gallery</a> shows every case as each of the last ten runs on main and every
+          release drew it, and what is still off is listed under <a href="#features">features</a> and
+          <a href="#roadmap">roadmap</a>.
         </p>
         <p class="note">
           Needs a browser with WebGPU. Without one, <code>'webgpu'</code> draws with the canvas renderer, see
@@ -413,7 +420,11 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
         <p>
           <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
           <a href="./releases/marks.html">Mark playground</a>
-          <a href="./gallery/" title="Every spec drawn by both renderers, as this build draws them">Render gallery</a>
+          <a
+            href="./gallery/"
+            title="Every case drawn by both renderers, for each of the last ten runs on main and every release"
+            >Render gallery</a
+          >
           <a href="./test/">Live demo</a>
           <a href="https://vega.github.io/vega/">Vega</a>
           <a href="https://github.com/KaNaDaAT/vega-webgpu/blob/main/ToDo.md">Full roadmap</a>

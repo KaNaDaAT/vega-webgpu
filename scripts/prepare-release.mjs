@@ -228,6 +228,14 @@ const list = (title, items) =>
         .join('\n')
     : '';
 
+/**
+ * pages.yml keeps the gallery run at a release's tag: every full release, and
+ * the newest rc until the next one. Nothing before this version has a run.
+ */
+const GALLERY_SINCE = '2.0.0';
+const newestRc = versions.find(prerelease);
+const keepsGallery = v => byVersionDesc(v, GALLERY_SINCE) <= 0 && (!prerelease(v) || v === newestRc);
+
 for (const v of versions) {
   const e = entry(v);
   const dir = v.replaceAll('.', '_');
@@ -239,6 +247,7 @@ for (const v of versions) {
   const esm = existsSync(join(releasesDir, dir, 'vega-webgpu-renderer.module.js'))
     ? '<a class="btn" href="./vega-webgpu-renderer.module.js">ESM build</a>'
     : '';
+  const gallery = keepsGallery(v) ? `<a class="btn" href="../../gallery/?run=${v}">Render gallery</a>` : '';
   const sub = `<!doctype html>
 <html lang="en">
   <head>
@@ -259,6 +268,7 @@ for (const v of versions) {
           <a class="btn" href="./vega-webgpu-renderer.min.js">vega-webgpu-renderer.min.js</a>
           ${esm}
           <a class="btn" href="../marks.html?build=${v}">Try it</a>
+          ${gallery}
         </p>
       </div>
     </header>

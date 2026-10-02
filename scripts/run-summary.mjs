@@ -38,10 +38,16 @@ function summary() {
     out.push('');
   }
 
+  // the pages deploy records the same commit at dpr 1, and keeps the last ten
+  const sha = process.env.GITHUB_SHA?.slice(0, 7);
+  const onMain = process.env.GITHUB_EVENT_NAME === 'push' && process.env.GITHUB_REF === 'refs/heads/main';
   out.push(
-    `The browsable gallery for the default branch is at <${GALLERY}>. It is rebuilt on every push to main, so it ` +
-      'shows that commit rather than this run. For this run, download the `render-report` artifact above and open ' +
-      '`index.html`, or `render-images` for the raw pngs.',
+    onMain && sha
+      ? `This commit's gallery is at <${GALLERY}?run=${sha}> once its Pages deploy finishes, recorded there at dpr 1.`
+      : `The browsable gallery is at <${GALLERY}>, with the last ten runs on main and every release. A run outside main is not in it.`,
+    '',
+    'For this run itself, download the `render-report` artifact above and open `index.html`, or `render-images` for ' +
+      'the raw pngs.',
   );
   return out.join('\n');
 }

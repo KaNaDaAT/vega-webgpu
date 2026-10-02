@@ -7,6 +7,7 @@ dist/
 test-results/
 playwright-report/
 test/render/output/
+test/render/runs/
 
 # OS / editor
 .DS_Store
@@ -22,11 +23,11 @@ test/vendor/
 # The staged site, which the pages workflow builds and uploads rather than
 # committing. The same thing locally, to look at before pushing:
 #   git archive HEAD | tar -x -C _site && cp build/*.js _site/build/
-#   node scripts/gallery-snapshot.mjs <version> --out _site/gallery
+#   node scripts/gallery-history.mjs --out _site/test/render/runs
 /_site/
 /gallery/
 
-# Per-version render gallery snapshots. One gallery ships, built fresh by the
-# pages workflow and uploaded with the site, so committing about 20MB of pngs
-# per release against a 19MB repository buys nothing. Locally: npm run gallery.
+# Per-version render gallery snapshots. The site keeps the last ten runs
+# instead, recorded by the pages workflow, so committing about 20MB of pngs per
+# release against a 19MB repository buys nothing. Locally: npm run gallery.
 releases/*/gallery/

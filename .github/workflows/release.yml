@@ -35,6 +35,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           NOTES="$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")"
           echo "notes=$NOTES" >> "$GITHUB_OUTPUT"
+          # pages.yml keeps the run recorded at this tag's commit under the version
+          echo "gallery=https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/gallery/?run=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Verify tag matches package.json
         run: |
@@ -82,7 +84,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.meta.outputs.version }}
-          body: ${{ steps.meta.outputs.notes }}
+          body: |
+            ${{ steps.meta.outputs.notes }}
+
+            [Render gallery for this release](${{ steps.meta.outputs.gallery }}), every case as this version drew it.
           # a version with a suffix is an rc, and must not read as the latest stable
           prerelease: ${{ contains(steps.meta.outputs.version, '-') }}
           files: |

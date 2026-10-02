@@ -9,7 +9,7 @@ Canvas is the reference. Every spec in the corpus is drawn by both renderers and
 - [Project page](https://kanadaat.github.io/vega-webgpu/): features, known differences from canvas, roadmap and every hosted version
 - [Live demo](https://kanadaat.github.io/vega-webgpu/test/): any spec from the corpus, with canvas beside it and a pixel diff. `benchmark` animates up to 300k points
 - [Mark playground](https://kanadaat.github.io/vega-webgpu/releases/marks.html): one mark at a time, with its properties to switch on and off
-- [Render gallery](https://kanadaat.github.io/vega-webgpu/gallery/): the whole corpus as main draws it, with the measured difference for each case
+- [Render gallery](https://kanadaat.github.io/vega-webgpu/gallery/): every case with its measured difference, for each of the last ten runs on main and for every release. `?run=<sha>` or `?run=2.0.0` picks one
 
 Started by [lsh](https://github.com/lsh) in [vega/vega-webgpu](https://github.com/vega/vega-webgpu), continued by [KaNaDaAT](https://github.com/KaNaDaAT). The goal is to make it an official Vega renderer (see [vega/vega-webgpu#21](https://github.com/vega/vega-webgpu/pull/21)).
 

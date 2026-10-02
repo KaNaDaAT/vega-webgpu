@@ -1,6 +1,7 @@
 /**
  * Assembles a self-contained render gallery from the pngs a run left in
- * test/render/output, for hosting alongside a release.
+ * test/render/output, for keeping a version around to look at. The site keeps
+ * only the last ten runs (gallery-history.mjs).
  *
  * Every case ships, so a snapshot is the whole corpus as that version drew it
  * rather than a selection somebody has to justify later. That is about 18MB of
