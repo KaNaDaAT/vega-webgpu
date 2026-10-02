@@ -61,9 +61,10 @@ jobs:
 
       - run: npm ci
 
-      # Full Chromium (not the headless shell) is required for WebGPU. --with-deps
-      # pulls the Linux system libraries it needs.
-      - run: npx playwright install chromium --no-shell --with-deps
+      # Stable Chrome rather than Playwright's pinned Chromium, which trails the
+      # browser a local run uses, and canvas draws differently between them.
+      # --with-deps pulls the Linux system libraries it needs.
+      - run: npx playwright install chrome --with-deps
 
       - run: npm run build
 
