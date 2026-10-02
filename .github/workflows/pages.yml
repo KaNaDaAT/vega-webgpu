@@ -68,8 +68,19 @@ jobs:
           git archive HEAD | tar -x -C _site
           mkdir -p _site/build
           cp build/vega-webgpu-renderer.js build/vega-webgpu-renderer.min.js build/vega-webgpu-renderer.module.js _site/build/
-          VERSION=$(node -p "require('./package.json').version")
-          node scripts/gallery-snapshot.mjs "$VERSION" --out _site/gallery
+          # The run goes where the gallery page reads it, so the one page shows
+          # the recording and renders live from the repository beside it.
+          if [ -d test/render/output ]; then cp -r test/render/output _site/test/render/output; fi
+          mkdir -p _site/gallery
+          cat > _site/gallery/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8" />
+          <title>render gallery</title>
+          <script>
+            location.replace('../test/render/gallery.html' + location.search + location.hash);
+          </script>
+          <a href="../test/render/gallery.html">render gallery</a>
+          HTML
           du -sh _site
 
       - uses: actions/upload-pages-artifact@v4
