@@ -1,15 +1,14 @@
 import extrude from 'extrude-polyline';
 import type { GPUVegaCanvasContext } from '../types/context.js';
-import type { ItemGeometry, PathGeometry } from '../types/geometry.js';
+import type { ItemGeometry, PathGeometry, Point } from '../types/geometry.js';
 import type { FillStyle, StrokeStyle } from '../types/scene.js';
+import { samePoint } from '../util/dash.js';
 import { joinStyleOf } from '../util/join.js';
 
 /** extrude-polyline knows miter and bevel, so a round join takes the miter. */
 function extrudeJoin(strokeJoin: string | undefined): 'miter' | 'bevel' {
   return strokeJoin === 'bevel' ? 'bevel' : 'miter';
 }
-
-type Point = [number, number];
 
 /**
  * Reopens a closed ring at the midpoint of its first segment.
@@ -21,7 +20,7 @@ type Point = [number, number];
 function reopenRing(points: Point[]): Point[] | null {
   const ring = points.slice();
   const last = ring[ring.length - 1];
-  if (Math.hypot(ring[0][0] - last[0], ring[0][1] - last[1]) > 1e-9) {
+  if (!samePoint(ring[0], last)) {
     return null; // an open contour, stroke it as it is
   }
   ring.pop();
@@ -50,6 +49,13 @@ export interface ItemTransform {
 }
 
 const IDENTITY: ItemTransform = { angle: 0, scaleX: 1, scaleY: 1 };
+
+const DEG_TO_RAD = Math.PI / 180;
+
+/** An item's `angle` in radians, which vega gives in degrees. */
+export function itemTurn(item: { angle?: number }): number {
+  return (item.angle || 0) * DEG_TO_RAD;
+}
 
 /**
  * Converts triangulated path geometry into per-item fill and stroke

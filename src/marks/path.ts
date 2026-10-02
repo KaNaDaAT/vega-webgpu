@@ -1,8 +1,7 @@
 import type { ScenePathItem } from '../types/scene.js';
 import geometryForPath from '../path/geometryForPath.js';
+import { itemTurn } from '../path/geometryForItem.js';
 import { itemShapeMark } from './itemShape.js';
-
-const DEG_TO_RAD = Math.PI / 180;
 
 export default itemShapeMark<ScenePathItem>({
   type: 'path',
@@ -14,7 +13,7 @@ export default itemShapeMark<ScenePathItem>({
   // different ellipse from the affine scale of the flattened curve.
   shapeOf: (ctx, item, scale) => geometryForPath(ctx, item.path, scale, item.scaleX ?? 1, item.scaleY ?? 1),
   transformOf: item => ({
-    angle: (item.angle || 0) * DEG_TO_RAD,
+    angle: itemTurn(item),
     scaleX: 1,
     scaleY: 1,
   }),

@@ -3,12 +3,10 @@ import simplify from 'simplify-path';
 import triangulate from 'triangulate-contours';
 import { pathParse, pathRender } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
-import type { PathGeometry } from '../types/geometry.js';
-import type { Point } from '../util/dash.js';
+import type { PathGeometry, Point } from '../types/geometry.js';
+import { warnOnce } from '../util/warn.js';
 
 const EMPTY: PathGeometry = { lines: [], triangles: [], z: 0 };
-
-let warnedPath = false;
 
 /**
  * An svg path as polyline contours, flattening the curves and leaving the
@@ -76,10 +74,7 @@ function contoursOf(path: string, scale: number, subdivideStraight = false, scal
   try {
     commands = pathParse(path);
   } catch {
-    if (!warnedPath) {
-      warnedPath = true;
-      console.warn('[vega-webgpu] An svg path could not be parsed and is not drawn.');
-    }
+    warnOnce('path', '[vega-webgpu] An svg path could not be parsed and is not drawn.');
     return out;
   }
 
@@ -120,8 +115,6 @@ function pushPoint(points: Point[], x: number, y: number): void {
     points.push([x, y]);
   }
 }
-
-let warnedTessellation = false;
 
 /** Triangulates contours, or null when tess2 cannot. */
 function tessellate(lines: Point[][]): ReturnType<typeof triangulate> | null {
@@ -219,10 +212,7 @@ export default function geometryForPath(
   }
   if (tri === null) {
     tri = { positions: [], cells: [] };
-    if (!warnedTessellation) {
-      warnedTessellation = true;
-      console.warn('[vega-webgpu] A path could not be tessellated and is not drawn.');
-    }
+    warnOnce('tessellation', '[vega-webgpu] A path could not be tessellated and is not drawn.');
   }
 
   const z = 0;

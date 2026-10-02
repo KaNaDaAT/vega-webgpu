@@ -1,6 +1,7 @@
 import { Bounds, Marks } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneTextItem } from '../types/scene.js';
+import { itemTurn } from '../path/geometryForItem.js';
 import { joinStyleOf } from './join.js';
 
 const HALF_PI = Math.PI / 2;
@@ -27,7 +28,6 @@ export interface GlyphMetrics {
  */
 const PHASE_STEPS = 64;
 
-const DEG_TO_RAD = Math.PI / 180;
 
 /** `v` snapped to the PHASE_STEPS grid, so the cache cannot grow unbounded. */
 function quantize(v: number): number {
@@ -219,7 +219,7 @@ export const NO_TURN: Turn = [1, 0];
 
 /** Cosine and sine of an item's angle, which vega stores in degrees. */
 export function turnOf(item: SceneTextItem): Turn {
-  const a = (item.angle || 0) * DEG_TO_RAD;
+  const a = itemTurn(item);
   return a === 0 ? NO_TURN : [Math.cos(a), Math.sin(a)];
 }
 

@@ -1,4 +1,5 @@
-import type { Point } from './dash.js';
+import type { Point } from '../types/geometry.js';
+import { samePoint } from './dash.js';
 
 /**
  * What a segment does at one of its ends: a kind, plus the direction and length
@@ -116,6 +117,5 @@ export function capEnd(strokeCap: string | undefined): JoinEnd {
 
 /** True when a run returns to where it started, so its seam is a join. */
 export function isLoop(run: readonly Point[]): boolean {
-  const n = run.length;
-  return n > 2 && Math.abs(run[0][0] - run[n - 1][0]) < 1e-9 && Math.abs(run[0][1] - run[n - 1][1]) < 1e-9;
+  return run.length > 2 && samePoint(run[0], run[run.length - 1]);
 }

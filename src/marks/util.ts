@@ -2,7 +2,8 @@ import { Bounds, boundContext, sceneVisit, pathRectangle } from 'vega-scenegraph
 import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { dashPolyline, type Point } from '../util/dash.js';
+import type { Point } from '../types/geometry.js';
+import { dashPolyline } from '../util/dash.js';
 import {
   BUTT_END,
   DEFAULT_MITER_LIMIT,
@@ -21,7 +22,6 @@ import { shaderModule, type ShaderKey } from '../shaders/index.js';
 import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { QueueElement } from '../util/renderQueue.js';
-import type { ItemGeometry } from '../types/geometry.js';
 import type { SceneGroupExt, SceneRectExt, SceneItem } from '../types/scene.js';
 import { Color, type RGBA } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
@@ -71,43 +71,25 @@ export function getMarkResources<T extends { device: GPUDevice }>(
 
 /**
  * Floats per triangulated vertex: position and colour. Every buffer
- * `geometryVertexData` writes and every draw that consumes one is this wide,
- * which is also the layout `fillResources` builds its pipelines with.
+ * `vertexData` writes and every draw that consumes one is this wide, which is
+ * also the layout `fillResources` builds its pipelines with.
  */
 const GEOMETRY_STRIDE = 7;
 
-/**
- * Interleaves triangulated fill and stroke geometry with their colors
- * into [x, y, z, r, g, b, a] vertex buffers.
- */
-export function geometryVertexData(
-  geometry: ItemGeometry,
-  fill: RGBA,
-  stroke: RGBA,
-): [fillData: Float32Array, strokeData: Float32Array] {
-  const fillData = new Float32Array(geometry.fillCount * GEOMETRY_STRIDE);
-  const strokeData = new Float32Array(geometry.strokeCount * GEOMETRY_STRIDE);
-  for (let i = 0; i < geometry.fillCount; i++) {
+/** Triangulated geometry in one colour, as [x, y, z, r, g, b, a] vertices. */
+export function vertexData(triangles: Float32Array, count: number, color: RGBA): Float32Array {
+  const data = new Float32Array(count * GEOMETRY_STRIDE);
+  for (let i = 0; i < count; i++) {
     const o = i * GEOMETRY_STRIDE;
-    fillData[o] = geometry.fillTriangles[i * 3];
-    fillData[o + 1] = geometry.fillTriangles[i * 3 + 1];
-    fillData[o + 2] = geometry.fillTriangles[i * 3 + 2] * -1;
-    fillData[o + 3] = fill[0];
-    fillData[o + 4] = fill[1];
-    fillData[o + 5] = fill[2];
-    fillData[o + 6] = fill[3];
+    data[o] = triangles[i * 3];
+    data[o + 1] = triangles[i * 3 + 1];
+    data[o + 2] = triangles[i * 3 + 2] * -1;
+    data[o + 3] = color[0];
+    data[o + 4] = color[1];
+    data[o + 5] = color[2];
+    data[o + 6] = color[3];
   }
-  for (let i = 0; i < geometry.strokeCount; i++) {
-    const o = i * GEOMETRY_STRIDE;
-    strokeData[o] = geometry.strokeTriangles[i * 3];
-    strokeData[o + 1] = geometry.strokeTriangles[i * 3 + 1];
-    strokeData[o + 2] = geometry.strokeTriangles[i * 3 + 2] * -1;
-    strokeData[o + 3] = stroke[0];
-    strokeData[o + 4] = stroke[1];
-    strokeData[o + 5] = stroke[2];
-    strokeData[o + 6] = stroke[3];
-  }
-  return [fillData, strokeData];
+  return data;
 }
 
 /**
@@ -202,16 +184,28 @@ export function boxGradientBounds(item: SceneRectExt): [number, number, number, 
     return gradientBounds(item.bounds);
   }
   const pad = item.stroke ? (item.strokeWidth ?? 1) : 0;
-  const x = item.x || 0;
-  const y = item.y || 0;
-  const w = item.width || 0;
-  const h = item.height || 0;
-  return [
-    Math.min(x, x + w) - pad,
-    Math.min(y, y + h) - pad,
-    Math.max(Math.abs(w) + 2 * pad, 1e-6),
-    Math.max(Math.abs(h) + 2 * pad, 1e-6),
-  ];
+  const [x, y, w, h] = rectBox(item);
+  return [x - pad, y - pad, Math.max(w + 2 * pad, 1e-6), Math.max(h + 2 * pad, 1e-6)];
+}
+
+/**
+ * A rect's box with a negative extent flipped onto the other side of x or y,
+ * which is how canvas's fillRect and strokeRect draw one.
+ */
+export function rectBox(item: SceneRectExt): [x: number, y: number, w: number, h: number] {
+  let x = item.x || 0;
+  let y = item.y || 0;
+  let w = item.width || 0;
+  let h = item.height || 0;
+  if (w < 0) {
+    x += w;
+    w = -w;
+  }
+  if (h < 0) {
+    y += h;
+    h = -h;
+  }
+  return [x, y, w, h];
 }
 
 /** Fill color for vertex data: white carrier with opacity when a gradient is used. */
@@ -655,7 +649,7 @@ export function drawClipMask(
   // makes a clip inside a clip the intersection of the two.
   res.bufferManager.setClipRound(undefined);
   const geometry = geometryForItem(ctx, { fill: '#ffffff' } as never, geometryForPath(ctx, path), false, 0, 0);
-  const [fillData] = geometryVertexData(geometry, [1, 1, 1, 1], [0, 0, 0, 0]);
+  const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, [1, 1, 1, 1]);
   if (fillData.length === 0) {
     return undefined;
   }
@@ -1206,19 +1200,7 @@ export function borderInstances(
   if ((!pattern && !gradient) || !item.stroke) {
     return null;
   }
-  // the same flip canvas's strokeRect applies, see rectAttributes
-  let x = item.x || 0;
-  let y = item.y || 0;
-  let w = item.width || 0;
-  let h = item.height || 0;
-  if (w < 0) {
-    x += w;
-    w = -w;
-  }
-  if (h < 0) {
-    y += h;
-    h = -h;
-  }
+  const [x, y, w, h] = rectBox(item);
   if (w <= 0 || h <= 0) {
     return null;
   }
@@ -1268,7 +1250,7 @@ function roundedBorder(
     return null;
   }
   const path = borderPath.width(w).height(h).cornerRadius(tl, tr, br, bl)(item, x, y);
-  return path ? (geometryForPath(ctx, path, DASH_FLATNESS).lines as Point[][]) : null;
+  return path ? geometryForPath(ctx, path, DASH_FLATNESS).lines : null;
 }
 
 /**
@@ -1293,7 +1275,6 @@ export type BoundsSnapshot = { x1: number; y1: number; x2: number; y2: number };
 
 export interface GeometryCacheEntry {
   fill: RGBA;
-  stroke: RGBA;
   x?: number;
   y?: number;
   bounds?: BoundsSnapshot;
@@ -1302,7 +1283,7 @@ export interface GeometryCacheEntry {
   angle?: number;
   scaleX?: number;
   scaleY?: number;
-  data: [Float32Array, Float32Array];
+  data: Float32Array;
 }
 
 export type GeometryCache = Map<unknown, GeometryCacheEntry>;
@@ -1365,17 +1346,16 @@ export function recolor(data: Float32Array, source: Float32Array, color: RGBA): 
 }
 
 /**
- * Returns the item's vertex data, building it only when the geometry changed.
- * A colour-only change rewrites the colours over the cached positions instead
- * of triangulating again.
+ * Returns the item's fill vertex data, building it only when the geometry
+ * changed. A colour-only change rewrites the colours over the cached positions
+ * instead of triangulating again.
  */
 export function cachedGeometryData(
   cache: GeometryCache,
   item: CacheableItem,
   fill: RGBA,
-  stroke: RGBA,
-  build: () => [Float32Array, Float32Array],
-): [Float32Array, Float32Array] {
+  build: () => Float32Array,
+): Float32Array {
   const key = cacheKey(item);
   const entry = cache.get(key);
   if (
@@ -1392,15 +1372,11 @@ export function cachedGeometryData(
     // re-insert to keep the map in least-recently-used order
     cache.delete(key);
     cache.set(key, entry);
-    if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
+    if (sameColor(entry.fill, fill)) {
       return entry.data;
     }
-    const data: [Float32Array, Float32Array] = [
-      new Float32Array(entry.data[0].length),
-      new Float32Array(entry.data[1].length),
-    ];
-    recolor(data[0], entry.data[0], fill);
-    recolor(data[1], entry.data[1], stroke);
+    const data = new Float32Array(entry.data.length);
+    recolor(data, entry.data, fill);
     return data;
   }
 
@@ -1413,7 +1389,6 @@ export function cachedGeometryData(
   }
   cache.set(key, {
     fill,
-    stroke,
     x: item.x,
     y: item.y,
     bounds: copyBounds(item.bounds),

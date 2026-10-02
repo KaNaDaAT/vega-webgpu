@@ -14,7 +14,7 @@ import {
   outlineTargetOf,
   enqueueSolid,
   fillResources,
-  geometryVertexData,
+  vertexData,
   getMarkResources,
   gradientTargetOf,
   markClip,
@@ -59,6 +59,7 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
     const res = getMarkResources(ctx, type, device, vb, () => fillResources(ctx, device, vb, name));
 
     const item = items[0];
+    const blend = blendKey(item.blend);
     const bounds = scene.bounds ?? item.bounds;
     const gradient = isGradient(item.fill) && bounds ? item.fill : null;
     const fill = gradient
@@ -73,7 +74,7 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
     const dash = dashPatternOf(item);
     const shapeGeom = shapeOf(ctx, items);
     const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom, true);
-    const [fillData] = geometryVertexData(geometry, fill, stroke);
+    const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, fill);
 
     const uniformBuffer = res.bufferManager.createUniformBuffer();
     const clip = markClip(ctx, scene);
@@ -82,9 +83,9 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
 
     if (fillData.length > 0) {
       if (gradient && bounds) {
-        enqueueGradient(gradientTarget, fillData, gradient, bounds, blendKey(item.blend));
+        enqueueGradient(gradientTarget, fillData, gradient, bounds, blend);
       } else {
-        enqueueSolid(solidTarget, fillData, blendKey(item.blend));
+        enqueueSolid(solidTarget, fillData, blend);
       }
     }
 
@@ -106,9 +107,9 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
         // A ramp cannot be read back out of a coverage mask, so a gradient
         // stroke goes band by band whatever the mark asked for.
         if (!maskOutline || (strokeGradient && bounds)) {
-          enqueueOutline(outline, data, blendKey(item.blend), strokeGradient, bounds);
+          enqueueOutline(outline, data, blend, strokeGradient, bounds);
         } else {
-          enqueueMaskedOutline(outline, data, blendKey(item.blend), stroke, strokeReach(item));
+          enqueueMaskedOutline(outline, data, blend, stroke, strokeReach(item));
         }
       }
     }

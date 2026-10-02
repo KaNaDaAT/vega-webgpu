@@ -1,4 +1,5 @@
 /** Factory helpers for the WebGPU objects shared by all mark renderers. */
+import { warnOnce } from './warn.js';
 
 /**
  * By default rendering goes through a 4x multisampled attachment (guaranteed
@@ -8,19 +9,15 @@
  */
 export const defaultSampleCount = 4;
 
-let warnedSampleCount = false;
-
 /** WebGPU render attachments only support 1 or 4 samples portably. */
 export function normalizeSampleCount(value: number): number {
   if (value === 1 || value === 4) {
     return value;
   }
-  if (!warnedSampleCount) {
-    warnedSampleCount = true;
-    console.warn(
-      `[vega-webgpu] Unsupported sampleCount ${value}; only 1 or 4 are supported. Using ${defaultSampleCount}.`,
-    );
-  }
+  warnOnce(
+    'sampleCount',
+    `[vega-webgpu] Unsupported sampleCount ${value}; only 1 or 4 are supported. Using ${defaultSampleCount}.`,
+  );
   return defaultSampleCount;
 }
 

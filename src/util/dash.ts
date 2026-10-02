@@ -1,4 +1,4 @@
-export type Point = [number, number];
+import type { Point } from '../types/geometry.js';
 
 /**
  * Splits a polyline into the drawn runs of a dash pattern, matching the canvas
@@ -139,7 +139,7 @@ function bridgeGaps(values: number[], bridge: number): { dashes: number[]; shift
   return { dashes, shift: 0 };
 }
 
-function samePoint(a: Point, b: Point): boolean {
+export function samePoint(a: Point, b: Point): boolean {
   return Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
 }
 

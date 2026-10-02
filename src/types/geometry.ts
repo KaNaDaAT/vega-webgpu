@@ -1,7 +1,10 @@
+/** A position in an item's own coordinates. */
+export type Point = [number, number];
+
 /** Triangulated outline geometry for an SVG path, produced by geometryForPath. */
 export interface PathGeometry {
   /** Polyline contours (input for stroke extrusion). */
-  lines: [number, number][][];
+  lines: Point[][];
   /** Flat [x, y, z] triples forming fill triangles. */
   triangles: number[];
   z: number;

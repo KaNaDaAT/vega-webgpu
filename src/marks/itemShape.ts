@@ -15,7 +15,7 @@ import {
   enqueueOutline,
   enqueueSolid,
   fillResources,
-  geometryVertexData,
+  vertexData,
   getMarkResources,
   gradientTargetOf,
   markClip,
@@ -123,11 +123,11 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
       // The stroke is walked as segments, so it is left off the geometry. The
       // shape is generated around the origin, so the item centre is baked in.
       const strokeItem = { ...item, stroke: undefined };
-      const build = (): [Float32Array, Float32Array] => {
+      const build = (): Float32Array => {
         const geometry = geometryForItem(ctx, strokeItem, shape(), false, item.x || 0, item.y || 0, transform);
-        return geometryVertexData(geometry, fill, stroke);
+        return vertexData(geometry.fillTriangles, geometry.fillCount, fill);
       };
-      const [fillData] = cached ? cachedGeometryData(res.cache, strokeItem, fill, stroke, build) : build();
+      const fillData = cached ? cachedGeometryData(res.cache, strokeItem, fill, build) : build();
 
       if (fillData.length > 0 && gradient && bounds) {
         flushBatch();

@@ -1,14 +1,12 @@
 import { color as parseColor } from 'd3-color';
 import type { SceneColor, SceneGradient } from '../types/scene.js';
+import { warnOnce } from './warn.js';
 
 export type RGBA = [r: number, g: number, b: number, a: number];
 
 const TRANSPARENT: RGBA = [0, 0, 0, 0];
-/** Placeholder for gradients on paths that cannot sample a ramp (strokes). */
+/** Drawn for a gradient on an item without bounds, which has nothing to map the ramp onto. */
 const GRADIENT_FALLBACK: RGBA = [0.5, 1.0, 1.0, 1.0];
-
-let warnedGradient = false;
-let warnedInvalid = false;
 
 export function isGradient(value: SceneColor | null | undefined): value is SceneGradient {
   return typeof value === 'object' && value !== null && ('gradient' in value || 'id' in value);
@@ -18,10 +16,7 @@ export function isGradient(value: SceneColor | null | undefined): value is Scene
 function parse(value: string): RGBA {
   const c = parseColor(value);
   if (c === null) {
-    if (!warnedInvalid) {
-      warnedInvalid = true;
-      console.warn(`[vega-webgpu] Could not parse color '${value}'.`);
-    }
+    warnOnce('color', `[vega-webgpu] Could not parse color '${value}'.`);
     return TRANSPARENT;
   }
   const rgb = c.rgb();
@@ -98,10 +93,7 @@ export class Color {
       return TRANSPARENT;
     }
     if (isGradient(value)) {
-      if (!warnedGradient) {
-        warnedGradient = true;
-        console.warn('[vega-webgpu] A gradient on an item without bounds is drawn as a flat colour.');
-      }
+      warnOnce('gradient', '[vega-webgpu] A gradient on an item without bounds is drawn as a flat colour.');
       return GRADIENT_FALLBACK;
     }
     let rgba = Color.cache[value];

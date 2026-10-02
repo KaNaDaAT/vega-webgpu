@@ -132,6 +132,7 @@ function draw(
 
   /** One group's background, and the border that goes under its children. */
   const paintBackdrop = (item: SceneGroupExt): void => {
+    const blend = blendKey(item.blend);
     const edged = withStrokeOffset(item);
     const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
     const border = borderInstances(ctx, edged, strokeGradient);
@@ -139,11 +140,10 @@ function draw(
     if (fore) {
       held.set(item, { rect: { ...edged, fill: undefined }, dash: border, gradient: strokeGradient });
     } else if (border) {
-      dashed.push({ data: border, gradient: strokeGradient, bounds: item.bounds, blend: blendKey(item.blend) });
+      dashed.push({ data: border, gradient: strokeGradient, bounds: item.bounds, blend });
     }
     const drawn = border || fore ? { ...edged, stroke: undefined } : edged;
     const fill = drawn.fill;
-    const blend = blendKey(item.blend);
     if (!isGradient(fill)) {
       if (run.length && blend !== runBlend) {
         flushRun();
@@ -153,7 +153,7 @@ function draw(
       return;
     }
     flushRun();
-    const gradientPipeline = res.gradientPipelineFor(blendKey(item.blend));
+    const gradientPipeline = res.gradientPipelineFor(blend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([drawn], true));
     ctx._renderQueue.enqueue({
       pipeline: gradientPipeline,

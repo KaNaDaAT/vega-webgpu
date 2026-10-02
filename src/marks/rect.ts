@@ -1,6 +1,6 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneGradient, SceneItem, SceneRectExt } from '../types/scene.js';
+import type { SceneItem, SceneRectExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
@@ -10,6 +10,7 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
   clipMaskView,
+  rectBox,
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
@@ -73,7 +74,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
-  const items = markItems(scene);
+  const items = markItems<SceneRectExt>(scene);
   if (items.length === 0) {
     return;
   }
@@ -86,7 +87,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // only materialise the gradient sampler and ramp cache if a gradient shows up
   let gres: ReturnType<typeof getGradientResources> | null = null;
   const gradientResources = () => (gres ??= getGradientResources(device, ctx));
-  let run: SceneItem[] = [];
+  let run: SceneRectExt[] = [];
   let runBlend = 'normal';
   const flushRun = () => {
     if (run.length === 0) {
@@ -105,16 +106,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   };
 
   for (const item of items) {
-    const fill = (item as SceneRectExt).fill;
-    const blend = blendKey((item as SceneRectExt).blend);
-    const strokeGradient =
-      isGradient((item as SceneRectExt).stroke) && item.bounds
-        ? ((item as SceneRectExt).stroke as SceneGradient)
-        : null;
-    const border = borderInstances(ctx, item as SceneRectExt, strokeGradient);
+    const fill = item.fill;
+    const blend = blendKey(item.blend);
+    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
+    const border = borderInstances(ctx, item, strokeGradient);
     // A dash or a ramp takes the border off the analytic path, and the stroke
     // comes off the fill with it so it is not drawn solid underneath.
-    const filled: SceneRectExt = border ? { ...(item as SceneRectExt), stroke: undefined } : (item as SceneRectExt);
+    const filled: SceneRectExt = border ? { ...item, stroke: undefined } : item;
 
     // The fill first, which is the order canvas paints them in. How the border
     // draws does not decide this: a ramp needs the gradient pipeline either
@@ -136,7 +134,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
             uniformBuffer,
             clipMaskView(ctx, device),
           ),
-          createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item as SceneRectExt)),
+          createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item)),
         ],
         clip,
       });
@@ -188,21 +186,8 @@ export function rectAttributes(items: SceneItem[], whiteGradientFill = false): F
       cornerRadiusTopRight,
       cornerRadiusTopLeft,
     } = item;
-    // canvas's fillRect flips a negative extent and paints the rectangle on
-    // the other side of x or y, so a quad built from the raw numbers would be
-    // inverted and draw nothing where canvas draws a box.
-    let x = item.x || 0;
-    let y = item.y || 0;
-    let width = item.width || 0;
-    let height = item.height || 0;
-    if (width < 0) {
-      x += width;
-      width = -width;
-    }
-    if (height < 0) {
-      y += height;
-      height = -height;
-    }
+    // a quad built from a negative extent would be inverted and draw nothing
+    const [x, y, width, height] = rectBox(item);
     const base = i * RECT_STRIDE;
     out[base] = x;
     out[base + 1] = y;

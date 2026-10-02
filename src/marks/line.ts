@@ -6,7 +6,8 @@ import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import { dashPolyline, type Point } from '../util/dash.js';
+import type { Point } from '../types/geometry.js';
+import { dashPolyline } from '../util/dash.js';
 import { CURVE_SUBDIVISIONS } from '../shaders/curve.js';
 import { BUTT_END, ROUND_END } from '../util/join.js';
 import geometryForItem from '../path/geometryForItem.js';
@@ -18,7 +19,7 @@ import {
   SEGMENT_STRIDE,
   enqueueOutline,
   outlineTargetOf,
-  geometryVertexData,
+  vertexData,
   getMarkResources,
   markClip,
   blendPipelines,
@@ -206,7 +207,7 @@ function drawOutline(
 
   const polylines: Point[][] = isPolyline(points)
     ? [points.map(p => [p.x || 0, p.y || 0] as Point)]
-    : lineGeometry(ctx, points).lines.map(line => line.map(p => [p[0], p[1]] as Point));
+    : lineGeometry(ctx, points).lines;
 
   const { caps, join, bridge, square } = strokeEnds(first);
   const runs = pattern ? polylines.flatMap(line => dashPolyline(line, pattern, offset, bridge)) : polylines;
@@ -219,14 +220,15 @@ function drawOutline(
     return;
   }
 
+  const blend = blendKey(first.blend);
   if (!gradient) {
-    queueSegments(device, ctx, res, data, clip, blendKey(first.blend));
+    queueSegments(device, ctx, res, data, clip, blend);
     return;
   }
   enqueueOutline(
     outlineTargetOf(ctx, device, res, res.bufferManager.sharedUniformBuffer(), clip),
     data,
-    blendKey(first.blend),
+    blend,
     gradient,
     bounds,
   );
@@ -533,7 +535,7 @@ function drawPath(
   const shapeGeom = lineGeometry(ctx, points);
   const geometry = geometryForItem(ctx, { ...first, fill: undefined }, shapeGeom, true);
   const stroke = Color.from(first.stroke, first.opacity, first.strokeOpacity);
-  const [, strokeData] = geometryVertexData(geometry, [0, 0, 0, 0], stroke);
+  const strokeData = vertexData(geometry.strokeTriangles, geometry.strokeCount, stroke);
   if (strokeData.length === 0) {
     return;
   }

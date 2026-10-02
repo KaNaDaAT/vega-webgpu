@@ -276,7 +276,8 @@ function draw(
     const instanceBuffer = res.bufferManager.createInstanceBuffer(Float32Array.from([x, y, w, h, item.opacity ?? 1]));
     // a pipeline with a default layout owns its bind group layout, so the
     // groups have to come from the blend variant this draw uses
-    const imagePipeline = res.pipelineFor(blendKey(item.blend));
+    const blend = blendKey(item.blend);
+    const imagePipeline = res.pipelineFor(blend);
 
     ctx._renderQueue.enqueue({
       pipeline: imagePipeline,
@@ -284,7 +285,7 @@ function draw(
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
         createUniformBindGroup(drawName, device, imagePipeline, uniformBuffer, clipMaskView(ctx, device)),
-        getBindGroup(res, image, item.smooth !== false, imagePipeline, blendKey(item.blend)),
+        getBindGroup(res, image, item.smooth !== false, imagePipeline, blend),
       ],
       clip,
     });

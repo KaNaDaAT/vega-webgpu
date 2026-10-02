@@ -1,4 +1,5 @@
 import { BLEND_MODES } from '../shaders/blendComposite.js';
+import { warnOnce } from './warn.js';
 
 /**
  * Vega's `blend` maps onto canvas `globalCompositeOperation`. Four of them fall
@@ -96,8 +97,6 @@ export function layerMode(pipeline: GPURenderPipeline): string | undefined {
   return layerModes.get(pipeline);
 }
 
-const warned = new Set<string>();
-
 /** Normalizes a mark's blend to one this renderer keys a pipeline by. */
 export function blendKey(blend: string | null | undefined): string {
   // vega writes the default either way round, so neither is a mode we lack
@@ -107,10 +106,7 @@ export function blendKey(blend: string | null | undefined): string {
   if (EVALUATED.has(blend)) {
     return blend;
   }
-  if (!warned.has(blend)) {
-    warned.add(blend);
-    console.warn(`[vega-webgpu] Blend mode '${blend}' is not one canvas has; drawing it normally.`);
-  }
+  warnOnce(`blend:${blend}`, `[vega-webgpu] Blend mode '${blend}' is not one canvas has; drawing it normally.`);
   return 'normal';
 }
 

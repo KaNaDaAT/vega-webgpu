@@ -3,9 +3,10 @@ import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { PathGeometry } from '../types/geometry.js';
 import type { SceneShapeItem } from '../types/scene.js';
 import { shape } from '../path/shapes.js';
-import geometryForItem from '../path/geometryForItem.js';
+import geometryForItem, { itemTurn } from '../path/geometryForItem.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
-import { dashPolyline, type Point } from '../util/dash.js';
+import type { Point } from '../types/geometry.js';
+import { dashPolyline } from '../util/dash.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import {
@@ -17,7 +18,7 @@ import {
   writeSegments,
   enqueueOutline,
   outlineTargetOf,
-  geometryVertexData,
+  vertexData,
   getMarkResources,
   gradientTargetOf,
   MAX_GEOMETRY_CACHE,
@@ -41,7 +42,6 @@ import {
 
 const drawName = 'Shape';
 
-const DEG_TO_RAD = Math.PI / 180;
 
 interface ShapeCacheEntry {
   fill: RGBA;
@@ -157,7 +157,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
     if (fillData.length > 0 && gradient && bounds) {
       flushBatch();
-      enqueueGradient(gradientTarget, fillData, gradient, bounds, blendKey(item.blend));
+      enqueueGradient(gradientTarget, fillData, gradient, bounds, blend);
     } else {
       batch.push(fillData);
     }
@@ -251,7 +251,7 @@ function pushOutline(out: OutlineBuffer, item: SceneShapeItem, lines: Point[][])
 function placeLines(item: SceneShapeItem, lines: Point[][]): Point[][] {
   const dx = item.x || 0;
   const dy = item.y || 0;
-  const angle = (item.angle || 0) * DEG_TO_RAD;
+  const angle = itemTurn(item);
   if (dx === 0 && dy === 0 && angle === 0) {
     return lines;
   }
@@ -398,11 +398,11 @@ function createGeometryData(
   // vega translates to the item and rotates before it calls the generator, so
   // a shape given an x, y or angle is drawn there rather than at the origin
   const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom, false, item.x || 0, item.y || 0, {
-    angle: (item.angle || 0) * DEG_TO_RAD,
+    angle: itemTurn(item),
     scaleX: 1,
     scaleY: 1,
   });
-  const [data] = geometryVertexData(geometry, fill, stroke);
+  const data = vertexData(geometry.fillTriangles, geometry.fillCount, fill);
 
   if (useCache) {
     if (res.cache.size >= MAX_GEOMETRY_CACHE) {

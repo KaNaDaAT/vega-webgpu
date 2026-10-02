@@ -257,7 +257,8 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.sharedUniformBuffer();
   // a pipeline with a default layout owns its bind group layout, so both groups
   // have to come from the blend variant this mark draws with
-  const textPipeline = res.pipelineFor(blendKey(items[0]?.blend));
+  const blend = blendKey(items[0]?.blend);
+  const textPipeline = res.pipelineFor(blend);
   const uniformBindGroup = createUniformBindGroup(
     drawName,
     device,
@@ -267,7 +268,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   );
 
   // One draw per label, see needsBackdrop. Two overlapping ones show it.
-  const perLabel = needsBackdrop(blendKey(items[0]?.blend), ctx._opaqueBackdrop);
+  const perLabel = needsBackdrop(blend, ctx._opaqueBackdrop);
 
   // One draw covers every label sharing a texture, and a blend belongs to the
   // pipeline, so this takes the mark's blend rather than each item's. The line

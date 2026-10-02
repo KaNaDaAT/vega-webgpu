@@ -1,13 +1,14 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneItem, SceneRule } from '../types/scene.js';
+import type { SceneRule } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import { dashPolyline, type Point } from '../util/dash.js';
+import type { Point } from '../types/geometry.js';
+import { dashPolyline } from '../util/dash.js';
 import type { RGBA } from '../util/color.js';
 import {
   clipMaskView,
@@ -62,6 +63,13 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   });
 }
 
+/** A rule's two ends. An unset x2 or y2 is its start, the way vega draws one. */
+function ruleEnds(item: SceneRule): [x: number, y: number, ex: number, ey: number] {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  return [x, y, item.x2 == null ? x : item.x2 || 0, item.y2 == null ? y : item.y2 || 0];
+}
+
 /**
  * A dashed rule as its drawn runs. The rule is two points, so the same walk the
  * line mark uses covers it, and the runs go through the segment shader the
@@ -71,10 +79,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
 function dashedAttributes(item: SceneRule, pattern: number[], color: RGBA): Float32Array | null {
   // The raw ends: writeSegments lengthens a square capped run itself, and the
   // dash cuts it into runs whose inner ends are not caps at all.
-  const x = item.x || 0;
-  const y = item.y || 0;
-  const ex = item.x2 == null ? x : item.x2 || 0;
-  const ey = item.y2 == null ? y : item.y2 || 0;
+  const [x, y, ex, ey] = ruleEnds(item);
   const line: Point[] = [
     [x, y],
     [ex, ey],
@@ -174,14 +179,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   flushRun();
 }
 
-function createAttributes(items: SceneItem[]): Float32Array {
+function createAttributes(items: SceneRule[]): Float32Array {
   return Float32Array.from(
     items.flatMap(item => {
-      const { x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item as SceneRule;
-      const x = item.x || 0;
-      const y = item.y || 0;
-      const ex = x2 == null ? x : x2 || 0;
-      const ey = y2 == null ? y : y2 || 0;
+      const { stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
+      const [x, y, ex, ey] = ruleEnds(item);
       const ax = Math.abs(ex - x);
       const ay = Math.abs(ey - y);
       const col = Color.from(stroke, opacity, strokeOpacity);
@@ -195,10 +197,7 @@ function createAttributes(items: SceneItem[]): Float32Array {
 }
 
 function createDiagonalAttributes(item: SceneRule, color: RGBA): Float32Array | null {
-  const x = item.x || 0;
-  const y = item.y || 0;
-  const ex = item.x2 == null ? x : item.x2 || 0;
-  const ey = item.y2 == null ? y : item.y2 || 0;
+  const [x, y, ex, ey] = ruleEnds(item);
   const { caps, join, square } = strokeEnds(item);
   return segmentInstances(
     [
