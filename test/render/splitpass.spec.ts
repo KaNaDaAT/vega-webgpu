@@ -35,6 +35,10 @@ interface Harness {
 
 for (const { query, what } of SHAPES) {
   test(`a frame that splits its pass survives ${what}`, async ({ page }) => {
+    test.skip(
+      !!process.env.CI && query.includes('offscreen=0'),
+      'the CI runner has no compositor, and acquiring the swapchain costs it the device',
+    );
     test.setTimeout(180_000);
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(String(e)));
