@@ -293,6 +293,13 @@ Nothing here changes what a user sees, or it is one pixel in one spec.
 
 ### Landed: robustness and bugs
 
+- [x] **A blended line drawn last lost its blend.** The open batch only joined the queue at submit, after the frame had decided it needed no off-frame pass, so the line drew straight into the frame. `blend-line-last` read 212 on the worst block.
+- [x] **Gradient stops at zero alpha faded from black.** d3-color drops the channels of a colour with no alpha. Stops parse through canvas's own `fillStyle` now. `gradient-alpha-stop` read 226.5.
+- [x] **Text took its blend into the glyph atlas.** vega's text mark sets the blend on the context it draws into, so `source-atop` and the other operators rasterized nothing. `text-blend-atop` read 152.
+- [x] **Stroked text with a miter limit of 0 was clipped.** The cell read the limit with `??` where canvas treats 0 as 10. `text-miter-zero` read 208.8.
+- [x] **The playground and the demo page leaked a GPU device on every change.** `View.finalize` stops at the view. On CI the playground spec stalled creating devices.
+- [x] **Smaller ones.** Scaled paths keep their scale on the tessellation fallbacks, the path key carries the flatness so a pixel ratio change re-triangulates fills, the uniform cache is LRU and frees what it evicts, and the zoom listener holds its renderer weakly.
+
 - [x] **A group border held back to after its children lost the whole frame under a blend.** The draw picked its pipeline by mode and then set the bind group built from the plain one, which is the third time that shape of bug has turned up: a bind group belongs to the layout it was made from, and the command buffer is thrown out whole. Nothing drew. The new `blend-outlines` fixture read 100% of pixels and a mean of 195.90 against it.
 
 - [x] **Five outline routes ignored `blend` entirely.** A dashed group border, a held group border, a dashed diagonal rule, a gradient stroked line and a shape's outline all reached their draw through a pipeline fixed at normal, so the mode was read, passed along and then dropped. Each has the per mode builder the rest of the marks already had. The shape one shares one buffer across a whole mark for the sake of a stroked choropleth, so its runs are recorded as stretches of that buffer and drawn with a first instance offset rather than being split into buffers. `blend-outlines` covers the four that a scenegraph can express and goes to 0.000% of pixels and worst channel 42.
@@ -331,6 +338,8 @@ Nothing here changes what a user sees, or it is one pixel in one spec.
 - [x] **Swapchain reconfigure.** `ctx.configure()` now runs once per device in `_reinit`, not per frame.
 
 ### Landed: tests
+
+- [x] **CI draws its canvas reference on the CPU.** The runner has no GPU, and a desktop rasterizes canvas on its GPU, which differs in antialiased coverage and in how a dash wraps a closed corner. The cases that differ carry runner budgets, and `CPU_CANVAS=1` reproduces the runner's numbers locally. The presented-frame checks skip there, since the runner has no compositor.
 
 - [x] **CI runs both pixel ratios.** Only dpr 1 ran there, though a finer grid moves every analytic edge onto different sample positions and eight fixtures carry a budget of their own for it, so a regression that showed only at dpr 2 was one somebody had to find by hand. The render job is a matrix over the two now, with the report and the images uploaded per ratio so they do not collide.
 
