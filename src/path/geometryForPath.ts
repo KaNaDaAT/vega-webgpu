@@ -207,14 +207,14 @@ export default function geometryForPath(
     // missing off the choropleth that way: exact it throws at 19/9/18/137
     // points, and the flattener's own shape simplified to 19/9/18/143 gives 188
     // triangles. So the last try before giving up is that shape.
-    lines = contoursOf(path, flatness, true).map(contour => simplify(contour, CURVE_TOLERANCE));
+    lines = contoursOf(path, flatness, true, scaleX, scaleY).map(contour => simplify(contour, CURVE_TOLERANCE));
     tri = tessellate(lines);
   }
   for (let coarse = flatness / 2; tri === null && coarse >= flatness / 8; coarse /= 2) {
     // A coarser curve is a shape it takes where the fine one throws, and giving
     // up curve accuracy beats giving up the mark: the second ribbon of `trail`
     // went missing at dpr 2, where the flatness is twice what it is at dpr 1.
-    lines = contoursOf(path, coarse).map(contour => simplify(contour, CURVE_TOLERANCE));
+    lines = contoursOf(path, coarse, false, scaleX, scaleY).map(contour => simplify(contour, CURVE_TOLERANCE));
     tri = tessellate(lines);
   }
   if (tri === null) {
@@ -241,7 +241,8 @@ export default function geometryForPath(
     lines,
     triangles,
     z,
-    key: path,
+    // geometryForItem caches on this, and the flatness and scale shape it too
+    key: cacheKey,
   };
 
   context._pathCache[cacheKey] = geom;
