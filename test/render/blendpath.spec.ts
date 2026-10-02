@@ -17,6 +17,7 @@ const CASES: { scene: string; offFrame: boolean; why: string }[] = [
   { scene: 'blend-readback', offFrame: true, why: 'none of these modes are blend state' },
   { scene: 'blend-transparent', offFrame: true, why: 'no background, so every mode needs the backdrop' },
   { scene: 'trail-overlap', offFrame: true, why: 'the trail stroke is composited through a mask' },
+  { scene: 'blend-line-last', offFrame: true, why: 'a blended line still open in its batch when the frame ends' },
   { scene: 'line-shapes', offFrame: false, why: 'nothing blends or masks' },
 ];
 

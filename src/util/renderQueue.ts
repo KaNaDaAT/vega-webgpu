@@ -70,6 +70,8 @@ export class RenderQueue {
 
   /** Whether anything this frame draws somewhere other than the frame itself. */
   drawsOffFrame(): boolean {
+    // an open batch only joins the queue when it closes, and it may be a layer
+    this.flushBatch();
     return this.offFrame;
   }
 

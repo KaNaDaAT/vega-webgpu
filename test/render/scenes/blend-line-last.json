@@ -1,0 +1,60 @@
+{
+  "description": "A darken line drawn last in the frame, across a rect. Its segments are still in the open batch when the frame decides whether it needs the off-frame passes, so the line drew straight into the frame with no blend.",
+  "width": 300,
+  "height": 140,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 70,
+                "y": 30,
+                "width": 160,
+                "height": 80,
+                "fill": "#2b5d8a"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 110,
+                "stroke": "#ff9933",
+                "strokeWidth": 12,
+                "blend": "darken"
+              },
+              {
+                "x": 150,
+                "y": 30
+              },
+              {
+                "x": 280,
+                "y": 110
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
