@@ -1,0 +1,41 @@
+{
+  "description": "Stroked labels with a miter limit of zero, which canvas reads as its default of ten. The atlas cell was sized for a limit of one, so the miter tips at the sharp corners were cut off.",
+  "width": 560,
+  "height": 170,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 125,
+                "text": "VAWA",
+                "font": "sans-serif",
+                "fontSize": 96,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 14,
+                "strokeMiterLimit": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

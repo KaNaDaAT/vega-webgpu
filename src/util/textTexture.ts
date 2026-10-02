@@ -1,6 +1,7 @@
 import { Bounds, Marks } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneTextItem } from '../types/scene.js';
+import { joinStyleOf } from './join.js';
 
 const HALF_PI = Math.PI / 2;
 const textMark = Marks.text;
@@ -112,13 +113,13 @@ export function textCacheKey(item: SceneTextItem): string {
  * A miter runs out to `miterLimit * width / 2` at a sharp enough corner, which
  * is where canvas clamps it. Any other join stays inside half the width.
  */
-function strokeReach(raster: SceneTextItem, dpi: number): number {
+function glyphStrokePad(raster: SceneTextItem, dpi: number): number {
   if (!raster.stroke) {
     return 0;
   }
   const half = (raster.strokeWidth ?? 1) / 2;
-  const limit = (raster.strokeJoin ?? 'miter') === 'miter' ? (raster.strokeMiterLimit ?? 10) : 1;
-  return Math.ceil(half * Math.max(limit, 1) * dpi);
+  const { style, miterLimit } = joinStyleOf(raster);
+  return Math.ceil(half * (style === 'miter' ? Math.max(miterLimit, 1) : 1) * dpi);
 }
 
 /**
@@ -144,7 +145,7 @@ export function glyphMetrics(
   // glyph corner under a miter join carries out to miterLimit * width / 2,
   // which is the bound canvas itself clamps to and the one geometryForItem
   // pads by. Whole device pixels, so the anchor rounds the way it did.
-  const strokePad = strokeReach(raster, dpi);
+  const strokePad = glyphStrokePad(raster, dpi);
   // At least 1px clearance so antialiased edges are never clipped.
   const padLeft = Math.ceil(Math.max(0, (ax - b.x1) * dpi)) + 1 + strokePad;
   const padTop = Math.ceil(Math.max(0, (ay - b.y1) * dpi)) + 1 + strokePad;
@@ -274,7 +275,8 @@ export function drawGlyph(
 ): void {
   const [ax, ay] = textAnchor(raster);
   c2d.setTransform(dpi, 0, 0, dpi, originX + m.anchorTexX - dpi * ax, originY + m.anchorTexY - dpi * ay);
-  textMark.draw(c2d, { items: [{ ...raster, opacity: 1 }] }, null);
+  // the blend is the composite's, and vega would set it on the atlas context
+  textMark.draw(c2d, { items: [{ ...raster, opacity: 1, blend: undefined }] }, null);
 }
 
 /**

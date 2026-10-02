@@ -1,0 +1,75 @@
+{
+  "description": "A label drawn source-atop across the edge of a rect, on a frame with no background, beside a plain one. vega's text mark sets the blend on the context it draws into, which was the glyph atlas, so the label rasterized into nothing.",
+  "width": 360,
+  "height": 130,
+  "origin": [
+    0,
+    0
+  ],
+  "background": "rgba(0,0,0,0)",
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 30,
+                "y": 25,
+                "width": 170,
+                "height": 80,
+                "fill": "#4c78a8"
+              }
+            ]
+          },
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 290,
+                "y": 45,
+                "text": "plain",
+                "font": "sans-serif",
+                "fontSize": 24,
+                "fill": "#2b5d8a",
+                "align": "center",
+                "baseline": "middle"
+              }
+            ]
+          },
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 200,
+                "y": 65,
+                "text": "Atop",
+                "font": "sans-serif",
+                "fontSize": 44,
+                "fill": "#e45756",
+                "align": "center",
+                "baseline": "middle",
+                "blend": "source-atop"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
