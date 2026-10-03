@@ -17,7 +17,7 @@ import {
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { REPLACE, blendState, buildBlend } from '../util/blend.js';
 import { shaderModule, type ShaderKey } from '../shaders/index.js';
-import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
+import { bindGroupLayout, createRenderPipeline, preferredColorFormat, viewOf } from '../util/webgpu.js';
 import type { ClipRadii, ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { DrawCounts, QueueElement } from '../util/renderQueue.js';
 import type { SceneGroupExt, SceneRectExt, SceneItem } from '../types/scene.js';
@@ -715,10 +715,10 @@ export function blendCompositeElement(
     bindGroups: [
       device.createBindGroup({
         label: 'Blend Composite Bind Group',
-        layout: pipeline.getBindGroupLayout(0),
+        layout: bindGroupLayout(pipeline, 0),
         entries: [
-          { binding: 0, resource: targets.resolve.createView() },
-          { binding: 1, resource: targets.backdrop.createView() },
+          { binding: 0, resource: viewOf(targets.resolve) },
+          { binding: 1, resource: viewOf(targets.backdrop) },
         ],
       }),
     ],
@@ -797,9 +797,9 @@ export function enqueueMaskedOutline(
       uniformBindGroup(ctx, device, `${target.name}Composite`, pipeline, target.uniformBuffer),
       device.createBindGroup({
         label: `${target.name} Mask Bind Group`,
-        layout: pipeline.getBindGroupLayout(1),
+        layout: bindGroupLayout(pipeline, 1),
         entries: [
-          { binding: 0, resource: ctx._renderer.maskTexture(device).createView() },
+          { binding: 0, resource: viewOf(ctx._renderer.maskTexture(device)) },
           { binding: 1, resource: { buffer: params } },
         ],
       }),

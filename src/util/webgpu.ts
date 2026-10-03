@@ -57,6 +57,33 @@ export function createRenderPipeline(
   });
 }
 
+const layouts = new WeakMap<GPURenderPipeline, GPUBindGroupLayout[]>();
+
+/**
+ * A pipeline's bind group layout at `index`. Every bind group made for the
+ * pipeline needs it, and asking the pipeline makes a new one each time.
+ */
+export function bindGroupLayout(pipeline: GPURenderPipeline, index: number): GPUBindGroupLayout {
+  let held = layouts.get(pipeline);
+  if (!held) {
+    held = [];
+    layouts.set(pipeline, held);
+  }
+  return (held[index] ??= pipeline.getBindGroupLayout(index));
+}
+
+const views = new WeakMap<GPUTexture, GPUTextureView>();
+
+/** A texture's default view, made once rather than for every pass or bind group. */
+export function viewOf(texture: GPUTexture): GPUTextureView {
+  let view = views.get(texture);
+  if (!view) {
+    view = texture.createView();
+    views.set(texture, view);
+  }
+  return view;
+}
+
 /**
  * The group 0 bind group every mark pipeline takes: the shared uniform block
  * and the clip path's coverage.
@@ -77,7 +104,7 @@ export function createUniformBindGroup(
 ): GPUBindGroup {
   return device.createBindGroup({
     label: `${name} Uniform Bind Group`,
-    layout: pipeline.getBindGroupLayout(0),
+    layout: bindGroupLayout(pipeline, 0),
     entries: [
       {
         binding: 0,
@@ -118,7 +145,7 @@ export function textureBindGroup(
 ): GPUBindGroup {
   return device.createBindGroup({
     label,
-    layout: pipeline.getBindGroupLayout(1),
+    layout: bindGroupLayout(pipeline, 1),
     entries: [
       { binding: 0, resource: sampler },
       { binding: 1, resource: view },

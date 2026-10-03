@@ -19,7 +19,7 @@ import {
   type Turn,
 } from '../util/textTexture.js';
 import { blendKey } from '../util/blend.js';
-import { linearSampler, textureBindGroup } from '../util/webgpu.js';
+import { linearSampler, textureBindGroup, viewOf } from '../util/webgpu.js';
 import { blendPipelines, getMarkResources, markItems, type MarkModule, uniformBindGroup } from './util.js';
 import { DrawRun } from '../util/drawRun.js';
 
@@ -263,7 +263,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const atlasGroups = new Map<string, GPUBindGroup[]>();
   const bindGroups = (pipeline: GPURenderPipeline, texture: GPUTexture): GPUBindGroup[] => [
     uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer),
-    textureBindGroup(device, 'Text Texture Bind Group', pipeline, linearSampler(device), texture.createView()),
+    textureBindGroup(device, 'Text Texture Bind Group', pipeline, linearSampler(device), viewOf(texture)),
   ];
 
   if (packed.length > 0) {

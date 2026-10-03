@@ -5,7 +5,7 @@ import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { blendKey } from '../util/blend.js';
-import { imageTexture, textureBindGroup, uploadImage } from '../util/webgpu.js';
+import { imageTexture, textureBindGroup, uploadImage, viewOf } from '../util/webgpu.js';
 import { blendPipelines, getMarkResources, markItems, type MarkModule, uniformBindGroup } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
@@ -203,7 +203,7 @@ function getBindGroup(
       `Image Texture Bind Group (${key})`,
       pipeline,
       smooth ? res.smoothSampler : res.pixelatedSampler,
-      entry.texture.createView(),
+      viewOf(entry.texture),
     );
     entry.bindGroups.set(key, bindGroup);
   }

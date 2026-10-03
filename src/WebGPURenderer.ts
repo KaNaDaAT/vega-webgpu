@@ -9,7 +9,7 @@ import { RenderQueue, type FrameTargets } from './util/renderQueue.js';
 import resize, { pixelRatio } from './util/resize.js';
 import { bufferPool } from './util/bufferManager.js';
 import { LruMap } from './util/lru.js';
-import { defaultSampleCount, normalizeSampleCount, preferredColorFormat } from './util/webgpu.js';
+import { defaultSampleCount, normalizeSampleCount, preferredColorFormat, viewOf } from './util/webgpu.js';
 
 const viewBounds = (origin: readonly [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
@@ -527,7 +527,8 @@ export default class WebGPURenderer extends Renderer {
       label: 'Frame Render Pass Descriptor',
       colorAttachments: [
         {
-          view: multisampled ? this.msaaTexture(device, ctx._sampleCount).createView() : target.createView(),
+          // the canvas hands out a new texture every frame, so its view is not held
+          view: multisampled ? viewOf(this.msaaTexture(device, ctx._sampleCount)) : target.createView(),
           resolveTarget: multisampled ? target.createView() : undefined,
           clearValue: this.clearColor(),
           loadOp: 'clear',
@@ -547,9 +548,9 @@ export default class WebGPURenderer extends Renderer {
       const blend = this.blendTargets(device, ctx._sampleCount);
       targets = {
         target,
-        maskView: this.maskTexture(device).createView(),
-        layerView: blend.layer.createView(),
-        layerResolve: ctx._sampleCount > 1 ? blend.resolve.createView() : null,
+        maskView: viewOf(this.maskTexture(device)),
+        layerView: viewOf(blend.layer),
+        layerResolve: ctx._sampleCount > 1 ? viewOf(blend.resolve) : null,
         backdrop: blend.backdrop,
       };
     }
@@ -897,17 +898,11 @@ export default class WebGPURenderer extends Renderer {
   private _clipMasks: ClipMaskTarget[] = [];
   private _clipMaskNext = 0;
 
-  /** The placeholder's view, held so a bind group per draw does not build one. */
   clipMaskPlaceholderView(device: GPUDevice): GPUTextureView {
-    const texture = this.clipMaskPlaceholder(device);
-    if (this._clipPlaceholderView?.texture !== texture) {
-      this._clipPlaceholderView = { texture, view: texture.createView() };
-    }
-    return this._clipPlaceholderView.view;
+    return viewOf(this.clipMaskPlaceholder(device));
   }
 
   private _clipPlaceholder: TextureSlot = { texture: null, device: null };
-  private _clipPlaceholderView: { texture: GPUTexture; view: GPUTextureView } | null = null;
 
   /**
    * Single sampled coverage target, for a stroke that has to be composited as
