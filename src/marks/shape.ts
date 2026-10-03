@@ -6,7 +6,6 @@ import { shape } from '../path/shapes.js';
 import geometryForItem, { itemTurn } from '../path/geometryForItem.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
 import type { Point } from '../types/geometry.js';
-import { dashPolyline } from '../util/dash.js';
 import { Color, type RGBA } from '../util/color.js';
 import { DrawRun } from '../util/drawRun.js';
 import { joinChunks } from '../util/geometryBatch.js';
@@ -28,8 +27,8 @@ import {
   type BoundsSnapshot,
   fillResources,
   type FillResources,
-  dashPatternOf,
   strokeEnds,
+  strokeRuns,
   type MarkModule,
   uniformBindGroup,
   enqueueFill,
@@ -206,41 +205,23 @@ function pushOutline(out: OutlineBuffer, item: SceneShapeItem, lines: Point[][])
     return;
   }
   const needed = segmentCount(runs) * SEGMENT_STRIDE;
-  const { caps, join, square } = strokeEnds(item);
-  out.length = writeSegments(out.reserve(needed), out.length, runs, color, width, caps, join, square);
+  out.length = writeSegments(out.reserve(needed), out.length, runs, color, width, strokeEnds(item));
 }
 
 /**
- * Contours placed the way the fill is. vega translates to the item and rotates
- * before it calls the generator and strokes the path it filled, so an outline
- * walked off the raw contours was drawn at the origin whatever the item's x, y
- * and angle said.
+ * The drawn runs of one item's outline, or null when it has none.
  *
- * Returned untouched where there is nothing to apply, which is every geo
- * shape, so a choropleth allocates nothing here.
+ * Placed the way the fill is: vega translates to the item and rotates before it
+ * calls the generator and strokes the path it filled, so an outline walked off
+ * the raw contours was drawn at the origin whatever the item's x, y and angle
+ * said. A geo shape has nothing to place, so a choropleth's contours are not
+ * copied.
  */
-function placeLines(item: SceneShapeItem, lines: Point[][]): Point[][] {
-  const dx = item.x || 0;
-  const dy = item.y || 0;
-  const angle = itemTurn(item);
-  if (dx === 0 && dy === 0 && angle === 0) {
-    return lines;
-  }
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  return lines.map(line => line.map(([x, y]): Point => [x * cos - y * sin + dx, x * sin + y * cos + dy]));
-}
-
-/** The drawn runs of one item's outline, or null when it has none. */
-function outlineRuns(item: SceneShapeItem, lines: Point[][]): Point[][] | null {
+function outlineRuns(item: SceneShapeItem, lines: Point[][]): readonly (readonly Point[])[] | null {
   if (!item.stroke || (item.strokeWidth ?? 1) <= 0) {
     return null;
   }
-  const placed = placeLines(item, lines);
-  const pattern = dashPatternOf(item);
-  const runs = pattern
-    ? placed.flatMap(line => dashPolyline(line, pattern, item.strokeDashOffset ?? 0, strokeEnds(item).bridge))
-    : placed;
+  const runs = strokeRuns(lines, item, { dx: item.x || 0, dy: item.y || 0, angle: itemTurn(item) });
   return segmentCount(runs) === 0 ? null : runs;
 }
 
@@ -250,8 +231,7 @@ function outlineInstances(item: SceneShapeItem, lines: Point[][], color: RGBA): 
   if (!runs) {
     return null;
   }
-  const { caps, join, square } = strokeEnds(item);
-  return segmentInstances(runs, color, item.strokeWidth ?? 1, caps, join, square);
+  return segmentInstances(runs, color, item.strokeWidth ?? 1, strokeEnds(item));
 }
 
 interface OutlineState {

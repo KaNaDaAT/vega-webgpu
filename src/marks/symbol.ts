@@ -14,7 +14,8 @@ import {
   type OutlinePipelines,
   dashPatternOf,
   enqueueOutline,
-  strokeOutline,
+  segmentInstances,
+  strokeRuns,
   vertexData,
   getMarkResources,
   instanceScratch,
@@ -245,15 +246,10 @@ function drawSymbolOutline(
   // A dash is measured along the contour, so it takes the coarse one whatever
   // the ratio. A solid outline is only drawn on it and takes the fine one.
   const geom = symbolShapeGeometry(ctx, symbolShape(item), symbolSize(item), pattern ? DASH_FLATNESS : undefined);
-  const data = strokeOutline(
-    geom.lines,
-    pattern,
+  const data = segmentInstances(
+    strokeRuns(geom.lines, item, { dx: item.x || 0, dy: item.y || 0, angle: itemTurn(item) }),
     paintColour(item.stroke, item.opacity, item.strokeOpacity, ramp),
     item.strokeWidth ?? 1,
-    item.strokeDashOffset ?? 0,
-    item.x || 0,
-    item.y || 0,
-    { angle: itemTurn(item), scaleX: 1, scaleY: 1 },
     strokeEnds(item),
   );
   if (!data) {

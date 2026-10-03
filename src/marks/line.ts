@@ -7,7 +7,6 @@ import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import type { Point } from '../types/geometry.js';
-import { dashPolyline } from '../util/dash.js';
 import { CURVE_SUBDIVISIONS } from '../shaders/curve.js';
 import { BUTT_END, ROUND_END } from '../util/join.js';
 import geometryForItem from '../path/geometryForItem.js';
@@ -25,6 +24,7 @@ import {
   markPipeline,
   segmentInstances,
   strokeEnds,
+  strokeRuns,
   writeSegments,
   type MarkModule,
   uniformBindGroup,
@@ -200,22 +200,16 @@ function drawOutline(
   ctx: GPUVegaCanvasContext,
   res: LineResources,
   points: SceneLinePoint[],
-  pattern: number[] | null,
   ramp: Ramp | null,
   clip: ReturnType<typeof markClip>,
 ): void {
   const first = points[0];
-  const offset = first.strokeDashOffset ?? 0;
-
   const polylines: Point[][] = isPolyline(points)
     ? [points.map(p => [p.x || 0, p.y || 0] as Point)]
     : lineGeometry(ctx, points).lines;
 
-  const { caps, join, bridge, square } = strokeEnds(first);
-  const runs = pattern ? polylines.flatMap(line => dashPolyline(line, pattern, offset, bridge)) : polylines;
-
   const col = paintColour(first.stroke, first.opacity, first.strokeOpacity, ramp);
-  const data = segmentInstances(runs, col, first.strokeWidth ?? 1, caps, join, square);
+  const data = segmentInstances(strokeRuns(polylines, first), col, first.strokeWidth ?? 1, strokeEnds(first));
   if (!data) {
     return;
   }
@@ -522,7 +516,7 @@ function drawCurve(
       stubs.done(),
       Color.from(first.stroke, first.opacity, first.strokeOpacity),
       first.strokeWidth ?? 1,
-      [BUTT_END, ROUND_END],
+      { ...strokeEnds(first), caps: [BUTT_END, ROUND_END] },
     );
     if (caps) {
       queueSegments(device, ctx, res, caps, clip, blend);
@@ -573,7 +567,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const bounds = scene.bounds ?? points[0]?.bounds;
   const strokeRamp = rampOf(points[0]?.stroke, bounds);
   if (pattern || strokeRamp) {
-    drawOutline(device, ctx, res, points, pattern ?? null, strokeRamp, clip);
+    drawOutline(device, ctx, res, points, strokeRamp, clip);
     return;
   }
 
@@ -609,8 +603,7 @@ function createAttributes(points: SceneLinePoint[]): Float32Array {
   for (let i = 0; i < points.length; i++) {
     run[i] = [points[i].x || 0, points[i].y || 0];
   }
-  const { caps, join, square } = strokeEnds(first);
-  writeSegments(result, 0, [run], col, first.strokeWidth ?? 1, caps, join, square);
+  writeSegments(result, 0, [run], col, first.strokeWidth ?? 1, strokeEnds(first));
   return result;
 }
 

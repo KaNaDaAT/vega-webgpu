@@ -1,36 +1,37 @@
 import type { Point } from '../types/geometry.js';
 
+/** A dash pattern ready to walk, and where its offset leaves the walk at the first point. */
+export interface Dash {
+  dashes: number[];
+  index: number;
+  remaining: number;
+  on: boolean;
+}
+
 /**
- * Splits a polyline into the drawn runs of a dash pattern, matching the canvas
- * setLineDash semantics: an odd-length pattern repeats to make it even, and the
- * offset skips into the pattern before the first point.
- *
- * Returns one polyline per drawn run, so callers can render them as ordinary
- * line segments.
+ * A pattern as canvas's setLineDash reads it, prepared once for every contour
+ * it is walked along: an odd-length pattern repeats to make it even, and the
+ * offset skips into the pattern before the first point. Null when it draws
+ * solid.
  *
  * `bridge` is how much of a gap the caps at two facing run ends close between
- * them, which is the stroke width for a round or square cap and nothing for a
- * butt one. See bridgeGaps.
+ * them, which is the stroke width for a square cap and nothing for the others.
+ * See bridgeGaps.
  */
-export function dashPolyline(points: Point[], pattern: number[], offset = 0, bridge = 0): Point[][] {
+export function prepareDash(pattern: number[], offset = 0, bridge = 0): Dash | null {
   const even = normalizePattern(pattern);
-  if (even === null || points.length < 2) {
-    return points.length >= 2 ? [points] : [];
-  }
-  const closed = bridgeGaps(even, bridge);
-  if (closed === null) {
-    return [points];
+  const closed = even && bridgeGaps(even, bridge);
+  if (!closed) {
+    return null;
   }
   const dashes = closed.dashes;
-  offset += closed.shift;
-
   const total = dashes.reduce((a, b) => a + b, 0);
   let index = 0;
   let remaining = dashes[0];
   let on = true;
 
   // Wind the pattern forward by the offset before drawing anything.
-  let skip = ((offset % total) + total) % total;
+  let skip = (((offset + closed.shift) % total) + total) % total;
   while (skip > 0) {
     const step = Math.min(skip, remaining);
     remaining -= step;
@@ -41,7 +42,19 @@ export function dashPolyline(points: Point[], pattern: number[], offset = 0, bri
       on = !on;
     }
   }
+  return { dashes, index, remaining, on };
+}
 
+/**
+ * Splits a polyline into the drawn runs of a dash, one polyline per run, so
+ * callers can render them as ordinary line segments.
+ */
+export function dashPolyline(points: readonly Point[], dash: Dash): Point[][] {
+  if (points.length < 2) {
+    return [];
+  }
+  const { dashes } = dash;
+  let { index, remaining, on } = dash;
   const runs: Point[][] = [];
   let current: Point[] = on ? [points[0]] : [];
 

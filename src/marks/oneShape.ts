@@ -13,8 +13,9 @@ import {
   vertexData,
   getMarkResources,
   markClip,
+  segmentInstances,
   strokeEnds,
-  strokeOutline,
+  strokeRuns,
   strokeReach,
   type MarkModule,
   enqueueFill,
@@ -76,17 +77,8 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
 
     // After the fill, which is the order canvas paints them in.
     if (item.stroke) {
-      const data = strokeOutline(
-        dash ? shapeOf(ctx, items, DASH_FLATNESS).lines : shapeGeom.lines,
-        dash,
-        stroke.colour,
-        item.strokeWidth ?? 1,
-        item.strokeDashOffset ?? 0,
-        0,
-        0,
-        undefined,
-        strokeEnds(item),
-      );
+      const lines = dash ? shapeOf(ctx, items, DASH_FLATNESS).lines : shapeGeom.lines;
+      const data = segmentInstances(strokeRuns(lines, item), stroke.colour, item.strokeWidth ?? 1, strokeEnds(item));
       if (data) {
         const outline = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
         // A ramp cannot be read back out of a coverage mask, so a gradient

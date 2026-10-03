@@ -17,8 +17,9 @@ import {
   getMarkResources,
   markClip,
   markItems,
+  segmentInstances,
   strokeEnds,
-  strokeOutline,
+  strokeRuns,
   type FillResources,
   type GeometryCache,
   type MarkModule,
@@ -120,15 +121,11 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
       // After the fill, which is the order canvas paints them in. Enqueued
       // ahead of it the fill covers the inner half of every dash.
       if (item.stroke) {
-        const data = strokeOutline(
-          dash ? shapeOf(ctx, item, DASH_FLATNESS).lines : shape().lines,
-          dash,
+        const lines = dash ? shapeOf(ctx, item, DASH_FLATNESS).lines : shape().lines;
+        const data = segmentInstances(
+          strokeRuns(lines, item, { dx: item.x || 0, dy: item.y || 0, ...transform }),
           stroke.colour,
           item.strokeWidth ?? 1,
-          item.strokeDashOffset ?? 0,
-          item.x || 0,
-          item.y || 0,
-          transform,
           strokeEnds(item),
         );
         if (data) {

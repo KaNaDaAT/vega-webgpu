@@ -7,7 +7,6 @@ import { blendKey } from '../util/blend.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import type { Point } from '../types/geometry.js';
-import { dashPolyline } from '../util/dash.js';
 import type { RGBA } from '../util/color.js';
 import {
   dashPatternOf,
@@ -20,6 +19,7 @@ import {
   blendPipelines,
   segmentInstances,
   strokeEnds,
+  strokeRuns,
   type MarkModule,
   uniformBindGroup,
   paintColour,
@@ -72,27 +72,19 @@ function ruleEnds(item: SceneRule): [x: number, y: number, ex: number, ey: numbe
 }
 
 /**
- * A dashed rule as its drawn runs. The rule is two points, so the same walk the
- * line mark uses covers it, and the runs go through the segment shader the
- * diagonal case already uses. An axis-aligned rule takes this path too when it
- * is dashed, since the rect it would otherwise draw has no way to express one.
+ * A rule drawn through the segment shader, for what the rect cannot draw: a
+ * dash, a diagonal, a cap or a ramp. The rule is two points, so the walk the
+ * line mark dashes with covers it. The raw ends: writeSegments lengthens a
+ * square capped run itself, and a dash cuts it into runs whose inner ends are
+ * not caps at all.
  */
-function dashedAttributes(item: SceneRule, pattern: number[], color: RGBA): Float32Array | null {
-  // The raw ends: writeSegments lengthens a square capped run itself, and the
-  // dash cuts it into runs whose inner ends are not caps at all.
+function segmentAttributes(item: SceneRule, color: RGBA): Float32Array | null {
   const [x, y, ex, ey] = ruleEnds(item);
   const line: Point[] = [
     [x, y],
     [ex, ey],
   ];
-  const ends = strokeEnds(item);
-  const runs = dashPolyline(
-    line,
-    pattern,
-    (item as SceneRule & { strokeDashOffset?: number }).strokeDashOffset ?? 0,
-    ends.bridge,
-  );
-  return segmentInstances(runs, color, item.strokeWidth ?? 1, ends.caps, undefined, ends.square);
+  return segmentInstances(strokeRuns([line], item), color, item.strokeWidth ?? 1, strokeEnds(item));
 }
 
 /** True when the rule has no length, so canvas draws nothing under a butt cap. */
@@ -151,13 +143,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     run.flush();
     const color = paintColour(item.stroke, item.opacity, item.strokeOpacity, strokeRamp);
-    const dashed = pattern ? dashedAttributes(item, pattern, color) : null;
-    if (pattern && !dashed) {
-      continue; // the pattern left nothing drawn
-    }
-    const data = dashed ?? createDiagonalAttributes(item, color);
+    const data = segmentAttributes(item, color);
     if (!data) {
-      continue; // a zero length rule has no segment to draw
+      continue; // a zero length rule, or a dash that left nothing drawn
     }
     enqueueOutline(
       targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip),
@@ -183,24 +171,6 @@ function createAttributes(items: SceneRule[]): Float32Array {
       const offY = ay ? 0 : strokeWidth / 2;
       return [Math.min(x, ex), Math.min(y, ey), w, h, ...col, offX, offY];
     }),
-  );
-}
-
-function createDiagonalAttributes(item: SceneRule, color: RGBA): Float32Array | null {
-  const [x, y, ex, ey] = ruleEnds(item);
-  const { caps, join, square } = strokeEnds(item);
-  return segmentInstances(
-    [
-      [
-        [x, y],
-        [ex, ey],
-      ],
-    ],
-    color,
-    item.strokeWidth ?? 1,
-    caps,
-    join,
-    square,
   );
 }
 

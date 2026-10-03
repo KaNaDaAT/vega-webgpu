@@ -1,12 +1,10 @@
 import { Bounds, boundContext, sceneVisit, pathRectangle } from 'vega-scenegraph';
 import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
-import geometryForItem from '../path/geometryForItem.js';
+import geometryForItem, { type ItemTransform } from '../path/geometryForItem.js';
 import { BufferManager, uploadBuffer } from '../util/bufferManager.js';
 import type { Point } from '../types/geometry.js';
-import { dashPolyline } from '../util/dash.js';
+import { dashPolyline, prepareDash } from '../util/dash.js';
 import {
-  BUTT_END,
-  DEFAULT_MITER_LIMIT,
   KIND_CAP_MEET,
   KIND_ROUND_CAP,
   capEnd,
@@ -778,41 +776,49 @@ export function enqueueMaskedOutline(
 }
 
 /**
- * A mark's outline as segment instances, dashed when a pattern is given.
- *
- * The contours are the same ones the stroke is extruded from, so this follows
- * exactly the line a solid stroke would draw. The transform matches
- * geometryForItem: scale first, so the stroke width stays uniform, then rotate
- * about the item origin, then translate.
+ * Where strokeRuns draws contours, the way geometryForItem places a fill: scaled
+ * first, so the stroke width stays uniform, then turned about the item origin,
+ * then moved by dx, dy.
  */
-export function strokeOutline(
-  lines: readonly (readonly (readonly [number, number])[])[],
-  pattern: number[] | null,
-  color: RGBA,
-  width: number,
-  offset = 0,
-  dx = 0,
-  dy = 0,
-  transform: { angle: number; scaleX: number; scaleY: number } = { angle: 0, scaleX: 1, scaleY: 1 },
-  ends?: { caps: readonly [JoinEnd, JoinEnd]; join: StrokeJoin; bridge?: number; square?: boolean },
-): Float32Array | null {
-  const { angle, scaleX, scaleY } = transform;
+export interface Placement extends Partial<ItemTransform> {
+  dx: number;
+  dy: number;
+}
+
+/**
+ * The runs an item's stroke draws: the contours the stroke is extruded from,
+ * placed, and cut into dashes when the item has a pattern. Contours that need
+ * neither come back untouched.
+ */
+export function strokeRuns(
+  lines: readonly (readonly Point[])[],
+  item: { strokeDash?: number[] | null; strokeDashOffset?: number; strokeCap?: string; strokeWidth?: number },
+  place?: Placement,
+): readonly (readonly Point[])[] {
+  const placed = place ? placeContours(lines, place) : lines;
+  const pattern = dashPatternOf(item);
+  // square caps close the gaps they cover, see bridgeGaps
+  const bridge = item.strokeCap === 'square' ? (item.strokeWidth ?? 1) : 0;
+  const dash = pattern && prepareDash(pattern, item.strokeDashOffset ?? 0, bridge);
+  return dash ? placed.flatMap(line => dashPolyline(line, dash)) : placed;
+}
+
+function placeContours(
+  lines: readonly (readonly Point[])[],
+  { dx, dy, angle = 0, scaleX = 1, scaleY = 1 }: Placement,
+): readonly (readonly Point[])[] {
+  if (dx === 0 && dy === 0 && angle === 0 && scaleX === 1 && scaleY === 1) {
+    return lines;
+  }
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
-  const runs: Point[][] = [];
-  for (const line of lines) {
-    const moved: Point[] = line.map(([px, py]) => {
+  return lines.map(line =>
+    line.map(([px, py]): Point => {
       const x = px * scaleX;
       const y = py * scaleY;
       return [x * cos - y * sin + dx, x * sin + y * cos + dy];
-    });
-    if (pattern) {
-      runs.push(...dashPolyline(moved, pattern, offset, ends?.bridge ?? 0));
-    } else {
-      runs.push(moved);
-    }
-  }
-  return segmentInstances(runs, color, width, ends?.caps, ends?.join, ends?.square);
+    }),
+  );
 }
 
 /**
@@ -855,31 +861,18 @@ export interface StrokeJoin {
   miterLimit: number;
 }
 
-const MITER: StrokeJoin = { style: 'miter', miterLimit: DEFAULT_MITER_LIMIT };
-const BUTT_CAPS: readonly [JoinEnd, JoinEnd] = [BUTT_END, BUTT_END];
-
-/** The caps and join of an item, as the segment writers want them. */
-export function strokeEnds(item: {
-  strokeCap?: string;
-  strokeJoin?: string;
-  strokeMiterLimit?: number;
-  strokeWidth?: number;
-}): {
+/** How the runs of an outline end and join, as the segment writers want it. */
+export interface StrokeEnds {
   caps: readonly [JoinEnd, JoinEnd];
   join: StrokeJoin;
-  /** How much of a dash gap this item's caps close over. See dash.ts. */
-  bridge: number;
   /** A square cap, which the writer draws by lengthening the run. */
   square: boolean;
-} {
+}
+
+/** The caps and join of an item. */
+export function strokeEnds(item: { strokeCap?: string; strokeJoin?: string; strokeMiterLimit?: number }): StrokeEnds {
   const cap = capEnd(item.strokeCap);
-  // Square only. Two square caps facing each other across a gap they cover fill
-  // it exactly, so merging the runs is the same shape. Two round ones do not:
-  // their arcs cross short of the stroke edge and leave a notch either side,
-  // which a merged run would paint over.
-  const square = item.strokeCap === 'square';
-  const bridge = square ? (item.strokeWidth ?? 1) : 0;
-  return { caps: [cap, cap], join: joinStyleOf(item), bridge, square };
+  return { caps: [cap, cap], join: joinStyleOf(item), square: item.strokeCap === 'square' };
 }
 
 /** Packs every segment of every polyline, or null when there is nothing to draw. */
@@ -887,16 +880,14 @@ export function segmentInstances(
   runs: readonly (readonly Point[])[],
   color: RGBA,
   width: number,
-  caps: readonly [JoinEnd, JoinEnd] = BUTT_CAPS,
-  join: StrokeJoin = MITER,
-  square = false,
+  ends: StrokeEnds,
 ): Float32Array | null {
   const count = segmentCount(runs);
   if (count === 0) {
     return null;
   }
   const data = new Float32Array(count * SEGMENT_STRIDE);
-  writeSegments(data, 0, runs, color, width, caps, join, square);
+  writeSegments(data, 0, runs, color, width, ends);
   return data;
 }
 
@@ -940,9 +931,7 @@ export function writeSegments(
   runs: readonly (readonly Point[])[],
   color: RGBA,
   width: number,
-  caps: readonly [JoinEnd, JoinEnd] = BUTT_CAPS,
-  join: StrokeJoin = MITER,
-  square = false,
+  { caps, join, square }: StrokeEnds,
 ): number {
   const [r, g, b, a] = color;
   const half = width / 2;
@@ -1085,15 +1074,13 @@ export function withStrokeOffset(item: SceneGroupExt): SceneGroupExt {
  * has no border this has to draw.
  */
 export function borderInstances(ctx: GPUVegaCanvasContext, item: SceneRectExt, ramp: Ramp | null): Float32Array | null {
-  const pattern = dashPatternOf(item);
-  if ((!pattern && !ramp) || !item.stroke) {
+  if ((!dashPatternOf(item) && !ramp) || !item.stroke) {
     return null;
   }
   const [x, y, w, h] = rectBox(item);
   if (w <= 0 || h <= 0) {
     return null;
   }
-  const offset = item.strokeDashOffset ?? 0;
   const outline = roundedBorder(ctx, item, x, y, w, h) ?? [
     [
       [x, y],
@@ -1103,10 +1090,8 @@ export function borderInstances(ctx: GPUVegaCanvasContext, item: SceneRectExt, r
       [x, y],
     ] as Point[],
   ];
-  const { caps, join, bridge, square } = strokeEnds(item);
-  const runs = pattern ? outline.flatMap(line => dashPolyline(line, pattern, offset, bridge)) : outline;
   const color = paintColour(item.stroke, item.opacity, item.strokeOpacity, ramp);
-  return segmentInstances(runs, color, item.strokeWidth ?? 1, caps, join, square);
+  return segmentInstances(strokeRuns(outline, item), color, item.strokeWidth ?? 1, strokeEnds(item));
 }
 
 const borderPath = pathRectangle<SceneRectExt>();
