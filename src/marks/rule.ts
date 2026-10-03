@@ -14,6 +14,7 @@ import {
   type OutlinePipelines,
   enqueueOutline,
   getMarkResources,
+  instanceScratch,
   markItems,
   blendPipelines,
   segmentInstances,
@@ -155,21 +156,27 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   run.flush();
 }
 
+/** Floats per rule instance: corner, size, colour, and the offset a half stroke takes. */
+const RULE_STRIDE = 10;
+
 function createAttributes(items: SceneRule[]): Float32Array {
-  return Float32Array.from(
-    items.flatMap(item => {
-      const { stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
-      const [x, y, ex, ey] = ruleEnds(item);
-      const ax = Math.abs(ex - x);
-      const ay = Math.abs(ey - y);
-      const col = Color.from(stroke, opacity, strokeOpacity);
-      const w = ax ? ax : strokeWidth;
-      const h = ay ? ay : strokeWidth;
-      const offX = ax ? 0 : strokeWidth / 2;
-      const offY = ay ? 0 : strokeWidth / 2;
-      return [Math.min(x, ex), Math.min(y, ey), w, h, ...col, offX, offY];
-    }),
-  );
+  const out = instanceScratch(items.length * RULE_STRIDE);
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const { stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
+    const [x, y, ex, ey] = ruleEnds(item);
+    const ax = Math.abs(ex - x);
+    const ay = Math.abs(ey - y);
+    const base = i * RULE_STRIDE;
+    out[base] = Math.min(x, ex);
+    out[base + 1] = Math.min(y, ey);
+    out[base + 2] = ax ? ax : strokeWidth;
+    out[base + 3] = ay ? ay : strokeWidth;
+    Color.write(out, base + 4, stroke, opacity, strokeOpacity);
+    out[base + 8] = ax ? 0 : strokeWidth / 2;
+    out[base + 9] = ay ? 0 : strokeWidth / 2;
+  }
+  return out;
 }
 
 export default { draw } satisfies MarkModule;
