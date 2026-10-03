@@ -83,7 +83,6 @@ export default function geometryForItem(
   let strokeOpacity = opacity * (item.strokeOpacity ?? 1);
 
   const fillTriangleCoords = shapeGeom.triangles;
-  let z = shapeGeom.z;
 
   if (item.fill === 'transparent') {
     fillOpacity = 0;
@@ -114,7 +113,7 @@ export default function geometryForItem(
     out[i] = x * cos - y * sin + dx;
     out[i + 1] = x * sin + y * cos + dy;
   };
-  const fillVertexCount = fill ? fillTriangleCoords.length / 3 : 0;
+  const fillVertexCount = fill ? fillTriangleCoords.length / 2 : 0;
 
   type StrokeMesh = ReturnType<ReturnType<typeof extrude>['build']>;
   const strokeMeshes: { mesh: StrokeMesh; lo: [number, number]; hi: [number, number] }[] = [];
@@ -150,20 +149,17 @@ export default function geometryForItem(
     }
   }
 
-  const triangles = new Float32Array(fillVertexCount * 3);
-  const strokeTriangles = new Float32Array(strokeCellCount * 3 * 3);
+  const triangles = new Float32Array(fillVertexCount * 2);
+  const strokeTriangles = new Float32Array(strokeCellCount * 3 * 2);
 
   if (fill) {
-    for (let i = 0; i < fillTriangleCoords.length; i += 3) {
+    for (let i = 0; i < fillTriangleCoords.length; i += 2) {
       rotateInto(fillTriangleCoords[i] * scaleX, fillTriangleCoords[i + 1] * scaleY, triangles, i);
-      triangles[i + 2] = fillTriangleCoords[i + 2];
     }
   }
 
   let strokeVertexCount = 0;
   if (strokeMeshes.length > 0) {
-    // strokes render slightly in front of fills
-    z = -0.1;
     let i = 0;
     for (const { mesh, lo, hi } of strokeMeshes) {
       const { positions, cells } = mesh;
@@ -189,8 +185,7 @@ export default function geometryForItem(
         for (const pointIndex of cell) {
           const p = positions[pointIndex];
           // the contours were scaled before extrusion, so this only rotates
-          rotateInto(p[0], p[1], strokeTriangles, i * 3);
-          strokeTriangles[i * 3 + 2] = z;
+          rotateInto(p[0], p[1], strokeTriangles, i * 2);
           i++;
         }
       }

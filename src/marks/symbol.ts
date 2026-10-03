@@ -92,7 +92,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       Float32Array.from([-1, -1, -1, 1, 1, -1, 1, -1, -1, 1, 1, 1]),
       true,
     );
-    const colorVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
+    const colorVertexManager = new VertexBufferManager(['float32x2', 'float32x4']); // position, color
     const solidPipelineFor = blendPipelines(ctx, device, `${drawName}Solid`, 'SolidFill', colorVertexManager);
     // a dashed outline draws as segments, the way a dashed line and a dashed
     // group border already do
@@ -406,27 +406,17 @@ function getShapeGeometry(
   const entry: ShapeGeometry = {
     fill:
       geometry.fillCount > 0
-        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.fillTriangles, geometry.fillCount), true)
+        ? res.bufferManager.createGeometryBuffer(geometry.fillTriangles.subarray(0, geometry.fillCount * 2), true)
         : null,
     fillCount: geometry.fillCount,
     stroke:
       geometry.strokeCount > 0
-        ? res.bufferManager.createGeometryBuffer(stripZ(geometry.strokeTriangles, geometry.strokeCount), true)
+        ? res.bufferManager.createGeometryBuffer(geometry.strokeTriangles.subarray(0, geometry.strokeCount * 2), true)
         : null,
     strokeCount: geometry.strokeCount,
   };
   res.shapeCache.set(key, entry);
   return entry;
-}
-
-/** Drops the z coordinate: [x,y,z]* -> [x,y]* for the 2D shape shader. */
-function stripZ(triangles: Float32Array, count: number): Float32Array {
-  const out = new Float32Array(count * 2);
-  for (let i = 0; i < count; i++) {
-    out[i * 2] = triangles[i * 3];
-    out[i * 2 + 1] = triangles[i * 3 + 1];
-  }
-  return out;
 }
 
 /** Floats per circle instance: centre, radius, fill, stroke, width. */

@@ -7,7 +7,7 @@ import type { PathGeometry, Point } from '../types/geometry.js';
 import { setVariant } from '../util/lru.js';
 import { warnOnce } from '../util/warn.js';
 
-const EMPTY: PathGeometry = { lines: [], triangles: [], z: 0 };
+const EMPTY: PathGeometry = { lines: [], triangles: [] };
 
 /**
  * An svg path as polyline contours, flattening the curves and leaving the
@@ -216,8 +216,6 @@ export default function geometryForPath(
     warnOnce('tessellation', '[vega-webgpu] A path could not be tessellated and is not drawn.');
   }
 
-  const z = 0;
-
   const triangles: number[] = [];
   const { cells, positions } = tri;
   for (let ci = 0; ci < cells.length; ci++) {
@@ -225,13 +223,12 @@ export default function geometryForPath(
     const p1 = positions[cell[0]];
     const p2 = positions[cell[1]];
     const p3 = positions[cell[2]];
-    triangles.push(p1[0], p1[1], z, p2[0], p2[1], z, p3[0], p3[1], z);
+    triangles.push(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1]);
   }
 
   const geom: PathGeometry = {
     lines,
     triangles,
-    z,
     // geometryForItem caches on this, and the flatness and scale shape it too
     key: { path, variant },
   };

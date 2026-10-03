@@ -73,20 +73,19 @@ export function getMarkResources<T extends { device: GPUDevice }>(
  * `vertexData` writes and every draw that consumes one is this wide, which is
  * also the layout `fillResources` builds its pipelines with.
  */
-const GEOMETRY_STRIDE = 7;
+const GEOMETRY_STRIDE = 6;
 
-/** Triangulated geometry in one colour, as [x, y, z, r, g, b, a] vertices. */
+/** Triangulated geometry in one colour, as [x, y, r, g, b, a] vertices. */
 export function vertexData(triangles: Float32Array, count: number, color: RGBA): Float32Array {
   const data = new Float32Array(count * GEOMETRY_STRIDE);
   for (let i = 0; i < count; i++) {
     const o = i * GEOMETRY_STRIDE;
-    data[o] = triangles[i * 3];
-    data[o + 1] = triangles[i * 3 + 1];
-    data[o + 2] = triangles[i * 3 + 2] * -1;
-    data[o + 3] = color[0];
-    data[o + 4] = color[1];
-    data[o + 5] = color[2];
-    data[o + 6] = color[3];
+    data[o] = triangles[i * 2];
+    data[o + 1] = triangles[i * 2 + 1];
+    data[o + 2] = color[0];
+    data[o + 3] = color[1];
+    data[o + 4] = color[2];
+    data[o + 5] = color[3];
   }
   return data;
 }
@@ -464,7 +463,7 @@ export function fillResources(
   outlineName = `${name}Dash`,
 ): FillResources {
   const bufferManager = new BufferManager(device, name);
-  const vertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, colour
+  const vertexManager = new VertexBufferManager(['float32x2', 'float32x4']); // position, colour
   return {
     device,
     bufferManager,
@@ -573,7 +572,7 @@ interface ClipMaskResources {
 
 function getClipMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): ClipMaskResources {
   return getMarkResources(ctx, '__clipMask', device, vb, () => {
-    const vertexManager = new VertexBufferManager(['float32x3', 'float32x4']);
+    const vertexManager = new VertexBufferManager(['float32x2', 'float32x4']);
     return {
       device,
       bufferManager: new BufferManager(device, 'ClipMask'),
@@ -1273,11 +1272,10 @@ export function recolor(data: Float32Array, source: Float32Array, color: RGBA): 
   for (let i = 0; i < data.length; i += GEOMETRY_STRIDE) {
     data[i] = source[i];
     data[i + 1] = source[i + 1];
-    data[i + 2] = source[i + 2];
-    data[i + 3] = color[0];
-    data[i + 4] = color[1];
-    data[i + 5] = color[2];
-    data[i + 6] = color[3];
+    data[i + 2] = color[0];
+    data[i + 3] = color[1];
+    data[i + 4] = color[2];
+    data[i + 5] = color[3];
   }
 }
 

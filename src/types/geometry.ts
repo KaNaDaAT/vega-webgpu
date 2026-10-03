@@ -5,18 +5,17 @@ export type Point = [number, number];
 export interface PathGeometry {
   /** Polyline contours (input for stroke extrusion). */
   lines: Point[][];
-  /** Flat [x, y, z] triples forming fill triangles. */
+  /** Flat [x, y] pairs forming fill triangles. */
   triangles: number[];
-  z: number;
   /** The path and the flatness and scale it was traced at, for geometryForItem to cache on. */
   key?: { path: string; variant: string };
 }
 
 /** Per-item fill/stroke triangle buffers, produced by geometryForItem. */
 export interface ItemGeometry {
-  /** Flat [x, y, z] triples for the fill. */
+  /** Flat [x, y] pairs for the fill. */
   fillTriangles: Float32Array;
-  /** Flat [x, y, z] triples for the extruded stroke outline. */
+  /** Flat [x, y] pairs for the extruded stroke outline. */
   strokeTriangles: Float32Array;
   /** Number of fill vertices. */
   fillCount: number;

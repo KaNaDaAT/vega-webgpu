@@ -13,7 +13,7 @@ ${GRADIENT_BLOCK}
 ${TO_NDC}
 
 struct VertexInput {
-  @location(0) position: vec3<f32>,
+  @location(0) position: vec2<f32>,
   @location(1) fill_color: vec4<f32>,
 }
 
@@ -25,10 +25,10 @@ struct VertexOutput {
 
 @vertex
 fn main_vertex(model: VertexInput) -> VertexOutput {
-    let ndc = toNdc(model.position.xy - uniforms.offset, uniforms.resolution);
+    let ndc = toNdc(model.position - uniforms.offset, uniforms.resolution);
     var output: VertexOutput;
-    output.pos = vec4<f32>(ndc, model.position.z + 0.5, 1.0);
-    output.world = model.position.xy;
+    output.pos = vec4<f32>(ndc, 0.0, 1.0);
+    output.world = model.position;
     output.fill = model.fill_color;
     return output;
 }

@@ -79,7 +79,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   return getMarkResources(ctx, 'line', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName);
     const outline = outlinePipelines(ctx, device, drawName);
-    const curveVertexManager = new VertexBufferManager(['float32x3', 'float32x4']); // position, color
+    const curveVertexManager = new VertexBufferManager(['float32x2', 'float32x4']); // position, color
     const spanVertexManager = new VertexBufferManager(
       [],
       // p0, p1, p2, p3, color, stroke width, kind
