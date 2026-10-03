@@ -499,9 +499,10 @@ export function outlinePipelines(ctx: GPUVegaCanvasContext, device: GPUDevice, n
  * One pipeline per blend mode, for one shader and layout.
  *
  * A blend is baked into the pipeline state, so a mark needs one of these for
- * every mode its items ask for. `markPipeline` caches on the layout rather than
- * the label, so this is a name for that lookup rather than somewhere to keep
- * anything: every mark had written the same four line conditional instead.
+ * every mode its items ask for. `markPipeline` keys its cache on a string built
+ * per call, and only the blend and the backdrop vary here, so the pipelines are
+ * held by blend and dropped when the backdrop flips. A sample count change
+ * rebuilds the mark resources this lives in.
  */
 export function blendPipelines(
   ctx: GPUVegaCanvasContext,
@@ -511,7 +512,20 @@ export function blendPipelines(
   vertexManager: VertexBufferManager,
   fragmentEntryPoint?: string,
 ): (blend: string) => GPURenderPipeline {
-  return blend => markPipeline(ctx, device, name, shader, vertexManager, fragmentEntryPoint, blend);
+  const held = new Map<string, GPURenderPipeline>();
+  let opaque = ctx._opaqueBackdrop;
+  return blend => {
+    if (opaque !== ctx._opaqueBackdrop) {
+      held.clear();
+      opaque = ctx._opaqueBackdrop;
+    }
+    let pipeline = held.get(blend);
+    if (!pipeline) {
+      pipeline = markPipeline(ctx, device, name, shader, vertexManager, fragmentEntryPoint, blend);
+      held.set(blend, pipeline);
+    }
+    return pipeline;
+  };
 }
 
 /**
