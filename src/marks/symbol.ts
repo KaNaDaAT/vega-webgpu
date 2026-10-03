@@ -9,9 +9,7 @@ import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { hasSdf } from '../shaders/symbolSdf.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createUniformBindGroup } from '../util/webgpu.js';
 import {
-  clipMaskView,
   outlinePipelines,
   type OutlinePipelines,
   dashPatternOf,
@@ -32,6 +30,7 @@ import {
   strokeEnds,
   whiteCarrier,
   type MarkModule,
+  uniformBindGroup,
 } from './util.js';
 
 const drawName = 'Symbol';
@@ -139,7 +138,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       // items carry different blends cannot hold one across the change.
       if (circleBindGroup === null || circleBindGroup.pipeline !== circlePipeline) {
         circleBindGroup = {
-          group: createUniformBindGroup(drawName, device, circlePipeline, uniformBuffer, clipMaskView(ctx, device)),
+          group: uniformBindGroup(ctx, device, drawName, circlePipeline, uniformBuffer),
           pipeline: circlePipeline,
         };
       }
@@ -166,9 +165,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         pipeline,
         drawCounts: [6, run.length],
         vertexBuffers: [res.quadGeometry, instanceBuffer],
-        bindGroups: [
-          createUniformBindGroup(`${drawName}Sdf`, device, pipeline, uniformBuffer, clipMaskView(ctx, device)),
-        ],
+        bindGroups: [uniformBindGroup(ctx, device, `${drawName}Sdf`, pipeline, uniformBuffer)],
         clip,
       });
     } else {
@@ -309,13 +306,7 @@ function drawShapeGroup(
   // A shape with no distance function is triangulated, and this used to draw it
   // through the one pipeline whatever the item asked for, so it never blended.
   const pipeline = res.shapePipelineFor(blend);
-  const bindGroup = createUniformBindGroup(
-    `${drawName}Shape`,
-    device,
-    pipeline,
-    uniformBuffer,
-    clipMaskView(ctx, device),
-  );
+  const bindGroup = uniformBindGroup(ctx, device, `${drawName}Shape`, pipeline, uniformBuffer);
   const geom = getShapeGeometry(res, ctx, key, shape, size, first.strokeWidth ?? 1);
 
   if (geom.fill && geom.fillCount > 0) {

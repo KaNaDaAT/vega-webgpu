@@ -1,15 +1,15 @@
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneGradient } from '../types/scene.js';
 import { getMarkResources } from '../marks/util.js';
-import { bufferPool } from './bufferManager.js';
+import { uploadBuffer } from './bufferManager.js';
 import { cssColor } from './color.js';
+import { linearSampler } from './webgpu.js';
 
 /** Texels in a baked gradient stop ramp. */
 const RAMP_SIZE = 256;
 
 export interface GradientResources {
   device: GPUDevice;
-  sampler: GPUSampler;
   /** Stop ramps keyed by gradient id (or serialized stops). */
   ramps: Map<string, GPUTexture>;
 }
@@ -17,13 +17,6 @@ export interface GradientResources {
 export function getGradientResources(device: GPUDevice, ctx: GPUVegaCanvasContext): GradientResources {
   return getMarkResources(ctx, '__gradient', device, undefined, () => ({
     device,
-    sampler: device.createSampler({
-      label: 'Gradient Sampler',
-      magFilter: 'linear',
-      minFilter: 'linear',
-      addressModeU: 'clamp-to-edge',
-      addressModeV: 'clamp-to-edge',
-    }),
     ramps: new Map(),
   }));
 }
@@ -116,20 +109,18 @@ export function createGradientBindGroup(
   bounds: [x: number, y: number, w: number, h: number],
 ): GPUBindGroup {
   // one per gradient draw, so it goes in the frame pool like every other
-  const paramsBuffer = bufferPool(res.device).hold(
-    res.device.createBuffer({
-      label: 'Gradient Params',
-      size: 48,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
+  const paramsBuffer = uploadBuffer(
+    res.device,
+    'Gradient Params',
+    gradientParams(gradient, bounds),
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   );
-  res.device.queue.writeBuffer(paramsBuffer, 0, gradientParams(gradient, bounds));
 
   return res.device.createBindGroup({
     label: 'Gradient Bind Group',
     layout: pipeline.getBindGroupLayout(1),
     entries: [
-      { binding: 0, resource: res.sampler },
+      { binding: 0, resource: linearSampler(res.device) },
       { binding: 1, resource: getStopRamp(res, gradient).createView() },
       { binding: 2, resource: { buffer: paramsBuffer } },
     ],

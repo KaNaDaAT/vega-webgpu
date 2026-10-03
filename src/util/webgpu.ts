@@ -90,3 +90,76 @@ export function createUniformBindGroup(
   });
 }
 
+const linearSamplers = new WeakMap<GPUDevice, GPUSampler>();
+
+/** The bilinear, edge-clamped sampler text and gradient ramps read through. */
+export function linearSampler(device: GPUDevice): GPUSampler {
+  let sampler = linearSamplers.get(device);
+  if (!sampler) {
+    sampler = device.createSampler({
+      label: 'Linear Sampler',
+      magFilter: 'linear',
+      minFilter: 'linear',
+      addressModeU: 'clamp-to-edge',
+      addressModeV: 'clamp-to-edge',
+    });
+    linearSamplers.set(device, sampler);
+  }
+  return sampler;
+}
+
+/** The group 1 bind group of a textured pipeline: its sampler and its texture. */
+export function textureBindGroup(
+  device: GPUDevice,
+  label: string,
+  pipeline: GPURenderPipeline,
+  sampler: GPUSampler,
+  view: GPUTextureView,
+): GPUBindGroup {
+  return device.createBindGroup({
+    label,
+    layout: pipeline.getBindGroupLayout(1),
+    entries: [
+      { binding: 0, resource: sampler },
+      { binding: 1, resource: view },
+    ],
+  });
+}
+
+/** A texture an image or a rasterized label is copied into. */
+export function imageTexture(
+  device: GPUDevice,
+  label: string,
+  width: number,
+  height: number,
+  mipLevelCount = 1,
+): GPUTexture {
+  return device.createTexture({
+    label,
+    size: [width, height, 1],
+    mipLevelCount,
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+}
+
+/**
+ * Copies a region of a canvas or bitmap into a texture, kept premultiplied.
+ * Straight alpha turns a fully transparent texel black, and filtering then
+ * drags the colour next to it toward that, darkening the edge. The shaders
+ * divide the alpha back out after sampling.
+ */
+export function uploadImage(
+  device: GPUDevice,
+  source: HTMLCanvasElement | ImageBitmap,
+  texture: GPUTexture,
+  width: number,
+  height: number,
+  origin: [x: number, y: number] = [0, 0],
+  mipLevel = 0,
+): void {
+  device.queue.copyExternalImageToTexture({ source, origin }, { texture, origin, mipLevel, premultipliedAlpha: true }, [
+    width,
+    height,
+  ]);
+}

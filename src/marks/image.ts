@@ -4,9 +4,9 @@ import type { SceneImageItem, SceneImageSource } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey } from '../util/blend.js';
-import { clipMaskView, blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
+import { imageTexture, textureBindGroup, uploadImage } from '../util/webgpu.js';
+import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule, uniformBindGroup } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Image';
@@ -118,13 +118,7 @@ function uploadTexture(device: GPUDevice, image: SceneImageSource): GPUTexture {
   const width = image.width || 1;
   const height = image.height || 1;
   const levels = Math.floor(Math.log2(Math.max(width, height))) + 1;
-  const texture = device.createTexture({
-    label: 'Image Texture',
-    size: [width, height, 1],
-    mipLevelCount: levels,
-    format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-  });
+  const texture = imageTexture(device, 'Image Texture', width, height, levels);
 
   let source: HTMLCanvasElement | ImageBitmap;
   if (typeof HTMLCanvasElement !== 'undefined' && image instanceof HTMLCanvasElement) {
@@ -144,12 +138,9 @@ function uploadTexture(device: GPUDevice, image: SceneImageSource): GPUTexture {
     source = canvas;
   }
 
-  // Keep the texture premultiplied. Converting to straight alpha turns a fully
-  // transparent texel into transparent black, and filtering then drags
-  // neighbouring colour toward it: a red image with transparent white corners
-  // lost its red near them. Canvas filters premultiplied, and the shader
-  // divides the alpha back out after sampling.
-  device.queue.copyExternalImageToTexture({ source }, { texture, premultipliedAlpha: true }, [width, height]);
+  // premultiplied, which is how canvas filters: straight alpha took a red
+  // image with transparent white corners and lost its red near them
+  uploadImage(device, source, texture, width, height);
   writeMipChain(device, texture, source, width, height, levels);
   return texture;
 }
@@ -188,11 +179,7 @@ function writeMipChain(
     }
     context.imageSmoothingEnabled = true;
     context.drawImage(image, 0, 0, w, h);
-    device.queue.copyExternalImageToTexture(
-      { source: canvas },
-      { texture, mipLevel: level, premultipliedAlpha: true },
-      [w, h],
-    );
+    uploadImage(device, canvas, texture, w, h, [0, 0], level);
   }
 }
 
@@ -211,14 +198,13 @@ function getBindGroup(
   const key = `${smooth ? 'smooth' : 'pixelated'}|${blend}`;
   let bindGroup = entry.bindGroups.get(key);
   if (!bindGroup) {
-    bindGroup = res.device.createBindGroup({
-      label: `Image Texture Bind Group (${key})`,
-      layout: pipeline.getBindGroupLayout(1),
-      entries: [
-        { binding: 0, resource: smooth ? res.smoothSampler : res.pixelatedSampler },
-        { binding: 1, resource: entry.texture.createView() },
-      ],
-    });
+    bindGroup = textureBindGroup(
+      res.device,
+      `Image Texture Bind Group (${key})`,
+      pipeline,
+      smooth ? res.smoothSampler : res.pixelatedSampler,
+      entry.texture.createView(),
+    );
     entry.bindGroups.set(key, bindGroup);
   }
   return bindGroup;
@@ -284,7 +270,7 @@ function draw(
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
-        createUniformBindGroup(drawName, device, imagePipeline, uniformBuffer, clipMaskView(ctx, device)),
+        uniformBindGroup(ctx, device, drawName, imagePipeline, uniformBuffer),
         getBindGroup(res, image, item.smooth !== false, imagePipeline, blend),
       ],
       clip,

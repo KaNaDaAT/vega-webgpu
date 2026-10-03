@@ -7,8 +7,8 @@ import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
+import { GeometryBatch } from '../util/geometryBatch.js';
 import {
-  GeometryBatch,
   cachedGeometryData,
   dashPatternOf,
   enqueueGradient,

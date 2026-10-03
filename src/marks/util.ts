@@ -1,7 +1,7 @@
 import { Bounds, boundContext, sceneVisit, pathRectangle } from 'vega-scenegraph';
 import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem from '../path/geometryForItem.js';
-import { BufferManager } from '../util/bufferManager.js';
+import { BufferManager, uploadBuffer } from '../util/bufferManager.js';
 import type { Point } from '../types/geometry.js';
 import { dashPolyline } from '../util/dash.js';
 import {
@@ -111,6 +111,17 @@ export function deviceClip(ctx: GPUVegaCanvasContext, x: number, y: number, w: n
  */
 export function clipMaskView(ctx: GPUVegaCanvasContext, device: GPUDevice): GPUTextureView {
   return ctx._clipMask ?? ctx._renderer.clipMaskPlaceholderView(device);
+}
+
+/** A mark's group 0 bind group, with the clip mask in force. */
+export function uniformBindGroup(
+  ctx: GPUVegaCanvasContext,
+  device: GPUDevice,
+  label: string,
+  pipeline: GPURenderPipeline,
+  uniforms: GPUBuffer,
+): GPUBindGroup {
+  return createUniformBindGroup(label, device, pipeline, uniforms, clipMaskView(ctx, device));
 }
 
 /**
@@ -330,15 +341,7 @@ export function enqueueSolid(target: DrawTarget, data: Float32Array, blend = 'no
     pipeline,
     drawCounts: [data.length / GEOMETRY_STRIDE],
     vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
-    bindGroups: [
-      createUniformBindGroup(
-        target.name,
-        device,
-        pipeline,
-        target.uniformBuffer,
-        clipMaskView(target.ctx, target.device),
-      ),
-    ],
+    bindGroups: [uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer)],
     clip: target.clip,
   });
 }
@@ -358,51 +361,11 @@ export function enqueueGradient(
     drawCounts: [data.length / GEOMETRY_STRIDE],
     vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
     bindGroups: [
-      createUniformBindGroup(
-        target.name,
-        device,
-        pipeline,
-        target.uniformBuffer,
-        clipMaskView(target.ctx, target.device),
-      ),
+      uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer),
       createGradientBindGroup(getGradientResources(device, ctx), pipeline, gradient, gradientBounds(bounds)),
     ],
     clip: target.clip,
   });
-}
-
-/**
- * Accumulates the vertex data of consecutive items that share one pipeline
- * so a whole mark renders as a single buffer and draw call. Data is appended
- * in paint order (fill then stroke, item by item), preserving canvas
- * rendering semantics for overlapping items.
- */
-export class GeometryBatch {
-  private chunks: Float32Array[] = [];
-  private total = 0;
-
-  push(data: Float32Array): void {
-    if (data.length > 0) {
-      this.chunks.push(data);
-      this.total += data.length;
-    }
-  }
-
-  /** Concatenated data, or null when nothing was pushed. Resets the batch. */
-  flush(): Float32Array | null {
-    if (this.total === 0) {
-      return null;
-    }
-    const out = new Float32Array(this.total);
-    let offset = 0;
-    for (const chunk of this.chunks) {
-      out.set(chunk, offset);
-      offset += chunk.length;
-    }
-    this.chunks = [];
-    this.total = 0;
-    return out;
-  }
 }
 
 /**
@@ -570,15 +533,7 @@ export function enqueueOutline(
   const { ctx, device } = target;
   const ramp = gradient !== null && bounds !== undefined;
   const pipeline = ramp ? target.gradientPipelineFor(blend) : target.pipelineFor(blend);
-  const bindGroups = [
-    createUniformBindGroup(
-      target.name,
-      device,
-      pipeline,
-      target.uniformBuffer,
-      clipMaskView(target.ctx, target.device),
-    ),
-  ];
+  const bindGroups = [uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer)];
   if (ramp) {
     bindGroups.push(
       createGradientBindGroup(getGradientResources(device, ctx), pipeline, gradient, gradientBounds(bounds as Bounds)),
@@ -606,19 +561,7 @@ function getClipMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: 
     return {
       device,
       bufferManager: new BufferManager(device, 'ClipMask'),
-      pipeline: createRenderPipeline(
-        'Clip Mask',
-        device,
-        shaderModule(ctx, device, 'SolidFill', 'normal'),
-        MASK_FORMAT,
-        ctx._sampleCount,
-        vertexManager.getBuffers(),
-        {
-          color: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
-          alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
-        },
-        'main_fragment_mask',
-      ),
+      pipeline: maskPipeline(ctx, device, 'Clip Mask', 'SolidFill', ctx._sampleCount, vertexManager),
     };
   });
 }
@@ -664,7 +607,7 @@ export function drawClipMask(
     pipeline: res.pipeline,
     drawCounts: [fillData.length / GEOMETRY_STRIDE],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(fillData)],
-    bindGroups: [createUniformBindGroup('ClipMask', device, res.pipeline, uniformBuffer, clipMaskView(ctx, device))],
+    bindGroups: [uniformBindGroup(ctx, device, 'ClipMask', res.pipeline, uniformBuffer)],
     pass: 'mask',
     maskView: target.attachment,
     maskResolve: target.resolve,
@@ -673,7 +616,34 @@ export function drawClipMask(
 }
 
 /** Single channel coverage, which is all a mask holds. */
-const MASK_FORMAT: GPUTextureFormat = 'r8unorm';
+export const MASK_FORMAT: GPUTextureFormat = 'r8unorm';
+
+/** Coverage drawn into a mask keeps the largest of whatever overlaps there. */
+const MAX_COVERAGE: GPUBlendState = {
+  color: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
+  alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
+};
+
+/** A pipeline that draws coverage into a mask, through the shader's mask entry. */
+function maskPipeline(
+  ctx: GPUVegaCanvasContext,
+  device: GPUDevice,
+  label: string,
+  shaderKey: ShaderKey,
+  sampleCount: number,
+  vertexManager: VertexBufferManager,
+): GPURenderPipeline {
+  return createRenderPipeline(
+    label,
+    device,
+    shaderModule(ctx, device, shaderKey, 'normal'),
+    MASK_FORMAT,
+    sampleCount,
+    vertexManager.getBuffers(),
+    MAX_COVERAGE,
+    'main_fragment_mask',
+  );
+}
 
 /** What compositing a stroke through a coverage mask needs. */
 interface MaskResources {
@@ -687,42 +657,10 @@ interface MaskResources {
 function getMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext): MaskResources {
   return getMarkResources(ctx, '__mask', device, undefined, () => {
     const vertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const strokePipeline = createRenderPipeline(
-      'Coverage Mask',
-      device,
-      shaderModule(ctx, device, 'SLine', 'normal'),
-      MASK_FORMAT,
-      1,
-      vertexManager.getBuffers(),
-      {
-        color: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
-        alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
-      },
-      'main_fragment_mask',
-    );
-    const composites = new Map<string, GPURenderPipeline>();
-    const compositeFor = (blend: string): GPURenderPipeline => {
-      const key = `${blend}|${ctx._opaqueBackdrop}`;
-      const held = composites.get(key);
-      if (held) {
-        return held;
-      }
-      // The same routing a mark pipeline gets: a mode the blend state cannot
-      // express paints the mask into a layer and is folded in from there.
-      const built = buildBlend(blend, ctx._opaqueBackdrop);
-      const pipeline = createRenderPipeline(
-        `Mask Composite ${blend}`,
-        device,
-        shaderModule(ctx, device, 'MaskComposite', built.blend),
-        preferredColorFormat(),
-        ctx._sampleCount,
-        [],
-        blendState(built.blend),
-      );
-      built.record(pipeline);
-      composites.set(key, pipeline);
-      return pipeline;
-    };
+    const strokePipeline = maskPipeline(ctx, device, 'Coverage Mask', 'SLine', 1, vertexManager);
+    // a mark pipeline in all but its shader, so a mode the blend state cannot
+    // express paints the mask into a layer and is folded in from there
+    const compositeFor = blendPipelines(ctx, device, 'Mask Composite', 'MaskComposite', new VertexBufferManager());
     return { device, strokePipeline, compositeFor };
   });
 }
@@ -840,21 +778,14 @@ export function enqueueMaskedOutline(
     pipeline: res.strokePipeline,
     drawCounts: [6, data.length / SEGMENT_STRIDE],
     vertexBuffers: [target.bufferManager.createInstanceBuffer(data)],
-    bindGroups: [
-      createUniformBindGroup(
-        `${target.name}Mask`,
-        device,
-        res.strokePipeline,
-        target.uniformBuffer,
-        clipMaskView(target.ctx, target.device),
-      ),
-    ],
+    bindGroups: [uniformBindGroup(ctx, device, `${target.name}Mask`, res.strokePipeline, target.uniformBuffer)],
     clip: target.clip,
     pass: 'mask',
   });
   const pipeline = res.compositeFor(blend);
   const rect = segmentExtent(data, reach);
-  const params = target.bufferManager.createBuffer(
+  const params = uploadBuffer(
+    device,
     `${target.name} Mask Params`,
     new Float32Array([color[0], color[1], color[2], color[3], rect[0], rect[1], rect[2], rect[3]]),
     GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -864,13 +795,7 @@ export function enqueueMaskedOutline(
     drawCounts: [6],
     vertexBuffers: [],
     bindGroups: [
-      createUniformBindGroup(
-        `${target.name}Composite`,
-        device,
-        pipeline,
-        target.uniformBuffer,
-        clipMaskView(target.ctx, target.device),
-      ),
+      uniformBindGroup(ctx, device, `${target.name}Composite`, pipeline, target.uniformBuffer),
       device.createBindGroup({
         label: `${target.name} Mask Bind Group`,
         layout: pipeline.getBindGroupLayout(1),

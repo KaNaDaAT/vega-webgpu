@@ -29,6 +29,7 @@ import {
   whiteCarrier,
   writeSegments,
   type MarkModule,
+  uniformBindGroup,
 } from './util.js';
 
 const drawName = 'Line';
@@ -544,15 +545,7 @@ function drawPath(
     pipeline,
     drawCounts: [strokeData.length / res.curveVertexManager.getVertexLength()],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
-    bindGroups: [
-      createUniformBindGroup(
-        `${drawName}Curve`,
-        device,
-        pipeline,
-        res.bufferManager.sharedUniformBuffer(),
-        clipMaskView(ctx, device),
-      ),
-    ],
+    bindGroups: [uniformBindGroup(ctx, device, `${drawName}Curve`, pipeline, res.bufferManager.sharedUniformBuffer())],
     clip,
   });
 }

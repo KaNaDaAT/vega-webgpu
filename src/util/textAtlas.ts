@@ -1,4 +1,5 @@
 import type { GlyphMetrics } from './textTexture.js';
+import { imageTexture, uploadImage } from './webgpu.js';
 
 /** Placement of one rasterized label inside the atlas, in device pixels. */
 export interface GlyphSlot extends GlyphMetrics {
@@ -107,11 +108,7 @@ export class TextAtlas {
     }
     this._dirty = null;
     const [x0, y0, x1, y1] = dirty;
-    this._device.queue.copyExternalImageToTexture(
-      { source: this._canvas, origin: [x0, y0] },
-      { texture: this._texture, origin: [x0, y0], premultipliedAlpha: true },
-      [x1 - x0, y1 - y0],
-    );
+    uploadImage(this._device, this._canvas, this._texture, x1 - x0, y1 - y0, [x0, y0]);
   }
 
   private _place(w: number, h: number): [x: number, y: number] | null {
@@ -152,12 +149,7 @@ export class TextAtlas {
     this._cursorX = 0;
     this._dirty = null;
     this._spilled = false;
-    this._texture = this._device.createTexture({
-      label: 'Text Atlas',
-      size: [size, size, 1],
-      format: 'rgba8unorm',
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-    });
+    this._texture = imageTexture(this._device, 'Text Atlas', size, size);
   }
 
   private _markDirty(x0: number, y0: number, x1: number, y1: number): void {

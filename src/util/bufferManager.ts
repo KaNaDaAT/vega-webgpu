@@ -2,7 +2,8 @@
 const MAX_UNIFORM_CACHE = 128;
 
 /**
- * Buffers a frame's draws create, released once the frame is submitted.
+ * Buffers a frame's draws create, and resources they replace, released once
+ * the frame is submitted.
  *
  * A mark mints a buffer per draw and WebGPU frees none of them on its own, so
  * a hovered chart was creating hundreds a frame and holding every one, which
@@ -10,12 +11,12 @@ const MAX_UNIFORM_CACHE = 128;
  * keeps a buffer alive until the commands referencing it have run.
  */
 class FrameBuffers {
-  private current: GPUBuffer[] = [];
-  private previous: GPUBuffer[] = [];
+  private current: { destroy(): void }[] = [];
+  private previous: { destroy(): void }[] = [];
 
-  hold(buffer: GPUBuffer): GPUBuffer {
-    this.current.push(buffer);
-    return buffer;
+  hold<T extends { destroy(): void }>(resource: T): T {
+    this.current.push(resource);
+    return resource;
   }
 
   /**
@@ -24,8 +25,8 @@ class FrameBuffers {
    * frame has been through as well.
    */
   release(): void {
-    for (const buffer of this.previous) {
-      buffer.destroy();
+    for (const resource of this.previous) {
+      resource.destroy();
     }
     this.previous = this.current;
     this.current = [];
@@ -49,6 +50,38 @@ export function bufferPool(device: GPUDevice): FrameBuffers {
  * resolution, offset and clip before every draw, since the manager outlives the
  * frame that made it.
  */
+/**
+ * Uploads through the queue rather than mappedAtCreation. A mapped range
+ * costs one JS ArrayBuffer per buffer and a frame creates a buffer per mark,
+ * which exhausts that allocation on a memory-constrained runner: every
+ * create then throws "size (32) is too large for the implementation".
+ *
+ * `lasting` keeps the buffer out of the frame pool, for the few that are held
+ * across frames rather than rebuilt.
+ */
+export function uploadBuffer(
+  device: GPUDevice,
+  label: string,
+  data: Uint16Array | Uint32Array | Float32Array,
+  usage: GPUBufferUsageFlags,
+  lasting = false,
+): GPUBuffer {
+  const size = (data.byteLength + 3) & ~3;
+  const buffer = device.createBuffer({ label, size, usage });
+  if (!lasting) {
+    bufferPool(device).hold(buffer);
+  }
+  const bytes = new Uint8Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
+  // writeBuffer copies whole words, so an unaligned tail needs padding
+  let src = bytes;
+  if (size !== data.byteLength) {
+    src = new Uint8Array(size);
+    src.set(bytes);
+  }
+  device.queue.writeBuffer(buffer, 0, src, 0, size);
+  return buffer;
+}
+
 export class BufferManager {
   private uniformCache = new Map<string, GPUBuffer>();
   private resolution: [width: number, height: number] = [0, 0];
@@ -64,7 +97,8 @@ export class BufferManager {
   ) {}
 
   createUniformBuffer(): GPUBuffer {
-    return this.createBuffer(
+    return uploadBuffer(
+      this.device,
       `${this.bufferName} Uniform Buffer`,
       this.uniformValues(),
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -89,7 +123,8 @@ export class BufferManager {
       return buffer;
     }
     // cached across frames by value, so it cannot come from the frame pool
-    buffer = this.createBuffer(
+    buffer = uploadBuffer(
+      this.device,
       `${this.bufferName} Uniform`,
       values,
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -108,7 +143,8 @@ export class BufferManager {
   }
 
   createGeometryBuffer(data: Float32Array, lasting = false): GPUBuffer {
-    return this.createBuffer(
+    return uploadBuffer(
+      this.device,
       `${this.bufferName} Geometry Buffer`,
       data,
       GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -117,38 +153,12 @@ export class BufferManager {
   }
 
   createInstanceBuffer(data: Float32Array): GPUBuffer {
-    return this.createBuffer(`${this.bufferName} Instance Buffer`, data, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST);
-  }
-
-  /**
-   * Uploads through the queue rather than mappedAtCreation. A mapped range
-   * costs one JS ArrayBuffer per buffer and a frame creates a buffer per mark,
-   * which exhausts that allocation on a memory-constrained runner: every
-   * create then throws "size (32) is too large for the implementation".
-   *
-   * `lasting` keeps the buffer out of the frame pool, for the few that are held
-   * across frames rather than rebuilt.
-   */
-  createBuffer(
-    name: string,
-    data: Uint16Array | Uint32Array | Float32Array,
-    usage: GPUBufferUsageFlags,
-    lasting = false,
-  ): GPUBuffer {
-    const size = (data.byteLength + 3) & ~3;
-    const buffer = this.device.createBuffer({ label: name, size, usage });
-    if (!lasting) {
-      bufferPool(this.device).hold(buffer);
-    }
-    const bytes = new Uint8Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
-    // writeBuffer copies whole words, so an unaligned tail needs padding
-    let src = bytes;
-    if (size !== data.byteLength) {
-      src = new Uint8Array(size);
-      src.set(bytes);
-    }
-    this.device.queue.writeBuffer(buffer, 0, src, 0, size);
-    return buffer;
+    return uploadBuffer(
+      this.device,
+      `${this.bufferName} Instance Buffer`,
+      data,
+      GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    );
   }
 
   setResolution(resolution: [width: number, height: number]): void {

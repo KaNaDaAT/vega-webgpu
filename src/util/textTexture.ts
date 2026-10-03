@@ -3,6 +3,7 @@ import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { SceneTextItem } from '../types/scene.js';
 import { itemTurn } from '../path/geometryForItem.js';
 import { joinStyleOf } from './join.js';
+import { imageTexture, uploadImage } from './webgpu.js';
 
 const HALF_PI = Math.PI / 2;
 const textMark = Marks.text;
@@ -27,7 +28,6 @@ export interface GlyphMetrics {
  * churns the cache faster while text is moving.
  */
 const PHASE_STEPS = 64;
-
 
 /** `v` snapped to the PHASE_STEPS grid, so the cache cannot grow unbounded. */
 function quantize(v: number): number {
@@ -301,16 +301,8 @@ export function rasterizeText(
   c2d.clearRect(0, 0, canvas.width, canvas.height);
   drawGlyph(c2d, dpi, raster, m, 0, 0);
 
-  const texture = device.createTexture({
-    label: 'Text Texture',
-    size: [m.physWidth, m.physHeight, 1],
-    format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  device.queue.copyExternalImageToTexture({ source: canvas }, { texture, premultipliedAlpha: true }, [
-    m.physWidth,
-    m.physHeight,
-  ]);
+  const texture = imageTexture(device, 'Text Texture', m.physWidth, m.physHeight);
+  uploadImage(device, canvas, texture, m.physWidth, m.physHeight);
 
   return texture;
 }

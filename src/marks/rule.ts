@@ -6,12 +6,10 @@ import { BufferManager } from '../util/bufferManager.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createUniformBindGroup } from '../util/webgpu.js';
 import type { Point } from '../types/geometry.js';
 import { dashPolyline } from '../util/dash.js';
 import type { RGBA } from '../util/color.js';
 import {
-  clipMaskView,
   dashPatternOf,
   outlinePipelines,
   type OutlinePipelines,
@@ -25,6 +23,7 @@ import {
   strokeEnds,
   whiteCarrier,
   type MarkModule,
+  uniformBindGroup,
 } from './util.js';
 
 const drawName = 'Rule';
@@ -131,7 +130,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       pipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer, clipMaskView(ctx, device))],
+      bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
       clip,
     });
     run = [];

@@ -8,10 +8,8 @@ import { blendKey, needsBackdrop } from '../util/blend.js';
 import type { Point } from '../types/geometry.js';
 import { dashPolyline } from '../util/dash.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
-import { createUniformBindGroup } from '../util/webgpu.js';
+import { GeometryBatch } from '../util/geometryBatch.js';
 import {
-  clipMaskView,
-  GeometryBatch,
   SEGMENT_STRIDE,
   segmentCount,
   segmentInstances,
@@ -38,10 +36,10 @@ import {
   strokeEnds,
   whiteCarrier,
   type MarkModule,
+  uniformBindGroup,
 } from './util.js';
 
 const drawName = 'Shape';
-
 
 interface ShapeCacheEntry {
   fill: RGBA;
@@ -213,9 +211,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         pipeline,
         drawCounts: [6, run.count, 0, run.start],
         vertexBuffers: [buffer],
-        bindGroups: [
-          createUniformBindGroup(`${drawName}Stroke`, device, pipeline, uniformBuffer, clipMaskView(ctx, device)),
-        ],
+        bindGroups: [uniformBindGroup(ctx, device, `${drawName}Stroke`, pipeline, uniformBuffer)],
         clip,
       });
     }

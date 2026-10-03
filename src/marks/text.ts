@@ -18,9 +18,9 @@ import {
   type GlyphMetrics,
   type Turn,
 } from '../util/textTexture.js';
-import { createUniformBindGroup } from '../util/webgpu.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
-import { clipMaskView, blendPipelines, getMarkResources, markClip, markItems, type MarkModule } from './util.js';
+import { linearSampler, textureBindGroup } from '../util/webgpu.js';
+import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule, uniformBindGroup } from './util.js';
 
 const drawName = 'Text';
 
@@ -42,7 +42,6 @@ interface TextResources {
   bufferManager: BufferManager;
   /** The glyph quads, one pipeline per blend mode. */
   pipelineFor: (blend: string) => GPURenderPipeline;
-  sampler: GPUSampler;
   atlas: TextAtlas;
   /** Whether a rotated label is still worth rasterizing at its angle. */
   exact: boolean;
@@ -57,11 +56,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     const vertexManager = new VertexBufferManager([], LABEL_LAYOUT);
     // a blend is baked into the pipeline state, so each mode needs its own
     const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
-    const sampler = device.createSampler({
-      label: 'Text Sampler',
-      magFilter: 'linear',
-      minFilter: 'linear',
-    });
     const atlas = new TextAtlas(device, texture => ctx._renderer.deferDestroy(texture));
     const scratch = document.createElement('canvas');
     const scratchCtx = scratch.getContext('2d') as CanvasRenderingContext2D;
@@ -69,7 +63,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       device,
       bufferManager,
       pipelineFor,
-      sampler,
       atlas,
       exact: true,
       scratch,
@@ -259,13 +252,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // have to come from the blend variant this mark draws with
   const blend = blendKey(items[0]?.blend);
   const textPipeline = res.pipelineFor(blend);
-  const uniformBindGroup = createUniformBindGroup(
-    drawName,
-    device,
-    textPipeline,
-    uniformBuffer,
-    clipMaskView(ctx, device),
-  );
+  const uniforms = uniformBindGroup(ctx, device, drawName, textPipeline, uniformBuffer);
 
   // One draw per label, see needsBackdrop. Two overlapping ones show it.
   const perLabel = needsBackdrop(blend, ctx._opaqueBackdrop);
@@ -280,15 +267,8 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
     const buffer = res.bufferManager.createInstanceBuffer(data);
     const bindGroups = [
-      uniformBindGroup,
-      device.createBindGroup({
-        label: 'Text Texture Bind Group',
-        layout: textPipeline.getBindGroupLayout(1),
-        entries: [
-          { binding: 0, resource: res.sampler },
-          { binding: 1, resource: texture.createView() },
-        ],
-      }),
+      uniforms,
+      textureBindGroup(device, 'Text Texture Bind Group', textPipeline, linearSampler(device), texture.createView()),
     ];
     const step = perLabel ? 1 : total;
     for (let first = 0; first < total; first += step) {

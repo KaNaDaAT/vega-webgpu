@@ -7,10 +7,8 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { blendKey } from '../util/blend.js';
 import { isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
-import { createUniformBindGroup } from '../util/webgpu.js';
 import { rectAttributes } from './rect.js';
 import {
-  clipMaskView,
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
@@ -23,6 +21,7 @@ import {
   getMarkResources,
   blendPipelines,
   type MarkModule,
+  uniformBindGroup,
 } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
@@ -112,7 +111,7 @@ function draw(
       pipeline: runPipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [createUniformBindGroup(drawName, device, runPipeline, uniformBuffer, clipMaskView(ctx, device))],
+      bindGroups: [uniformBindGroup(ctx, device, drawName, runPipeline, uniformBuffer)],
       clip: ctx._clip,
     });
     run = [];
@@ -160,13 +159,7 @@ function draw(
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
-        createUniformBindGroup(
-          `${drawName}Gradient`,
-          device,
-          gradientPipeline,
-          uniformBuffer,
-          clipMaskView(ctx, device),
-        ),
+        uniformBindGroup(ctx, device, `${drawName}Gradient`, gradientPipeline, uniformBuffer),
         createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item)),
       ],
       clip: ctx._clip,
@@ -246,9 +239,7 @@ function draw(
           pipeline: forePipeline,
           drawCounts: [6, 1],
           vertexBuffers: [res.geometryBuffer, res.bufferManager.createInstanceBuffer(rectAttributes([fore.rect]))],
-          bindGroups: [
-            createUniformBindGroup(drawName, device, forePipeline, uniformBuffer, clipMaskView(ctx, device)),
-          ],
+          bindGroups: [uniformBindGroup(ctx, device, drawName, forePipeline, uniformBuffer)],
           clip: parentClip,
         });
       }

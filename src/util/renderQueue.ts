@@ -1,6 +1,7 @@
 import type { ClipRect } from '../types/context.js';
 import { layerMode } from './blend.js';
-import { BufferManager } from './bufferManager.js';
+import { uploadBuffer } from './bufferManager.js';
+import { GeometryBatch } from './geometryBatch.js';
 import type { GpuTimer } from './gpuTimer.js';
 import type { VertexBufferManager } from './vertexManager.js';
 
@@ -56,8 +57,7 @@ export type Compositor = (blend: string, clip: ClipRect | undefined) => QueueEle
  */
 export class RenderQueue {
   private queue: QueueElement[] = [];
-  private batch: ArrayLike<number>[] = [];
-  private batchLength = 0;
+  private batch = new GeometryBatch();
   private batchInfo: RenderBatchInfo | null = null;
   private offFrame = false;
   private compositor: Compositor | null = null;
@@ -65,8 +65,7 @@ export class RenderQueue {
   /** Starts a frame, with the compositor its layered draws fold back through. */
   startFrame(compositor: Compositor): void {
     this.queue = [];
-    this.batch = [];
-    this.batchLength = 0;
+    this.batch = new GeometryBatch();
     this.batchInfo = null;
     this.offFrame = false;
     this.compositor = compositor;
@@ -117,42 +116,28 @@ export class RenderQueue {
       return;
     }
     this.flushBatch();
-    this.batch = [];
-    this.batchLength = 0;
     this.batchInfo = info;
   }
 
-  /**
-   * Adds one mark's instances to the open batch. Held rather than copied out,
-   * since spreading them into an array throws past about 125 thousand values,
-   * which a line of seven thousand points reaches.
-   */
+  /** Adds one mark's instances to the open batch. */
   queueBatchInstance(values: ArrayLike<number>): void {
-    if (values.length === 0) {
-      return;
-    }
     this.batch.push(values);
-    this.batchLength += values.length;
   }
 
   private flushBatch(): void {
     const info = this.batchInfo;
-    if (info === null || this.batchLength === 0) {
-      this.batchInfo = null;
+    this.batchInfo = null;
+    const values = this.batch.flush();
+    if (info === null || values === null) {
       return;
     }
-    this.batchInfo = null;
-
-    const values = new Float32Array(this.batchLength);
-    let at = 0;
-    for (const chunk of this.batch) {
-      values.set(chunk, at);
-      at += chunk.length;
-    }
-    const data = new BufferManager(info.device, 'RenderBatch').createInstanceBuffer(values);
-    const instanceCount = this.batchLength / info.vertexManager.getInstanceLength();
-    this.batch = [];
-    this.batchLength = 0;
+    const data = uploadBuffer(
+      info.device,
+      'RenderBatch Instance Buffer',
+      values,
+      GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    );
+    const instanceCount = values.length / info.vertexManager.getInstanceLength();
 
     this.enqueue({
       pipeline: info.pipeline,

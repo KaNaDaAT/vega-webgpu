@@ -7,9 +7,7 @@ import { blendKey, needsBackdrop } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
-import { createUniformBindGroup } from '../util/webgpu.js';
 import {
-  clipMaskView,
   rectBox,
   outlinePipelines,
   type OutlinePipelines,
@@ -24,6 +22,7 @@ import {
   blendPipelines,
   whiteCarrier,
   type MarkModule,
+  uniformBindGroup,
 } from './util.js';
 
 const drawName = 'Rect';
@@ -99,7 +98,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       pipeline,
       drawCounts: [6, run.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [createUniformBindGroup(drawName, device, pipeline, uniformBuffer, clipMaskView(ctx, device))],
+      bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
       clip,
     });
     run = [];
@@ -127,13 +126,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         drawCounts: [6, 1],
         vertexBuffers: [res.geometryBuffer, instanceBuffer],
         bindGroups: [
-          createUniformBindGroup(
-            `${drawName}Gradient`,
-            device,
-            gradientPipeline,
-            uniformBuffer,
-            clipMaskView(ctx, device),
-          ),
+          uniformBindGroup(ctx, device, `${drawName}Gradient`, gradientPipeline, uniformBuffer),
           createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item)),
         ],
         clip,

@@ -1,7 +1,7 @@
 import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import { canvasTextDrift } from './util/canvasDrift.js';
 import marks from './marks/index.js';
-import { drawClipMask, blendCompositeElement } from './marks/util.js';
+import { MASK_FORMAT, drawClipMask, blendCompositeElement } from './marks/util.js';
 import type { ClipMaskTarget, GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene } from './types/context.js';
 import { Color } from './util/color.js';
 import { GpuTimer } from './util/gpuTimer.js';
@@ -73,10 +73,9 @@ export default class WebGPURenderer extends Renderer {
   /** Whether the last frame had to draw off the frame. Read by the tests. */
   private _offFrame = false;
   private _mask: TextureSlot = { texture: null, device: null };
-  private _layerTexture: GPUTexture | null = null;
-  private _layerResolve: GPUTexture | null = null;
-  private _backdropTexture: GPUTexture | null = null;
-  private _blendTextureDevice: GPUDevice | null = null;
+  private _layer: TextureSlot = { texture: null, device: null };
+  private _layerResolve: TextureSlot = { texture: null, device: null };
+  private _backdrop: TextureSlot = { texture: null, device: null };
   private _offscreen: TextureSlot = { texture: null, device: null };
   private _queue = new RenderQueue();
 
@@ -89,8 +88,6 @@ export default class WebGPURenderer extends Renderer {
   /** Number of GPU devices this renderer has created. */
   deviceGeneration = 0;
   private _recoveries = 0;
-
-  private _pendingDestroy: { destroy(): void }[] = [];
 
   private _capture: {
     resolve: (v: { width: number; height: number; data: Uint8Array }) => void;
@@ -340,22 +337,14 @@ export default class WebGPURenderer extends Renderer {
 
   /**
    * Drops the device and everything built on it. Pipelines, textures and
-   * buffers all belong to a device, so none of them outlive it.
+   * buffers all belong to a device, so none of them outlive it. A texture slot
+   * compares the device it was made on, so it rebuilds on the next one itself.
    */
   private _dropDevice(): void {
     this._device = null;
     this._gpuTimer = null;
-    this._msaa = { texture: null, device: null };
-    this._mask = { texture: null, device: null };
-    this._layerTexture = null;
-    this._layerResolve = null;
-    this._backdropTexture = null;
-    this._blendTextureDevice = null;
-    this._offscreen = { texture: null, device: null };
     this._clipMasks = [];
     this._clipMaskNext = 0;
-    this._clipPlaceholder = null;
-    this._clipPlaceholderView = null;
     if (this._ctx) {
       this._ctx._shaderCache = {};
       this._ctx._pipelineCache = {};
@@ -382,7 +371,7 @@ export default class WebGPURenderer extends Renderer {
       // Bounded, so a device the browser keeps reclaiming cannot spin here.
       if (this._lastRender && this._recoveries < MAX_DEVICE_RECOVERIES) {
         this._recoveries++;
-        this._render(this._lastRender.scene, this._lastRender.markTypes);
+        this.frame();
       }
     });
   }
@@ -478,8 +467,11 @@ export default class WebGPURenderer extends Renderer {
     return this._gpuTimer?.lastMs ?? 0;
   }
 
-  /** Applies a changed wgOptions.sampleCount: pipelines bake the sample
-   * count, so the per-mark GPU resources and attachments are rebuilt. */
+  /**
+   * Applies a changed wgOptions.sampleCount. Pipelines bake the sample count,
+   * so the per-mark GPU resources are rebuilt, and the multisampled targets go
+   * rather than outliving a drop to one sample.
+   */
   private _applySampleCount(ctx: GPUVegaCanvasContext): void {
     const requested = normalizeSampleCount(this.wgOptions.sampleCount);
     if (requested === ctx._sampleCount) {
@@ -487,12 +479,10 @@ export default class WebGPURenderer extends Renderer {
     }
     ctx._sampleCount = requested;
     ctx._markCache = {};
-    this._msaa.texture?.destroy();
-    this._msaa = { texture: null, device: null };
-    // the layer takes the frame's sample count, so it is stale too
-    this._layerTexture?.destroy();
-    this._layerTexture = null;
-    this._blendTextureDevice = null;
+    for (const slot of [this._msaa, this._layer]) {
+      slot.texture?.destroy();
+      slot.texture = null;
+    }
   }
 
   private async _frame(scene: GPUVegaScene, markTypes?: string[], settle?: boolean): Promise<void> {
@@ -647,7 +637,7 @@ export default class WebGPURenderer extends Renderer {
         };
       this._capture = { resolve: done(resolve), reject: done(reject) };
       // A capture is the finished picture, so it draws at full quality.
-      this._render(this._lastRender.scene, this._lastRender.markTypes, true);
+      this.frame(true);
     });
   }
 
@@ -700,12 +690,16 @@ export default class WebGPURenderer extends Renderer {
   }
 
   /**
-   * Queues a GPU resource for destruction once the current frame is submitted.
-   * Safe to call from inside a mark's draw, where the resource may still be
-   * referenced by a queued but not yet encoded draw.
+   * Destroys a GPU resource once the frame after this one is submitted, the way
+   * the buffers a frame makes go. Safe to call from inside a mark's draw, where
+   * the resource may still be referenced by a queued but not yet encoded draw.
    */
   deferDestroy(resource: { destroy(): void }): void {
-    this._pendingDestroy.push(resource);
+    if (this._device) {
+      bufferPool(this._device).hold(resource);
+    } else {
+      resource.destroy();
+    }
   }
 
   /**
@@ -722,13 +716,6 @@ export default class WebGPURenderer extends Renderer {
     // referencing it have run.
     if (this._device) {
       bufferPool(this._device).release();
-    }
-
-    if (this._pendingDestroy.length > 0) {
-      for (const resource of this._pendingDestroy) {
-        resource.destroy();
-      }
-      this._pendingDestroy = [];
     }
 
     const pending = this._pendingRender;
@@ -750,10 +737,13 @@ export default class WebGPURenderer extends Renderer {
     resolve?.();
   }
 
-  /** Re-renders the most recent scene (e.g. after options changed). */
-  frame(): this {
+  /**
+   * Re-renders the most recent scene (e.g. after options changed). `settle`
+   * draws it at full quality, the way the frame a drag comes to rest on is.
+   */
+  frame(settle?: boolean): this {
     if (this._lastRender) {
-      this._render(this._lastRender.scene, this._lastRender.markTypes);
+      this._render(this._lastRender.scene, this._lastRender.markTypes, settle);
     }
     return this;
   }
@@ -777,9 +767,7 @@ export default class WebGPURenderer extends Renderer {
     }
     this._settleTimer = setTimeout(() => {
       this._settleTimer = null;
-      if (this._lastRender) {
-        this._render(this._lastRender.scene, this._lastRender.markTypes, true);
-      }
+      this.frame(true);
     }, SETTLE_DELAY_MS);
   }
 
@@ -836,18 +824,12 @@ export default class WebGPURenderer extends Renderer {
    * whether the shader looks at the mask at all.
    */
   clipMaskPlaceholder(device: GPUDevice): GPUTexture {
-    if (!this._clipPlaceholder || this._clipPlaceholder.device !== device) {
-      this._clipPlaceholder?.texture.destroy();
-      const texture = device.createTexture({
-        label: 'Clip Mask Placeholder',
-        size: [1, 1, 1],
-        format: 'r8unorm',
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-      });
-      this._clipPlaceholder = { device, texture };
-      this._clipPlaceholderView = null;
-    }
-    return this._clipPlaceholder.texture;
+    return this.slotTexture(this._clipPlaceholder, device, {
+      label: 'Clip Mask Placeholder',
+      size: [1, 1, 1],
+      format: MASK_FORMAT,
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
   }
 
   /**
@@ -874,7 +856,7 @@ export default class WebGPURenderer extends Renderer {
     const resolved = device.createTexture({
       label: `Clip Mask ${this._clipMaskNext}`,
       size: [w, h, 1],
-      format: 'r8unorm',
+      format: MASK_FORMAT,
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     });
     // Coverage of a filled path comes from rasterization rather than from a
@@ -886,7 +868,7 @@ export default class WebGPURenderer extends Renderer {
         ? device.createTexture({
             label: `Clip Mask ${this._clipMaskNext} MSAA`,
             size: [w, h, 1],
-            format: 'r8unorm',
+            format: MASK_FORMAT,
             sampleCount: samples,
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
           })
@@ -915,14 +897,14 @@ export default class WebGPURenderer extends Renderer {
   /** The placeholder's view, held so a bind group per draw does not build one. */
   clipMaskPlaceholderView(device: GPUDevice): GPUTextureView {
     const texture = this.clipMaskPlaceholder(device);
-    if (!this._clipPlaceholderView || this._clipPlaceholder?.texture !== texture) {
-      this._clipPlaceholderView = texture.createView();
+    if (this._clipPlaceholderView?.texture !== texture) {
+      this._clipPlaceholderView = { texture, view: texture.createView() };
     }
-    return this._clipPlaceholderView;
+    return this._clipPlaceholderView.view;
   }
 
-  private _clipPlaceholder: { device: GPUDevice; texture: GPUTexture } | null = null;
-  private _clipPlaceholderView: GPUTextureView | null = null;
+  private _clipPlaceholder: TextureSlot = { texture: null, device: null };
+  private _clipPlaceholderView: { texture: GPUTexture; view: GPUTextureView } | null = null;
 
   /**
    * Single sampled coverage target, for a stroke that has to be composited as
@@ -934,17 +916,13 @@ export default class WebGPURenderer extends Renderer {
     return this.canvasTexture(this._mask, device, 'mask texture', size => ({
       label: 'Coverage Mask Texture',
       size,
-      format: 'r8unorm',
+      format: MASK_FORMAT,
       dimension: '2d',
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     }));
   }
 
-  /**
-   * The texture in `slot`, rebuilt when the device or the canvas size changed.
-   * Three of the frame's targets are sized to the canvas and all three go
-   * stale on the same two conditions.
-   */
+  /** The texture in `slot`, sized to the canvas. */
   private canvasTexture(
     slot: TextureSlot,
     device: GPUDevice | undefined,
@@ -956,13 +934,28 @@ export default class WebGPURenderer extends Renderer {
     if (!gpu || !canvas) {
       throw new Error(`[vega-webgpu] Cannot create the ${what} before initialization.`);
     }
-    const existing = slot.texture;
-    if (existing && slot.device === gpu && existing.width === canvas.width && existing.height === canvas.height) {
-      return existing;
+    return this.slotTexture(slot, gpu, describe([canvas.width, canvas.height, 1]));
+  }
+
+  /**
+   * The texture in `slot`, rebuilt when the device, the size or the sample count
+   * it was made with is not what `want` describes.
+   */
+  private slotTexture(slot: TextureSlot, device: GPUDevice, want: GPUTextureDescriptor): GPUTexture {
+    const held = slot.texture;
+    const [width, height] = want.size as [number, number, number];
+    if (
+      held &&
+      slot.device === device &&
+      held.width === width &&
+      held.height === height &&
+      held.sampleCount === (want.sampleCount ?? 1)
+    ) {
+      return held;
     }
-    existing?.destroy();
-    slot.texture = gpu.createTexture(describe([canvas.width, canvas.height, 1]));
-    slot.device = gpu;
+    held?.destroy();
+    slot.texture = device.createTexture(want);
+    slot.device = device;
     return slot.texture;
   }
 
@@ -972,49 +965,30 @@ export default class WebGPURenderer extends Renderer {
    * sample count, so a mark draws into it through the pipelines it already has.
    */
   blendTargets(device: GPUDevice, samples: number): { layer: GPUTexture; resolve: GPUTexture; backdrop: GPUTexture } {
-    const canvas = this._canvas;
-    if (!canvas) {
-      throw new Error('[vega-webgpu] Cannot create the blend targets before initialization.');
-    }
-    const stale =
-      this._blendTextureDevice !== device ||
-      !this._layerResolve ||
-      this._layerResolve.width !== canvas.width ||
-      this._layerResolve.height !== canvas.height;
-    if (stale) {
-      this._layerTexture?.destroy();
-      this._layerResolve?.destroy();
-      this._backdropTexture?.destroy();
-      this._layerTexture = null;
-      this._layerResolve = device.createTexture({
-        label: 'Blend Layer Resolve',
-        size: [canvas.width, canvas.height, 1],
-        format: preferredColorFormat(),
-        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-      });
-      this._backdropTexture = device.createTexture({
-        label: 'Blend Backdrop',
-        size: [canvas.width, canvas.height, 1],
-        format: preferredColorFormat(),
-        usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING,
-      });
-      this._blendTextureDevice = device;
-    }
-    if (samples > 1 && !this._layerTexture) {
-      this._layerTexture = device.createTexture({
-        label: 'Blend Layer',
-        size: [canvas.width, canvas.height, 1],
-        format: preferredColorFormat(),
-        sampleCount: samples,
-        usage: GPUTextureUsage.RENDER_ATTACHMENT,
-      });
-    }
-    const resolve = this._layerResolve as GPUTexture;
-    return {
-      layer: samples > 1 ? (this._layerTexture as GPUTexture) : resolve,
-      resolve,
-      backdrop: this._backdropTexture as GPUTexture,
-    };
+    const format = preferredColorFormat();
+    const resolve = this.canvasTexture(this._layerResolve, device, 'blend targets', size => ({
+      label: 'Blend Layer Resolve',
+      size,
+      format,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    }));
+    const backdrop = this.canvasTexture(this._backdrop, device, 'blend targets', size => ({
+      label: 'Blend Backdrop',
+      size,
+      format,
+      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING,
+    }));
+    const layer =
+      samples > 1
+        ? this.canvasTexture(this._layer, device, 'blend targets', size => ({
+            label: 'Blend Layer',
+            size,
+            format,
+            sampleCount: samples,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+          }))
+        : resolve;
+    return { layer, resolve, backdrop };
   }
 
   /**
