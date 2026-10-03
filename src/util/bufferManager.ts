@@ -4,6 +4,18 @@ import { LruMap } from './lru.js';
 const MAX_UNIFORM_CACHE = 128;
 
 /**
+ * The shared uniform block as the shaders read it: resolution, group offset,
+ * the rounded clip's box and radii, the clip mask flag and the device pixel
+ * ratio, padded to a whole number of vec4s.
+ */
+const UNIFORM_FLOATS = 20;
+const OFFSET = 2;
+const CLIP_BOX = 4;
+const CLIP_RADII = 8;
+const CLIP_MASK = 12;
+const DPI = 16;
+
+/**
  * Buffers a frame's draws create, and resources they replace, released once
  * the frame is submitted.
  *
@@ -48,11 +60,6 @@ export function bufferPool(device: GPUDevice): FrameBuffers {
 }
 
 /**
- * A mark's buffers and the uniform block they share. getMarkResources sets the
- * resolution, offset and clip before every draw, since the manager outlives the
- * frame that made it.
- */
-/**
  * Uploads through the queue rather than mappedAtCreation. A mapped range
  * costs one JS ArrayBuffer per buffer and a frame creates a buffer per mark,
  * which exhausts that allocation on a memory-constrained runner: every
@@ -84,28 +91,32 @@ export function uploadBuffer(
   return buffer;
 }
 
+/**
+ * A mark's buffers and the uniform block they share. getMarkResources sets the
+ * resolution, offset and clip before every draw, since the manager outlives the
+ * frame that made it.
+ */
 export class BufferManager {
   // a draw queued this frame may still read an evicted one, so the pool frees it later
   private uniformCache = new LruMap<string, GPUBuffer>(MAX_UNIFORM_CACHE, buffer =>
     bufferPool(this.device).hold(buffer),
   );
-  private resolution: [width: number, height: number] = [0, 0];
-  private offset: [x: number, y: number] = [0, 0];
-  private dpi = 1;
-  private clip: [number, number, number, number] = [0, 0, 0, 0];
-  private clipRadii: [number, number, number, number] = [0, 0, 0, 0];
-  private clipMask: [number, number, number, number] = [0, 0, 0, 0];
+  private readonly uniforms = new Float32Array(UNIFORM_FLOATS);
+  /** The uniforms as the shared buffer cache keys them, until a setter changes one. */
+  private uniformKey: string | null = null;
 
   constructor(
     private readonly device: GPUDevice,
     private readonly bufferName: string,
-  ) {}
+  ) {
+    this.uniforms[DPI] = 1;
+  }
 
   createUniformBuffer(): GPUBuffer {
     return uploadBuffer(
       this.device,
       `${this.bufferName} Uniform Buffer`,
-      this.uniformValues(),
+      this.uniforms,
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     );
   }
@@ -118,15 +129,14 @@ export class BufferManager {
    * per group would hand every draw the last group's offset.
    */
   sharedUniformBuffer(): GPUBuffer {
-    const values = this.uniformValues();
-    const key = values.join(',');
+    const key = (this.uniformKey ??= this.uniforms.join(','));
     let buffer = this.uniformCache.get(key);
     if (!buffer) {
       // cached across frames by value, so it cannot come from the frame pool
       buffer = uploadBuffer(
         this.device,
         `${this.bufferName} Uniform`,
-        values,
+        this.uniforms,
         GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         true,
       );
@@ -154,16 +164,18 @@ export class BufferManager {
     );
   }
 
-  setResolution(resolution: [width: number, height: number]): void {
-    this.resolution = resolution;
+  setResolution([width, height]: readonly [width: number, height: number]): void {
+    this.setUniform(0, width);
+    this.setUniform(1, height);
   }
 
-  setOffset(offset: [x: number, y: number]): void {
-    this.offset = offset;
+  setOffset(x: number, y: number): void {
+    this.setUniform(OFFSET, x);
+    this.setUniform(OFFSET + 1, y);
   }
 
   setDpi(dpi: number): void {
-    this.dpi = dpi || 1;
+    this.setUniform(DPI, dpi || 1);
   }
 
   /**
@@ -172,10 +184,10 @@ export class BufferManager {
    * shader is only told about the box whose corners it has to cut.
    */
   setClipRound(round?: { box: readonly number[]; radii: readonly number[] }): void {
-    const box = round?.box;
-    const radii = round?.radii;
-    this.clip = [box?.[0] ?? 0, box?.[1] ?? 0, box?.[2] ?? 0, box?.[3] ?? 0];
-    this.clipRadii = [radii?.[0] ?? 0, radii?.[1] ?? 0, radii?.[2] ?? 0, radii?.[3] ?? 0];
+    for (let i = 0; i < 4; i++) {
+      this.setUniform(CLIP_BOX + i, round?.box[i] ?? 0);
+      this.setUniform(CLIP_RADII + i, round?.radii[i] ?? 0);
+    }
   }
 
   /**
@@ -184,21 +196,14 @@ export class BufferManager {
    * it rather than at the placeholder bound when there is no path clip.
    */
   setClipMask(on: boolean): void {
-    this.clipMask = [on ? 1 : 0, 0, 0, 0];
+    this.setUniform(CLIP_MASK, on ? 1 : 0);
   }
 
-  /** The shared uniform block: resolution, group offset and device pixel ratio. */
-  private uniformValues(): Float32Array {
-    return new Float32Array([
-      ...this.resolution,
-      ...this.offset,
-      ...this.clip,
-      ...this.clipRadii,
-      ...this.clipMask,
-      this.dpi,
-      0,
-      0,
-      0,
-    ]);
+  private setUniform(index: number, value: number): void {
+    const stored = Math.fround(value);
+    if (this.uniforms[index] !== stored) {
+      this.uniforms[index] = stored;
+      this.uniformKey = null;
+    }
   }
 }

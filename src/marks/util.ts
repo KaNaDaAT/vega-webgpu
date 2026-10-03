@@ -60,7 +60,7 @@ export function getMarkResources<T extends { device: GPUDevice }>(
   if (vb) {
     const buffers = (res as { bufferManager?: BufferManager }).bufferManager;
     buffers?.setResolution(ctx._uniforms.resolution);
-    buffers?.setOffset([vb.x1, vb.y1]);
+    buffers?.setOffset(vb.x1, vb.y1);
     buffers?.setDpi(ctx._uniforms.dpi);
     buffers?.setClipRound(ctx._clipRound);
     buffers?.setClipMask(ctx._clipMask !== undefined);
