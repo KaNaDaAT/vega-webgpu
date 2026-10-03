@@ -1,7 +1,7 @@
 import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import { canvasTextDrift } from './util/canvasDrift.js';
 import marks from './marks/index.js';
-import { MASK_FORMAT, drawClipMask, blendCompositeElement } from './marks/util.js';
+import { MASK_FORMAT, drawClipMask, blendCompositeElement, pushGroupClip, pushPathClip } from './marks/util.js';
 import type { ClipMaskTarget, GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene } from './types/context.js';
 import { Color } from './util/color.js';
 import { GpuTimer } from './util/gpuTimer.js';
@@ -779,21 +779,25 @@ export default class WebGPURenderer extends Renderer {
       console.error(`[vega-webgpu] Unknown mark type: '${scene.marktype}'`);
       return;
     }
-    // A mark can carry a clip of its own, and where that clip is a path it is
-    // a coverage mask. It is drawn here rather than inside the mark because
-    // getMarkResources writes the flag that says a mask is bound, and every
-    // mark calls that before it reaches its own clip.
-    //
-    // A group mark carries one the same way any other mark does, and vega's
-    // renderer clips it here too, before the mark type has been looked at.
-    const outerMask = ctx._clipMask;
-    const own = (scene as { clip?: unknown }).clip;
+    // A mark can carry a clip of its own, which narrows what it sits inside
+    // while it draws. vega's renderer clips here, before the mark type has been
+    // looked at, so a group mark is clipped the same way any other mark is. A
+    // path is a coverage mask as well, drawn here rather than inside the mark
+    // because getMarkResources writes the flag that says a mask is bound, and
+    // every mark calls that before it enqueues anything.
+    const { _clip: outerClip, _clipRound: outerRound, _clipMask: outerMask } = ctx;
+    const own = scene.clip;
     if (typeof own === 'function') {
       ctx._clipMask = drawClipMask(device, ctx, own as (c?: unknown) => unknown, bounds) ?? outerMask;
+      pushPathClip(ctx, own);
+    } else if (own && scene.group) {
+      pushGroupClip(ctx, scene.group);
     }
     try {
       this.drawMark(mark, device, ctx, scene, bounds, markTypes);
     } finally {
+      ctx._clip = outerClip;
+      ctx._clipRound = outerRound;
       ctx._clipMask = outerMask;
     }
   }

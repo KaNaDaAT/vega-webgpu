@@ -17,7 +17,6 @@ import {
   enqueueOutline,
   vertexData,
   getMarkResources,
-  markClip,
   markItems,
   cacheFill,
   cachedFill,
@@ -95,8 +94,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const useCache = ctx._renderer.wgOptions.cacheShapes ?? true;
-  const clip = markClip(ctx, scene);
-  const fillTarget = targetOf(ctx, device, drawName, res, res.bufferManager, uniformBuffer, clip);
+  const fillTarget = targetOf(ctx, device, drawName, res, res.bufferManager, uniformBuffer);
 
   // Solid fills share one draw in paint order, and a gradient fill or an outline
   // drawn on its own closes the run.
@@ -144,7 +142,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       if (own) {
         run.flush();
         enqueueOutline(
-          targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip),
+          targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer),
           own,
           stroke.ramp,
           blend,
@@ -179,7 +177,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         drawCounts: [6, run.count, 0, run.start],
         vertexBuffers: [buffer],
         bindGroups: [uniformBindGroup(ctx, device, `${drawName}Stroke`, pipeline, uniformBuffer)],
-        clip,
+        clip: ctx._clip,
       });
     }
   }

@@ -19,7 +19,6 @@ import {
   enqueueOutline,
   vertexData,
   getMarkResources,
-  markClip,
   blendPipelines,
   markPipeline,
   segmentInstances,
@@ -114,7 +113,6 @@ function queueSegments(
   ctx: GPUVegaCanvasContext,
   res: LineResources,
   rows: Float32Array,
-  clip: ReturnType<typeof markClip>,
   blend = 'normal',
 ): void {
   const pipeline = res.outline.pipelineFor(blend);
@@ -140,7 +138,7 @@ function queueSegments(
     device,
     vertexManager: res.outline.vertexManager,
     pipeline,
-    clip,
+    clip: ctx._clip,
     bindGroups: [entry.group],
   });
   ctx._renderQueue.queueBatchInstance(rows);
@@ -201,7 +199,6 @@ function drawOutline(
   res: LineResources,
   points: SceneLinePoint[],
   ramp: Ramp | null,
-  clip: ReturnType<typeof markClip>,
 ): void {
   const first = points[0];
   const polylines: Point[][] = isPolyline(points)
@@ -216,19 +213,11 @@ function drawOutline(
 
   const blend = blendKey(first.blend);
   if (!ramp) {
-    queueSegments(device, ctx, res, data, clip, blend);
+    queueSegments(device, ctx, res, data, blend);
     return;
   }
   enqueueOutline(
-    targetOf(
-      ctx,
-      device,
-      res.outline.name,
-      res.outline,
-      res.bufferManager,
-      res.bufferManager.sharedUniformBuffer(),
-      clip,
-    ),
+    targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, res.bufferManager.sharedUniformBuffer()),
     data,
     ramp,
     blend,
@@ -463,7 +452,6 @@ function drawCurve(
   ctx: GPUVegaCanvasContext,
   res: LineResources,
   points: SceneLinePoint[],
-  clip: ReturnType<typeof markClip>,
   kind: CurveKind,
 ): void {
   const first = points[0];
@@ -505,7 +493,7 @@ function drawCurve(
     device,
     vertexManager: res.spanVertexManager,
     pipeline,
-    clip,
+    clip: ctx._clip,
     vertexCount: 6 * CURVE_SUBDIVISIONS,
     bindGroups: [held.group],
   });
@@ -519,19 +507,13 @@ function drawCurve(
       { ...strokeEnds(first), caps: [BUTT_END, ROUND_END] },
     );
     if (caps) {
-      queueSegments(device, ctx, res, caps, clip, blend);
+      queueSegments(device, ctx, res, caps, blend);
     }
   }
 }
 
 /** Curved or gapped lines go through the shared path tessellation. */
-function drawPath(
-  device: GPUDevice,
-  ctx: GPUVegaCanvasContext,
-  res: LineResources,
-  points: SceneLinePoint[],
-  clip: ReturnType<typeof markClip>,
-): void {
+function drawPath(device: GPUDevice, ctx: GPUVegaCanvasContext, res: LineResources, points: SceneLinePoint[]): void {
   const first = points[0];
   const shapeGeom = lineGeometry(ctx, points);
   const geometry = geometryForItem(ctx, { ...first, fill: undefined }, shapeGeom, true);
@@ -546,7 +528,7 @@ function drawPath(
     drawCounts: [strokeData.length / res.curveVertexManager.getVertexLength()],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
     bindGroups: [uniformBindGroup(ctx, device, `${drawName}Curve`, pipeline, res.bufferManager.sharedUniformBuffer())],
-    clip,
+    clip: ctx._clip,
   });
 }
 
@@ -559,7 +541,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
 
   const points = items as SceneLinePoint[];
-  const clip = markClip(ctx, scene);
 
   const pattern = dashPattern(points);
   // A ramp cannot come out of the curve or the extruded path either, so a
@@ -567,24 +548,24 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const bounds = scene.bounds ?? points[0]?.bounds;
   const strokeRamp = rampOf(points[0]?.stroke, bounds);
   if (pattern || strokeRamp) {
-    drawOutline(device, ctx, res, points, strokeRamp, clip);
+    drawOutline(device, ctx, res, points, strokeRamp);
     return;
   }
 
   const route = lineRoute(points);
   if (route === 'path') {
-    drawPath(device, ctx, res, points, clip);
+    drawPath(device, ctx, res, points);
     return;
   }
   if (route !== 'segments') {
-    drawCurve(device, ctx, res, points, clip, route);
+    drawCurve(device, ctx, res, points, route);
     return;
   }
 
   if (points.length < 2) {
     return; // a single point has no segment to draw
   }
-  queueSegments(device, ctx, res, createAttributes(points), clip, blendKey(points[0]?.blend));
+  queueSegments(device, ctx, res, createAttributes(points), blendKey(points[0]?.blend));
 }
 
 /**

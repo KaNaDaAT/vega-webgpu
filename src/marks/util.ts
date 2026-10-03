@@ -1,4 +1,4 @@
-import { Bounds, boundContext, sceneVisit, pathRectangle } from 'vega-scenegraph';
+import { Bounds, boundContext, sceneVisit, pathRectangle, type PathSink } from 'vega-scenegraph';
 import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem, { type ItemTransform } from '../path/geometryForItem.js';
 import { BufferManager, uploadBuffer } from '../util/bufferManager.js';
@@ -18,7 +18,7 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { REPLACE, blendState, buildBlend } from '../util/blend.js';
 import { shaderModule, type ShaderKey } from '../shaders/index.js';
 import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
-import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { ClipRadii, ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { DrawCounts, QueueElement } from '../util/renderQueue.js';
 import type { SceneGroupExt, SceneRectExt, SceneItem } from '../types/scene.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
@@ -143,31 +143,52 @@ export function intersectClip(outer: ClipRect | undefined, inner: ClipRect): Cli
 const clipPathBounds = new Bounds();
 
 /**
- * Scissor rect for a mark, in physical pixels.
- *
- * A mark with `clip: true` is clipped to its enclosing group, and one whose
- * clip is a path generator to that path's box. Either way the result is
- * narrowed by whatever the mark already sits inside.
- *
- * A path is only ever its box here. canvas clips to the path itself, so a
- * clip that is not a rectangle leaves the corners of its box drawn. See
- * test/render/README.md.
+ * Narrows the scissor to a clip path's box. The path itself is cut by its
+ * coverage mask, which the renderer draws beside this.
  */
-export function markClip(ctx: GPUVegaCanvasContext, scene: GPUVegaScene): ClipRect | undefined {
-  const clip = scene.clip;
-  if (!clip) {
-    return ctx._clip;
+export function pushPathClip(ctx: GPUVegaCanvasContext, clip: (sink: PathSink) => unknown): void {
+  const b = clipPathBounds.clear();
+  clip(boundContext(b));
+  if (!b.empty()) {
+    ctx._clip = intersectClip(ctx._clip, deviceClip(ctx, b.x1, b.y1, b.width(), b.height()));
   }
-  if (typeof clip === 'function') {
-    const b = clipPathBounds.clear();
-    clip(boundContext(b));
-    return b.empty() ? ctx._clip : intersectClip(ctx._clip, deviceClip(ctx, b.x1, b.y1, b.width(), b.height()));
+}
+
+/**
+ * Narrows the clip to a group's rectangle, which canvas clips a clipping group
+ * to, and a mark with `clip: true` inside one. canvas narrows whatever is
+ * already clipped rather than replacing it, so a clip inside a clip is cut by
+ * both. The rectangle is rounded where the group is, which a scissor cannot
+ * express, so the corners are cut in the fragment stage. A group with no radius
+ * of its own leaves an enclosing rounded clip cutting.
+ */
+export function pushGroupClip(ctx: GPUVegaCanvasContext, group: SceneGroupExt): void {
+  const box = deviceClip(ctx, 0, 0, group.width || 0, group.height || 0);
+  ctx._clip = intersectClip(ctx._clip, box);
+  const radii = clipRadii(group, ctx._uniforms.dpi);
+  if (radii) {
+    ctx._clipRound = { box, radii };
   }
-  const group = scene.group;
-  if (!group) {
-    return ctx._clip;
-  }
-  return intersectClip(ctx._clip, deviceClip(ctx, 0, 0, group.width || 0, group.height || 0));
+}
+
+/**
+ * A clipping group's corner radii in device pixels, clockwise from top left.
+ *
+ * Clamped to half the shorter side, as vega's own rectangle generator does.
+ * Past that the four corner arcs overlap, and the shader would cut with the
+ * first one that matches rather than the nearer of the two.
+ */
+function clipRadii(group: SceneGroupExt, dpi: number): ClipRadii | undefined {
+  const base = group.cornerRadius ?? 0;
+  const limit = (Math.min(group.width || 0, group.height || 0) / 2) * dpi;
+  const at = (corner: number | undefined): number => Math.max(0, Math.min((corner ?? base) * dpi, limit));
+  const radii: ClipRadii = [
+    at(group.cornerRadiusTopLeft),
+    at(group.cornerRadiusTopRight),
+    at(group.cornerRadiusBottomRight),
+    at(group.cornerRadiusBottomLeft),
+  ];
+  return radii.some(r => r > 0) ? radii : undefined;
 }
 
 /**
@@ -269,8 +290,7 @@ export function paintOf(
   return { colour: paintColour(value, opacity, paintOpacity, ramp), ramp };
 }
 
-/** What a mark needs to paint triangulated geometry from a gradient ramp. */
-/** Where a mark enqueues its fills or its outlines: a pipeline for each paint, the buffers and the clip. */
+/** Where a mark enqueues its fills or its outlines: a pipeline for each paint and the buffers. */
 export interface DrawTarget {
   ctx: GPUVegaCanvasContext;
   device: GPUDevice;
@@ -279,7 +299,6 @@ export interface DrawTarget {
   gradientPipelineFor: (blend: string) => GPURenderPipeline;
   bufferManager: BufferManager;
   uniformBuffer: GPUBuffer;
-  clip: ClipRect | undefined;
 }
 
 export function targetOf(
@@ -292,10 +311,9 @@ export function targetOf(
   },
   bufferManager: BufferManager,
   uniformBuffer: GPUBuffer,
-  clip: ClipRect | undefined,
 ): DrawTarget {
   const { pipelineFor, gradientPipelineFor } = pipelines;
-  return { ctx, device, name, pipelineFor, gradientPipelineFor, bufferManager, uniformBuffer, clip };
+  return { ctx, device, name, pipelineFor, gradientPipelineFor, bufferManager, uniformBuffer };
 }
 
 /**
@@ -355,7 +373,7 @@ export function enqueueDraw(
   if (ramp) {
     bindGroups.push(createGradientBindGroup(getGradientResources(device, ctx), pipeline, ramp.gradient, ramp.bounds));
   }
-  ctx._renderQueue.enqueue({ pipeline, drawCounts, vertexBuffers, bindGroups, clip: target.clip });
+  ctx._renderQueue.enqueue({ pipeline, drawCounts, vertexBuffers, bindGroups, clip: ctx._clip });
 }
 
 /**
@@ -746,7 +764,7 @@ export function enqueueMaskedOutline(
     drawCounts: [6, data.length / SEGMENT_STRIDE],
     vertexBuffers: [target.bufferManager.createInstanceBuffer(data)],
     bindGroups: [uniformBindGroup(ctx, device, `${target.name}Mask`, res.strokePipeline, target.uniformBuffer)],
-    clip: target.clip,
+    clip: ctx._clip,
     pass: 'mask',
   });
   const pipeline = res.compositeFor(blend);
@@ -772,7 +790,7 @@ export function enqueueMaskedOutline(
         ],
       }),
     ],
-    clip: target.clip,
+    clip: ctx._clip,
   });
 }
 

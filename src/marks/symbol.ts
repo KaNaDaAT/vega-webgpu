@@ -20,7 +20,6 @@ import {
   vertexData,
   getMarkResources,
   instanceScratch,
-  markClip,
   markItems,
   blendPipelines,
   markPipeline,
@@ -131,7 +130,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const res = getResources(device, ctx, vb);
   const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const clip = markClip(ctx, scene);
 
   let circleBindGroup: { group: GPUBindGroup; pipeline: GPURenderPipeline } | null = null;
 
@@ -153,7 +151,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         drawCounts: [6, symbols.length],
         vertexBuffers: [res.quadGeometry, instanceBuffer],
         bindGroups: [circleBindGroup.group],
-        clip,
+        clip: ctx._clip,
       });
     } else if (hasSdf(shape)) {
       const pipeline = markPipeline(
@@ -171,10 +169,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         drawCounts: [6, symbols.length],
         vertexBuffers: [res.quadGeometry, instanceBuffer],
         bindGroups: [uniformBindGroup(ctx, device, `${drawName}Sdf`, pipeline, uniformBuffer)],
-        clip,
+        clip: ctx._clip,
       });
     } else {
-      drawShapeGroup(device, ctx, res, uniformBuffer, runBlend, symbols, clip);
+      drawShapeGroup(device, ctx, res, uniformBuffer, runBlend, symbols);
     }
   });
 
@@ -194,18 +192,18 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       // the dash it covers the inner half of every run.
       const filled = { ...item, stroke: undefined } as SceneSymbolExt;
       if (fillRamp) {
-        drawGradientSymbol(device, ctx, res, filled, fillRamp, blend, clip);
+        drawGradientSymbol(device, ctx, res, filled, fillRamp, blend);
       } else if (item.fill) {
         run.add(filled, blend, runKey(filled));
         run.flush();
       }
-      drawSymbolOutline(device, ctx, res, item, blend, dash, strokeRamp, clip);
+      drawSymbolOutline(device, ctx, res, item, blend, dash, strokeRamp);
       continue;
     }
     // Gradient fills need the gradient pipeline and are drawn one at a time.
     if (fillRamp) {
       run.flush();
-      drawGradientSymbol(device, ctx, res, item, fillRamp, blend, clip);
+      drawGradientSymbol(device, ctx, res, item, fillRamp, blend);
       continue;
     }
     run.add(item, blend, runKey(item));
@@ -247,7 +245,6 @@ function drawSymbolOutline(
   blend: string,
   pattern: number[] | null,
   ramp: Ramp | null,
-  clip: ReturnType<typeof markClip>,
 ): void {
   if (!item.stroke) {
     return;
@@ -265,15 +262,7 @@ function drawSymbolOutline(
     return;
   }
   enqueueOutline(
-    targetOf(
-      ctx,
-      device,
-      res.outline.name,
-      res.outline,
-      res.bufferManager,
-      res.bufferManager.sharedUniformBuffer(),
-      clip,
-    ),
+    targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, res.bufferManager.sharedUniformBuffer()),
     data,
     ramp,
     blend,
@@ -287,7 +276,6 @@ function drawShapeGroup(
   uniformBuffer: GPUBuffer,
   blend: string,
   group: SceneSymbolExt[],
-  clip: ReturnType<typeof markClip>,
 ): void {
   const first = group[0];
   const shape = symbolShape(first);
@@ -307,7 +295,7 @@ function drawShapeGroup(
         drawCounts: [geom.fillCount, instances.count],
         vertexBuffers: [geom.fill, res.bufferManager.createInstanceBuffer(instances.data)],
         bindGroups: [bindGroup],
-        clip,
+        clip: ctx._clip,
       });
     }
   }
@@ -320,7 +308,7 @@ function drawShapeGroup(
         drawCounts: [geom.strokeCount, instances.count],
         vertexBuffers: [geom.stroke, res.bufferManager.createInstanceBuffer(instances.data)],
         bindGroups: [bindGroup],
-        clip,
+        clip: ctx._clip,
       });
     }
   }
@@ -334,7 +322,6 @@ function drawGradientSymbol(
   item: SceneSymbolExt,
   ramp: Ramp,
   blend: string,
-  clip: ReturnType<typeof markClip>,
 ): void {
   const pathGeom = symbolShapeGeometry(ctx, symbolShape(item), symbolSize(item));
   const geometry = geometryForItem(ctx, item, pathGeom, false, item.x || 0, item.y || 0, {
@@ -359,7 +346,6 @@ function drawGradientSymbol(
     { pipelineFor: res.solidPipelineFor, gradientPipelineFor: res.gradientPipelineFor },
     res.bufferManager,
     res.bufferManager.sharedUniformBuffer(),
-    clip,
   );
   if (fillData.length > 0) {
     enqueueFill(target, fillData, ramp, blend);

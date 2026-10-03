@@ -12,7 +12,6 @@ import {
   fillResources,
   vertexData,
   getMarkResources,
-  markClip,
   segmentInstances,
   strokeEnds,
   strokeRuns,
@@ -68,8 +67,7 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
     const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, fill.colour);
 
     const uniformBuffer = res.bufferManager.createUniformBuffer();
-    const clip = markClip(ctx, scene);
-    const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer, clip);
+    const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer);
 
     if (fillData.length > 0) {
       enqueueFill(fillTarget, fillData, fill.ramp, blend);
@@ -80,7 +78,7 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
       const lines = dash ? shapeOf(ctx, items, DASH_FLATNESS).lines : shapeGeom.lines;
       const data = segmentInstances(strokeRuns(lines, item), stroke.colour, item.strokeWidth ?? 1, strokeEnds(item));
       if (data) {
-        const outline = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
+        const outline = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
         // A ramp cannot be read back out of a coverage mask, so a gradient
         // stroke goes band by band whatever the mark asked for.
         if (!maskOutline || stroke.ramp) {

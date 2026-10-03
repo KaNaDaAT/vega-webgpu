@@ -1,5 +1,5 @@
 import type { Bounds } from 'vega-scenegraph';
-import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneItem, SceneRectExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
@@ -15,7 +15,6 @@ import {
   enqueueOutline,
   getMarkResources,
   instanceScratch,
-  markClip,
   markItems,
   blendPipelines,
   whiteCarrier,
@@ -86,11 +85,10 @@ export class BoxPainter {
     ctx: GPUVegaCanvasContext,
     device: GPUDevice,
     private readonly res: RectResources,
-    clip: ClipRect | undefined,
   ) {
     const uniformBuffer = res.bufferManager.createUniformBuffer();
-    this.fill = targetOf(ctx, device, res.name, res, res.bufferManager, uniformBuffer, clip);
-    this.outline = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
+    this.fill = targetOf(ctx, device, res.name, res, res.bufferManager, uniformBuffer);
+    this.outline = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
     this.run = new DrawRun(ctx._opaqueBackdrop, (boxes, blend) => this.enqueue(boxes, null, blend));
   }
 
@@ -126,7 +124,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     return;
   }
 
-  const painter = new BoxPainter(ctx, device, rectResources(ctx, device, vb, drawName), markClip(ctx, scene));
+  const painter = new BoxPainter(ctx, device, rectResources(ctx, device, vb, drawName));
   for (const item of items) {
     const blend = blendKey(item.blend);
     const strokeRamp = boxRampOf(item.stroke, item);

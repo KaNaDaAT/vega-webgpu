@@ -14,7 +14,6 @@ import {
   type OutlinePipelines,
   enqueueOutline,
   getMarkResources,
-  markClip,
   markItems,
   blendPipelines,
   segmentInstances,
@@ -110,7 +109,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const clip = markClip(ctx, scene);
 
   const run = new DrawRun<SceneRule>(ctx._opaqueBackdrop, (rules, blend) => {
     const pipeline = res.pipelineFor(blend);
@@ -120,7 +118,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       drawCounts: [6, rules.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
-      clip,
+      clip: ctx._clip,
     });
   });
 
@@ -148,7 +146,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       continue; // a zero length rule, or a dash that left nothing drawn
     }
     enqueueOutline(
-      targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip),
+      targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer),
       data,
       strokeRamp,
       blend,

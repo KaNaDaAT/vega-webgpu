@@ -6,7 +6,7 @@ import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { blendKey } from '../util/blend.js';
 import { imageTexture, textureBindGroup, uploadImage } from '../util/webgpu.js';
-import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule, uniformBindGroup } from './util.js';
+import { blendPipelines, getMarkResources, markItems, type MarkModule, uniformBindGroup } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Image';
@@ -225,7 +225,6 @@ function draw(
   const res = getResources(device, ctx, vb);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const clip = markClip(ctx, scene);
 
   for (const item of items) {
     const image = getImage(item, this);
@@ -273,7 +272,7 @@ function draw(
         uniformBindGroup(ctx, device, drawName, imagePipeline, uniformBuffer),
         getBindGroup(res, image, item.smooth !== false, imagePipeline, blend),
       ],
-      clip,
+      clip: ctx._clip,
     });
   }
 }

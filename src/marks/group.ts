@@ -1,17 +1,9 @@
 import { Bounds, sceneVisit } from 'vega-scenegraph';
-import type { ClipRadii, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneGroupExt } from '../types/scene.js';
 import { blendKey } from '../util/blend.js';
 import { BoxPainter, rectResources } from './rect.js';
-import {
-  borderInstances,
-  deviceClip,
-  intersectClip,
-  withStrokeOffset,
-  type MarkModule,
-  boxRampOf,
-  type Ramp,
-} from './util.js';
+import { borderInstances, pushGroupClip, withStrokeOffset, type MarkModule, boxRampOf, type Ramp } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 const drawName = 'Group';
@@ -32,7 +24,7 @@ function draw(
   // Group backgrounds share the rect instance layout and shader. Held borders
   // draw after their children, by which point the visit has put the clip back
   // to what it was, so every draw here takes the same one.
-  const painter = new BoxPainter(ctx, device, rectResources(ctx, device, vb, drawName), ctx._clip);
+  const painter = new BoxPainter(ctx, device, rectResources(ctx, device, vb, drawName));
 
   /** Borders held back until after the backgrounds, which is the order canvas paints them in. */
   const dashed: { data: Float32Array; ramp: Ramp | null; blend: string }[] = [];
@@ -83,8 +75,6 @@ function draw(
     }
     const gx = group.x || 0;
     const gy = group.y || 0;
-    const gw = group.width || 0;
-    const gh = group.height || 0;
 
     // accumulate the group translation for nested marks
     ctx._tx += gx;
@@ -96,23 +86,14 @@ function draw(
       // A group item is cut to its own rectangle whatever its clip holds:
       // vega's group mark calls clipGroup, which never reads the value, so a
       // path there is the SVG renderer's route rather than anything canvas
-      // draws. canvas also narrows whatever is already clipped rather than
-      // replacing it, so a clipped group inside a clipped one is cut by both.
-      const box = deviceClip(ctx, 0, 0, gw, gh);
-      ctx._clip = intersectClip(oldClip, box);
-      // canvas clips a group to its rounded rectangle, which a scissor cannot
-      // express, so the corners are cut in the fragment stage instead. A group
-      // with no radius of its own leaves an enclosing rounded clip cutting.
-      const radii = clipRadii(group, ctx._uniforms.dpi);
-      ctx._clipRound = radii ? { box, radii } : oldRound;
+      // draws.
+      pushGroupClip(ctx, group);
     }
     vb.translate(-gx, -gy);
     sceneVisit(group, (item: GPUVegaScene) => this.draw(device, ctx, item, vb, markTypes));
     vb.translate(gx, gy);
-    if (group.clip) {
-      ctx._clip = oldClip;
-      ctx._clipRound = oldRound;
-    }
+    ctx._clip = oldClip;
+    ctx._clipRound = oldRound;
     ctx._tx -= gx;
     ctx._ty -= gy;
 
@@ -176,22 +157,3 @@ function paintsOver(a: SceneGroupExt, b: SceneGroupExt): boolean {
 }
 
 export default { draw } satisfies MarkModule;
-/**
- * A clipping group's corner radii in device pixels, clockwise from top left.
- *
- * Clamped to half the shorter side, as vega's own rectangle generator does.
- * Past that the four corner arcs overlap, and the shader would cut with the
- * first one that matches rather than the nearer of the two.
- */
-function clipRadii(group: SceneGroupExt, dpi: number): ClipRadii | undefined {
-  const base = group.cornerRadius ?? 0;
-  const limit = (Math.min(group.width || 0, group.height || 0) / 2) * dpi;
-  const at = (corner: number | undefined): number => Math.max(0, Math.min((corner ?? base) * dpi, limit));
-  const radii: ClipRadii = [
-    at(group.cornerRadiusTopLeft),
-    at(group.cornerRadiusTopRight),
-    at(group.cornerRadiusBottomRight),
-    at(group.cornerRadiusBottomLeft),
-  ];
-  return radii.some(r => r > 0) ? radii : undefined;
-}

@@ -20,7 +20,7 @@ import {
 } from '../util/textTexture.js';
 import { blendKey } from '../util/blend.js';
 import { linearSampler, textureBindGroup } from '../util/webgpu.js';
-import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule, uniformBindGroup } from './util.js';
+import { blendPipelines, getMarkResources, markItems, type MarkModule, uniformBindGroup } from './util.js';
 import { DrawRun } from '../util/drawRun.js';
 
 const drawName = 'Text';
@@ -165,7 +165,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   }
 
   const res = getResources(device, ctx, vb);
-  const clip = markClip(ctx, scene);
   const dpi = ctx._uniforms.dpi || 1;
   const drift = ctx._textDrift?.get(scene);
 
@@ -281,7 +280,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         drawCounts: [6, count, 0, first],
         vertexBuffers: [buffer],
         bindGroups: groups,
-        clip,
+        clip: ctx._clip,
       });
     }
   }
@@ -292,7 +291,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       drawCounts: [6, 1],
       vertexBuffers: [res.bufferManager.createInstanceBuffer(extra.data)],
       bindGroups: bindGroups(pipeline, extra.texture),
-      clip,
+      clip: ctx._clip,
     });
   }
 }

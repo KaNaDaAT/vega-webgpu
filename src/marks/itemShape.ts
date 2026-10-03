@@ -17,7 +17,6 @@ import {
   fillResources,
   vertexData,
   getMarkResources,
-  markClip,
   markItems,
   segmentInstances,
   strokeEnds,
@@ -80,9 +79,8 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
       cache: geometryCache(),
     }));
     const uniformBuffer = res.bufferManager.createUniformBuffer();
-    const clip = markClip(ctx, scene);
-    const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer, clip);
-    const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
+    const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer);
+    const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
 
     // Solid fills share one draw in paint order, and a gradient fill or an
     // outline closes the run.
