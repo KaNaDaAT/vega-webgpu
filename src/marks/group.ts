@@ -45,7 +45,10 @@ function draw(
       dashed.push({ data: border, ramp: strokeRamp, blend });
     }
     const drawn = border || fore ? { ...edged, stroke: undefined } : edged;
-    painter.paint(drawn, boxRampOf(drawn.fill, item), blend);
+    // a backdrop with neither is a quad that draws nothing
+    if (drawn.fill || drawn.stroke) {
+      painter.paint(drawn, boxRampOf(drawn.fill, item), blend);
+    }
   };
 
   const flushBackdrops = (): void => {
@@ -132,9 +135,13 @@ function groupsOverlap(items: SceneGroupExt[]): boolean {
   if (n > OVERLAP_CHECK_LIMIT) {
     return true;
   }
-  for (let j = 1; j < n; j++) {
-    for (let i = 0; i < j; i++) {
-      if (paintsOver(items[j], items[i]) || paintsOver(items[i], items[j])) {
+  for (let j = 0; j < n; j++) {
+    const a = items[j];
+    if (!paintsBackdrop(a)) {
+      continue;
+    }
+    for (let i = 0; i < n; i++) {
+      if (i !== j && reaches(a, items[i])) {
         return true;
       }
     }
@@ -142,11 +149,13 @@ function groupsOverlap(items: SceneGroupExt[]): boolean {
   return false;
 }
 
-/** True when `a` paints a backdrop at all and its box reaches into `b`. */
-function paintsOver(a: SceneGroupExt, b: SceneGroupExt): boolean {
-  if (!a.fill && !(a.stroke && a.strokeForeground !== true)) {
-    return false;
-  }
+/** True when a group paints a backdrop under its children at all. */
+function paintsBackdrop(a: SceneGroupExt): boolean {
+  return Boolean(a.fill || (a.stroke && a.strokeForeground !== true));
+}
+
+/** True when `a`'s box reaches into `b`. */
+function reaches(a: SceneGroupExt, b: SceneGroupExt): boolean {
   const bounds = b.bounds;
   if (!bounds) {
     return false;
