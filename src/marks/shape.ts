@@ -45,6 +45,8 @@ interface ShapeOutline {
   outline: string;
   stroke: RGBA;
   strokeIsGradient: boolean;
+  /** Segments the item last wrote into the held outline buffer, while its outline is unchanged. */
+  count?: number;
 }
 
 /**
@@ -104,18 +106,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       enqueueFill(fillTarget, data, null, blend);
     }
   });
-  // Outlines accumulate separately and draw after the fills. A sub pixel
+  // Outlines draw after the fills, from one buffer the scene keeps. A sub pixel
   // stroke on a triangulated ribbon takes its coverage from MSAA, which can
   // only express quarter steps, so a 0.2 px country border came out patchy.
-  const outlines = res.outlines;
-  outlines.length = 0;
+  const pending: { item: SceneShapeItem; lines: Point[][]; blend: string; kept: ShapeOutline | null }[] = [];
   // An outline only has to be rebuilt when something it is drawn from moved or
   // changed colour, which on a stroked choropleth is the difference between
   // rewriting a few hundred thousand segments a frame and rewriting none.
   let outlinesHeld = true;
-  // Which stretch of the shared outline buffer carries which blend, so one
-  // buffer can still serve a mark whose items do not agree on it.
-  const outlineRuns: { blend: string; start: number; count: number }[] = [];
 
   for (const item of items) {
     const blend = blendKey(item.blend);
@@ -123,7 +121,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const stroke = paintOf(item.stroke, item.opacity, item.strokeOpacity, item.bounds);
     let shapeGeom: PathGeometry | null = null;
     const geom = () => (shapeGeom ??= shape(ctx, item));
-    const [fillData, lines, unchanged] = createGeometryData(ctx, res, item, fill, stroke, useCache, geom);
+    const [fillData, lines, unchanged, kept] = createGeometryData(ctx, res, item, fill, stroke, useCache, geom);
 
     if (fillData.length > 0 && fill.ramp) {
       run.flush();
@@ -148,27 +146,48 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
           blend,
         );
       }
-    } else {
-      outlinesHeld &&= unchanged;
-      const before = outlines.length / SEGMENT_STRIDE;
-      pushOutline(outlines, item, lines);
-      const after = outlines.length / SEGMENT_STRIDE;
-      const last = outlineRuns[outlineRuns.length - 1];
-      if (last && last.blend === blend) {
-        last.count = after - last.start;
-      } else if (after > before) {
-        outlineRuns.push({ blend, start: before, count: after - before });
+      if (kept) {
+        kept.count = undefined;
       }
+    } else {
+      outlinesHeld &&= unchanged && kept?.count !== undefined;
+      pending.push({ item, lines, blend, kept });
     }
   }
   run.flush();
 
   const state = res.outlineState.get(scene) ?? { buffer: null, capacity: 0, length: -1 };
   res.outlineState.set(scene, state);
-  const heldOutline = outlinesHeld && outlines.length === state.length && state.buffer !== null;
-  state.length = outlines.length;
+  const heldCount = outlinesHeld ? pending.reduce((n, { kept }) => n + (kept?.count ?? 0), 0) : -1;
+  const heldOutline = heldCount * SEGMENT_STRIDE === state.length && state.buffer !== null;
+  // Which stretch of the buffer carries which blend, so one buffer can still
+  // serve a mark whose items do not agree on it. A held buffer is not written,
+  // so its stretches come from the counts the items wrote last time.
+  const outlines = res.outlines;
+  outlines.length = 0;
+  const outlineRuns: { blend: string; start: number; count: number }[] = [];
+  let segments = 0;
+  for (const { item, lines, blend, kept } of pending) {
+    let count = kept?.count ?? 0;
+    if (!heldOutline) {
+      const before = outlines.length;
+      pushOutline(outlines, item, lines);
+      count = (outlines.length - before) / SEGMENT_STRIDE;
+      if (kept) {
+        kept.count = count;
+      }
+    }
+    const last = outlineRuns[outlineRuns.length - 1];
+    if (last && last.blend === blend) {
+      last.count += count;
+    } else if (count > 0) {
+      outlineRuns.push({ blend, start: segments, count });
+    }
+    segments += count;
+  }
+  state.length = segments * SEGMENT_STRIDE;
 
-  if (outlines.length > 0) {
+  if (segments > 0) {
     const buffer = outlineBuffer(device, state, outlines, heldOutline);
     for (const run of outlineRuns) {
       const pipeline = res.outline.pipelineFor(run.blend);
@@ -237,10 +256,10 @@ interface OutlineState {
  * frame's draws have read it.
  */
 function outlineBuffer(device: GPUDevice, state: OutlineState, outlines: OutlineBuffer, held: boolean): GPUBuffer {
-  const bytes = new Uint8Array(outlines.data.buffer, 0, outlines.length * 4);
   if (state.buffer && held) {
     return state.buffer;
   }
+  const bytes = new Uint8Array(outlines.data.buffer, 0, outlines.length * 4);
   if (!state.buffer || state.capacity < bytes.byteLength) {
     let capacity = Math.max(bytes.byteLength, 4096);
     if (state.buffer) {
@@ -290,7 +309,7 @@ function createGeometryData(
   strokePaint: Paint,
   useCache: boolean,
   geom: () => PathGeometry,
-): [fillData: Float32Array, lines: Point[][], unchanged: boolean] {
+): [fillData: Float32Array, lines: Point[][], unchanged: boolean, kept: ShapeOutline | null] {
   const fill = fillPaint.colour;
   const stroke = strokePaint.colour;
   const strokeIsGradient = strokePaint.ramp !== null;
@@ -307,7 +326,7 @@ function createGeometryData(
     kept.outline = outline;
     kept.stroke = stroke;
     kept.strokeIsGradient = strokeIsGradient;
-    return [entry.data, kept.lines, unchanged];
+    return [entry.data, kept.lines, unchanged, kept];
   }
 
   // the outline draws as segments, so the triangulation only builds the fill
@@ -321,10 +340,12 @@ function createGeometryData(
   });
   const data = vertexData(geometry.fillTriangles, geometry.fillCount, fill);
 
-  if (useCache) {
-    cacheFill(res.cache, item, item, fill, data, { lines: shapeGeom.lines, outline, stroke, strokeIsGradient });
+  if (!useCache) {
+    return [data, shapeGeom.lines, false, null];
   }
-  return [data, shapeGeom.lines, false];
+  const kept: ShapeOutline = { lines: shapeGeom.lines, outline, stroke, strokeIsGradient };
+  cacheFill(res.cache, item, item, fill, data, kept);
+  return [data, shapeGeom.lines, false, kept];
 }
 
 export default { draw } satisfies MarkModule;
