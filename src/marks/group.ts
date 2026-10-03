@@ -1,27 +1,27 @@
 import { Bounds, sceneVisit } from 'vega-scenegraph';
 import type { ClipRadii, ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneGradient, SceneGroupExt } from '../types/scene.js';
+import type { SceneGroupExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { blendKey } from '../util/blend.js';
-import { isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { rectAttributes } from './rect.js';
 import {
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
-  boxGradientBounds,
   deviceClip,
   enqueueOutline,
   intersectClip,
-  outlineTargetOf,
   withStrokeOffset,
   getMarkResources,
   blendPipelines,
   type MarkModule,
   uniformBindGroup,
+  boxRampOf,
+  targetOf,
+  type Ramp,
 } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
@@ -118,32 +118,29 @@ function draw(
   };
 
   /** Borders held back until after the backgrounds, which is the order canvas paints them in. */
-  const dashed: { data: Float32Array; gradient: SceneGradient | null; bounds: Bounds | undefined; blend: string }[] =
-    [];
+  const dashed: { data: Float32Array; ramp: Ramp | null; blend: string }[] = [];
   /** Where a border that carries its own ramp is enqueued, one draw each. */
-  const outlineTarget = (clip: ClipRect | undefined) => outlineTargetOf(ctx, device, res, uniformBuffer, clip);
+  const outlineTarget = (clip: ClipRect | undefined) =>
+    targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
   // A group asking for strokeForeground has its border held back and enqueued
   // after its own children, which is where vega draws it.
-  const held = new Map<
-    SceneGroupExt,
-    { rect: SceneGroupExt; dash: Float32Array | null; gradient: SceneGradient | null }
-  >();
+  const held = new Map<SceneGroupExt, { rect: SceneGroupExt; dash: Float32Array | null; ramp: Ramp | null }>();
 
   /** One group's background, and the border that goes under its children. */
   const paintBackdrop = (item: SceneGroupExt): void => {
     const blend = blendKey(item.blend);
     const edged = withStrokeOffset(item);
-    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
-    const border = borderInstances(ctx, edged, strokeGradient);
+    const strokeRamp = boxRampOf(item.stroke, item);
+    const border = borderInstances(ctx, edged, strokeRamp);
     const fore = item.strokeForeground === true && item.stroke != null;
     if (fore) {
-      held.set(item, { rect: { ...edged, fill: undefined }, dash: border, gradient: strokeGradient });
+      held.set(item, { rect: { ...edged, fill: undefined }, dash: border, ramp: strokeRamp });
     } else if (border) {
-      dashed.push({ data: border, gradient: strokeGradient, bounds: item.bounds, blend });
+      dashed.push({ data: border, ramp: strokeRamp, blend });
     }
     const drawn = border || fore ? { ...edged, stroke: undefined } : edged;
-    const fill = drawn.fill;
-    if (!isGradient(fill)) {
+    const fillRamp = boxRampOf(drawn.fill, item);
+    if (!fillRamp) {
       if (run.length && blend !== runBlend) {
         flushRun();
       }
@@ -160,7 +157,7 @@ function draw(
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [
         uniformBindGroup(ctx, device, `${drawName}Gradient`, gradientPipeline, uniformBuffer),
-        createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item)),
+        createGradientBindGroup(gradientResources(), gradientPipeline, fillRamp.gradient, fillRamp.bounds),
       ],
       clip: ctx._clip,
     });
@@ -168,7 +165,7 @@ function draw(
 
   const flushDashed = (): void => {
     for (const entry of dashed) {
-      enqueueOutline(outlineTarget(ctx._clip), entry.data, entry.blend, entry.gradient, entry.bounds);
+      enqueueOutline(outlineTarget(ctx._clip), entry.data, entry.ramp, entry.blend);
     }
     dashed.length = 0;
   };
@@ -230,7 +227,7 @@ function draw(
     const fore = held.get(group);
     if (fore) {
       if (fore.dash) {
-        enqueueOutline(outlineTarget(parentClip), fore.dash, blendKey(fore.rect.blend), fore.gradient, group.bounds);
+        enqueueOutline(outlineTarget(parentClip), fore.dash, fore.ramp, blendKey(fore.rect.blend));
       } else {
         // A bind group belongs to the layout of the pipeline it was made from,
         // so a held border under a blend cannot take the plain one.

@@ -1,24 +1,19 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneGradient, SceneSymbolExt } from '../types/scene.js';
+import type { SceneSymbolExt } from '../types/scene.js';
 import geometryForItem, { itemTurn } from '../path/geometryForItem.js';
 import { symbol as symbolShapeGeometry } from '../path/shapes.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
-import { Color, isGradient } from '../util/color.js';
+import { Color } from '../util/color.js';
 import { hasSdf } from '../shaders/symbolSdf.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import {
   outlinePipelines,
   type OutlinePipelines,
   dashPatternOf,
-  enqueueGradient,
   enqueueOutline,
-  enqueueSolid,
-  gradientTargetOf,
-  outlineTargetOf,
-  solidTargetOf,
   strokeOutline,
   vertexData,
   getMarkResources,
@@ -28,9 +23,13 @@ import {
   blendPipelines,
   markPipeline,
   strokeEnds,
-  whiteCarrier,
   type MarkModule,
   uniformBindGroup,
+  enqueueFill,
+  paintColour,
+  rampOf,
+  targetOf,
+  type Ramp,
 } from './util.js';
 
 const drawName = 'Symbol';
@@ -182,26 +181,27 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const dash = dashPatternOf(item);
     // A ramp cannot come out of the distance function either, so a gradient
     // stroke takes the same walk a dash does.
-    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
-    if (dash || strokeGradient) {
+    const strokeRamp = rampOf(item.stroke, item.bounds);
+    const fillRamp = rampOf(item.fill, item.bounds);
+    if (dash || strokeRamp) {
       flushRun();
       // The fill first, which is the order canvas paints them in. Drawn after
       // the dash it covers the inner half of every run.
       const filled = { ...item, stroke: undefined } as SceneSymbolExt;
-      if (isGradient(item.fill)) {
-        drawGradientSymbol(device, ctx, res, filled, blend, clip);
+      if (fillRamp) {
+        drawGradientSymbol(device, ctx, res, filled, fillRamp, blend, clip);
       } else if (item.fill) {
         runBlend = blend;
         run.push(filled);
         flushRun();
       }
-      drawSymbolOutline(device, ctx, res, item, blend, dash, strokeGradient, clip);
+      drawSymbolOutline(device, ctx, res, item, blend, dash, strokeRamp, clip);
       continue;
     }
     // Gradient fills need the gradient pipeline and are drawn one at a time.
-    if (isGradient(item.fill)) {
+    if (fillRamp) {
       flushRun();
-      drawGradientSymbol(device, ctx, res, item, blend, clip);
+      drawGradientSymbol(device, ctx, res, item, fillRamp, blend, clip);
       continue;
     }
     if (run.length > 0 && (blend !== runBlend || !sharesRun(run[0], item))) {
@@ -256,7 +256,7 @@ function drawSymbolOutline(
   item: SceneSymbolExt,
   blend: string,
   pattern: number[] | null,
-  gradient: SceneGradient | null,
+  ramp: Ramp | null,
   clip: ReturnType<typeof markClip>,
 ): void {
   if (!item.stroke) {
@@ -268,9 +268,7 @@ function drawSymbolOutline(
   const data = strokeOutline(
     geom.lines,
     pattern,
-    gradient
-      ? whiteCarrier(item.opacity, item.strokeOpacity)
-      : Color.from(item.stroke, item.opacity, item.strokeOpacity),
+    paintColour(item.stroke, item.opacity, item.strokeOpacity, ramp),
     item.strokeWidth ?? 1,
     item.strokeDashOffset ?? 0,
     item.x || 0,
@@ -282,11 +280,18 @@ function drawSymbolOutline(
     return;
   }
   enqueueOutline(
-    outlineTargetOf(ctx, device, res, res.bufferManager.sharedUniformBuffer(), clip),
+    targetOf(
+      ctx,
+      device,
+      res.outline.name,
+      res.outline,
+      res.bufferManager,
+      res.bufferManager.sharedUniformBuffer(),
+      clip,
+    ),
     data,
+    ramp,
     blend,
-    gradient,
-    item.bounds,
   );
 }
 
@@ -342,40 +347,40 @@ function drawGradientSymbol(
   ctx: GPUVegaCanvasContext,
   res: SymbolResources,
   item: SceneSymbolExt,
+  ramp: Ramp,
   blend: string,
   clip: ReturnType<typeof markClip>,
 ): void {
-  const bounds = item.bounds;
-  if (!bounds) {
-    return;
-  }
   const pathGeom = symbolShapeGeometry(ctx, symbolShape(item), symbolSize(item));
   const geometry = geometryForItem(ctx, item, pathGeom, false, item.x || 0, item.y || 0, {
     angle: itemTurn(item),
     scaleX: 1,
     scaleY: 1,
   });
-  const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, whiteCarrier(item.opacity, item.fillOpacity));
+  const fillData = vertexData(
+    geometry.fillTriangles,
+    geometry.fillCount,
+    paintColour(item.fill, item.opacity, item.fillOpacity, ramp),
+  );
   const strokeData = vertexData(
     geometry.strokeTriangles,
     geometry.strokeCount,
     Color.from(item.stroke, item.opacity, item.strokeOpacity),
   );
-  const uniformBuffer = res.bufferManager.sharedUniformBuffer();
-  const fills = {
-    pipelineFor: res.solidPipelineFor,
-    gradientPipelineFor: res.gradientPipelineFor,
-    bufferManager: res.bufferManager,
-  };
-
+  const target = targetOf(
+    ctx,
+    device,
+    `${drawName}Fill`,
+    { pipelineFor: res.solidPipelineFor, gradientPipelineFor: res.gradientPipelineFor },
+    res.bufferManager,
+    res.bufferManager.sharedUniformBuffer(),
+    clip,
+  );
   if (fillData.length > 0) {
-    const target = gradientTargetOf(ctx, device, `${drawName}Gradient`, fills, uniformBuffer, clip);
-    enqueueGradient(target, fillData, item.fill as SceneGradient, bounds, blend);
+    enqueueFill(target, fillData, ramp, blend);
   }
-
   if (strokeData.length > 0) {
-    const target = solidTargetOf(ctx, device, `${drawName}Solid`, fills, uniformBuffer, clip);
-    enqueueSolid(target, strokeData, blend);
+    enqueueFill(target, strokeData, null, blend);
   }
 }
 

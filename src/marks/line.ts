@@ -1,9 +1,9 @@
 import type { Bounds } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { SceneGradient, SceneLinePoint } from '../types/scene.js';
+import type { SceneLinePoint } from '../types/scene.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
-import { Color, isGradient } from '../util/color.js';
+import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
 import type { Point } from '../types/geometry.js';
@@ -18,7 +18,6 @@ import {
   type OutlinePipelines,
   SEGMENT_STRIDE,
   enqueueOutline,
-  outlineTargetOf,
   vertexData,
   getMarkResources,
   markClip,
@@ -26,10 +25,13 @@ import {
   markPipeline,
   segmentInstances,
   strokeEnds,
-  whiteCarrier,
   writeSegments,
   type MarkModule,
   uniformBindGroup,
+  paintColour,
+  rampOf,
+  targetOf,
+  type Ramp,
 } from './util.js';
 
 const drawName = 'Line';
@@ -199,8 +201,7 @@ function drawOutline(
   res: LineResources,
   points: SceneLinePoint[],
   pattern: number[] | null,
-  gradient: SceneGradient | null,
-  bounds: Bounds | undefined,
+  ramp: Ramp | null,
   clip: ReturnType<typeof markClip>,
 ): void {
   const first = points[0];
@@ -213,25 +214,30 @@ function drawOutline(
   const { caps, join, bridge, square } = strokeEnds(first);
   const runs = pattern ? polylines.flatMap(line => dashPolyline(line, pattern, offset, bridge)) : polylines;
 
-  const col = gradient
-    ? whiteCarrier(first.opacity, first.strokeOpacity)
-    : Color.from(first.stroke, first.opacity, first.strokeOpacity);
+  const col = paintColour(first.stroke, first.opacity, first.strokeOpacity, ramp);
   const data = segmentInstances(runs, col, first.strokeWidth ?? 1, caps, join, square);
   if (!data) {
     return;
   }
 
   const blend = blendKey(first.blend);
-  if (!gradient) {
+  if (!ramp) {
     queueSegments(device, ctx, res, data, clip, blend);
     return;
   }
   enqueueOutline(
-    outlineTargetOf(ctx, device, res, res.bufferManager.sharedUniformBuffer(), clip),
+    targetOf(
+      ctx,
+      device,
+      res.outline.name,
+      res.outline,
+      res.bufferManager,
+      res.bufferManager.sharedUniformBuffer(),
+      clip,
+    ),
     data,
+    ramp,
     blend,
-    gradient,
-    bounds,
   );
 }
 
@@ -565,9 +571,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // A ramp cannot come out of the curve or the extruded path either, so a
   // gradient stroke walks the contour the way a dash does.
   const bounds = scene.bounds ?? points[0]?.bounds;
-  const strokeGradient = isGradient(points[0]?.stroke) && bounds ? (points[0].stroke as SceneGradient) : null;
-  if (pattern || strokeGradient) {
-    drawOutline(device, ctx, res, points, pattern ?? null, strokeGradient, bounds, clip);
+  const strokeRamp = rampOf(points[0]?.stroke, bounds);
+  if (pattern || strokeRamp) {
+    drawOutline(device, ctx, res, points, pattern ?? null, strokeRamp, clip);
     return;
   }
 

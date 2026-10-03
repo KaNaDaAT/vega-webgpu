@@ -12,9 +12,7 @@ import {
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
-  boxGradientBounds,
   enqueueOutline,
-  outlineTargetOf,
   getMarkResources,
   instanceScratch,
   markClip,
@@ -23,6 +21,8 @@ import {
   whiteCarrier,
   type MarkModule,
   uniformBindGroup,
+  boxRampOf,
+  targetOf,
 } from './util.js';
 
 const drawName = 'Rect';
@@ -105,10 +105,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   };
 
   for (const item of items) {
-    const fill = item.fill;
     const blend = blendKey(item.blend);
-    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
-    const border = borderInstances(ctx, item, strokeGradient);
+    const fillRamp = boxRampOf(item.fill, item);
+    const strokeRamp = boxRampOf(item.stroke, item);
+    const border = borderInstances(ctx, item, strokeRamp);
     // A dash or a ramp takes the border off the analytic path, and the stroke
     // comes off the fill with it so it is not drawn solid underneath.
     const filled: SceneRectExt = border ? { ...item, stroke: undefined } : item;
@@ -116,7 +116,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     // The fill first, which is the order canvas paints them in. How the border
     // draws does not decide this: a ramp needs the gradient pipeline either
     // way, and through the plain one it resolves to the placeholder colour.
-    if (isGradient(fill)) {
+    if (fillRamp) {
       flushRun();
       runBlend = blend;
       const gradientPipeline = res.gradientPipelineFor(blend);
@@ -127,7 +127,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         vertexBuffers: [res.geometryBuffer, instanceBuffer],
         bindGroups: [
           uniformBindGroup(ctx, device, `${drawName}Gradient`, gradientPipeline, uniformBuffer),
-          createGradientBindGroup(gradientResources(), gradientPipeline, fill, boxGradientBounds(item)),
+          createGradientBindGroup(gradientResources(), gradientPipeline, fillRamp.gradient, fillRamp.bounds),
         ],
         clip,
       });
@@ -148,11 +148,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
     if (border) {
       enqueueOutline(
-        outlineTargetOf(ctx, device, res, uniformBuffer, clip),
+        targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip),
         border,
+        strokeRamp,
         blend,
-        strokeGradient,
-        item.bounds,
       );
     }
   }

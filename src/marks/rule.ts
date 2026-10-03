@@ -4,7 +4,7 @@ import type { SceneRule } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
-import { Color, isGradient } from '../util/color.js';
+import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import type { Point } from '../types/geometry.js';
 import { dashPolyline } from '../util/dash.js';
@@ -14,16 +14,17 @@ import {
   outlinePipelines,
   type OutlinePipelines,
   enqueueOutline,
-  outlineTargetOf,
   getMarkResources,
   markClip,
   markItems,
   blendPipelines,
   segmentInstances,
   strokeEnds,
-  whiteCarrier,
   type MarkModule,
   uniformBindGroup,
+  paintColour,
+  rampOf,
+  targetOf,
 } from './util.js';
 
 const drawName = 'Rule';
@@ -145,7 +146,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const pattern = dashPatternOf(item);
     // The rect shader draws a rule with a butt end and a solid colour, so a cap
     // or a ramp takes the segment path the diagonal and dashed ones take.
-    const strokeGradient = isGradient(item.stroke) && item.bounds ? item.stroke : null;
+    const strokeRamp = rampOf(item.stroke, item.bounds);
     const shaped = item.strokeCap === 'round' || item.strokeCap === 'square';
     // canvas moves to the point and lines to the same point, which a butt cap
     // renders as nothing. Falling back to the stroke width for both extents
@@ -153,7 +154,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (!shaped && isDegenerate(item)) {
       continue;
     }
-    if (!pattern && !isDiagonal(item) && !strokeGradient && !shaped) {
+    if (!pattern && !isDiagonal(item) && !strokeRamp && !shaped) {
       run.push(item);
       // One draw per item, see needsBackdrop.
       if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
@@ -162,9 +163,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       continue;
     }
     flushRun();
-    const color = strokeGradient
-      ? whiteCarrier(item.opacity, item.strokeOpacity)
-      : Color.from(item.stroke, item.opacity, item.strokeOpacity);
+    const color = paintColour(item.stroke, item.opacity, item.strokeOpacity, strokeRamp);
     const dashed = pattern ? dashedAttributes(item, pattern, color) : null;
     if (pattern && !dashed) {
       continue; // the pattern left nothing drawn
@@ -173,7 +172,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (!data) {
       continue; // a zero length rule has no segment to draw
     }
-    enqueueOutline(outlineTargetOf(ctx, device, res, uniformBuffer, clip), data, blend, strokeGradient, item.bounds);
+    enqueueOutline(
+      targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip),
+      data,
+      strokeRamp,
+      blend,
+    );
   }
   flushRun();
 }

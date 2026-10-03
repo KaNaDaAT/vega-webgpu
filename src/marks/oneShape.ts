@@ -5,25 +5,21 @@ import type { SceneAreaItem } from '../types/scene.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { blendKey } from '../util/blend.js';
-import { Color, isGradient } from '../util/color.js';
 import {
   dashPatternOf,
-  enqueueGradient,
   enqueueMaskedOutline,
   enqueueOutline,
-  outlineTargetOf,
-  enqueueSolid,
   fillResources,
   vertexData,
   getMarkResources,
-  gradientTargetOf,
   markClip,
-  solidTargetOf,
   strokeEnds,
   strokeOutline,
   strokeReach,
-  whiteCarrier,
   type MarkModule,
+  enqueueFill,
+  paintOf,
+  targetOf,
 } from './util.js';
 
 /** The whole mark's shape, built from every one of its items. */
@@ -61,32 +57,21 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
     const item = items[0];
     const blend = blendKey(item.blend);
     const bounds = scene.bounds ?? item.bounds;
-    const gradient = isGradient(item.fill) && bounds ? item.fill : null;
-    const fill = gradient
-      ? whiteCarrier(item.opacity, item.fillOpacity)
-      : Color.from(item.fill, item.opacity, item.fillOpacity);
-    const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
-    const stroke = strokeGradient
-      ? whiteCarrier(item.opacity, item.strokeOpacity)
-      : Color.from(item.stroke, item.opacity, item.strokeOpacity);
+    const fill = paintOf(item.fill, item.opacity, item.fillOpacity, bounds);
+    const stroke = paintOf(item.stroke, item.opacity, item.strokeOpacity, bounds);
 
     // The stroke is walked as segments, so it is left off the geometry.
     const dash = dashPatternOf(item);
     const shapeGeom = shapeOf(ctx, items);
     const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom, true);
-    const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, fill);
+    const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, fill.colour);
 
     const uniformBuffer = res.bufferManager.createUniformBuffer();
     const clip = markClip(ctx, scene);
-    const gradientTarget = gradientTargetOf(ctx, device, `${name}Gradient`, res, uniformBuffer, clip);
-    const solidTarget = solidTargetOf(ctx, device, name, res, uniformBuffer, clip);
+    const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer, clip);
 
     if (fillData.length > 0) {
-      if (gradient && bounds) {
-        enqueueGradient(gradientTarget, fillData, gradient, bounds, blend);
-      } else {
-        enqueueSolid(solidTarget, fillData, blend);
-      }
+      enqueueFill(fillTarget, fillData, fill.ramp, blend);
     }
 
     // After the fill, which is the order canvas paints them in.
@@ -94,7 +79,7 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
       const data = strokeOutline(
         dash ? shapeOf(ctx, items, DASH_FLATNESS).lines : shapeGeom.lines,
         dash,
-        stroke,
+        stroke.colour,
         item.strokeWidth ?? 1,
         item.strokeDashOffset ?? 0,
         0,
@@ -103,13 +88,13 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
         strokeEnds(item),
       );
       if (data) {
-        const outline = outlineTargetOf(ctx, device, res, uniformBuffer, clip);
+        const outline = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
         // A ramp cannot be read back out of a coverage mask, so a gradient
         // stroke goes band by band whatever the mark asked for.
-        if (!maskOutline || (strokeGradient && bounds)) {
-          enqueueOutline(outline, data, blend, strokeGradient, bounds);
+        if (!maskOutline || stroke.ramp) {
+          enqueueOutline(outline, data, stroke.ramp, blend);
         } else {
-          enqueueMaskedOutline(outline, data, blend, stroke, strokeReach(item));
+          enqueueMaskedOutline(outline, data, blend, stroke.colour, strokeReach(item));
         }
       }
     }

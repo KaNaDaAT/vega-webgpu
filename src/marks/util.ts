@@ -21,12 +21,12 @@ import { REPLACE, blendState, buildBlend } from '../util/blend.js';
 import { shaderModule, type ShaderKey } from '../shaders/index.js';
 import { createRenderPipeline, preferredColorFormat } from '../util/webgpu.js';
 import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
-import type { QueueElement } from '../util/renderQueue.js';
+import type { DrawCounts, QueueElement } from '../util/renderQueue.js';
 import type { SceneGroupExt, SceneRectExt, SceneItem } from '../types/scene.js';
-import { Color, type RGBA } from '../util/color.js';
+import { Color, isGradient, type RGBA } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
-import type { SceneGradient } from '../types/scene.js';
+import type { SceneColor, SceneGradient } from '../types/scene.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
 /** A mark renderer module, as registered in marks/index.ts. */
@@ -224,41 +224,79 @@ export function whiteCarrier(opacity = 1, fillOpacity = 1): RGBA {
   return [1, 1, 1, opacity * fillOpacity];
 }
 
+/** A gradient and the box it spans, in the [x, y, w, h] the gradient shaders read. */
+export interface Ramp {
+  gradient: SceneGradient;
+  bounds: [x: number, y: number, w: number, h: number];
+}
+
+/** A fill or a stroke as it draws: the colour its vertices carry, and the ramp that replaces it. */
+export interface Paint {
+  colour: RGBA;
+  ramp: Ramp | null;
+}
+
+/**
+ * The ramp a paint draws from, or null for a flat colour. A gradient spans the
+ * item's bounds, and with none it has nothing to span and draws flat.
+ */
+export function rampOf(value: SceneColor | null | undefined, bounds: Bounds | undefined): Ramp | null {
+  return isGradient(value) && bounds ? { gradient: value, bounds: gradientBounds(bounds) } : null;
+}
+
+/** The same for a rect or a group, which span their own box when they have no bounds. */
+export function boxRampOf(value: SceneColor | null | undefined, item: SceneRectExt): Ramp | null {
+  return isGradient(value) ? { gradient: value, bounds: boxGradientBounds(item) } : null;
+}
+
+/** The colour a paint's vertices carry: white at its opacity under a ramp, its own colour otherwise. */
+export function paintColour(
+  value: SceneColor | null | undefined,
+  opacity: number | undefined,
+  paintOpacity: number | undefined,
+  ramp: Ramp | null,
+): RGBA {
+  return ramp ? whiteCarrier(opacity, paintOpacity) : Color.from(value, opacity, paintOpacity);
+}
+
+/** A fill or a stroke as it draws, for an item that spans its bounds. */
+export function paintOf(
+  value: SceneColor | null | undefined,
+  opacity: number | undefined,
+  paintOpacity: number | undefined,
+  bounds: Bounds | undefined,
+): Paint {
+  const ramp = rampOf(value, bounds);
+  return { colour: paintColour(value, opacity, paintOpacity, ramp), ramp };
+}
+
 /** What a mark needs to paint triangulated geometry from a gradient ramp. */
+/** Where a mark enqueues its fills or its outlines: a pipeline for each paint, the buffers and the clip. */
 export interface DrawTarget {
   ctx: GPUVegaCanvasContext;
   device: GPUDevice;
   name: string;
   pipelineFor: (blend: string) => GPURenderPipeline;
+  gradientPipelineFor: (blend: string) => GPURenderPipeline;
   bufferManager: BufferManager;
   uniformBuffer: GPUBuffer;
   clip: ClipRect | undefined;
 }
 
-/**
- * Where a mark sends geometry that takes its colour from a ramp. Five marks
- * wrote the same eight fields.
- */
-export function gradientTargetOf(
+export function targetOf(
   ctx: GPUVegaCanvasContext,
   device: GPUDevice,
   name: string,
-  res: {
+  pipelines: {
+    pipelineFor: (blend: string) => GPURenderPipeline;
     gradientPipelineFor: (blend: string) => GPURenderPipeline;
-    bufferManager: BufferManager;
   },
+  bufferManager: BufferManager,
   uniformBuffer: GPUBuffer,
   clip: ClipRect | undefined,
 ): DrawTarget {
-  return {
-    ctx,
-    device,
-    name,
-    pipelineFor: res.gradientPipelineFor,
-    bufferManager: res.bufferManager,
-    uniformBuffer,
-    clip,
-  };
+  const { pipelineFor, gradientPipelineFor } = pipelines;
+  return { ctx, device, name, pipelineFor, gradientPipelineFor, bufferManager, uniformBuffer, clip };
 }
 
 /**
@@ -299,73 +337,25 @@ export function markItems<T extends SceneItem>(scene: GPUVegaScene): T[] {
   return out;
 }
 
-/** Where a mark's outline is enqueued, solid or from a ramp. */
-export function outlineTargetOf(
-  ctx: GPUVegaCanvasContext,
-  device: GPUDevice,
-  res: { outline: OutlinePipelines; bufferManager: BufferManager },
-  uniformBuffer: GPUBuffer,
-  clip: ClipRect | undefined,
-): OutlineTarget {
-  return { ...res.outline, ctx, device, bufferManager: res.bufferManager, uniformBuffer, clip };
+/** Queues one buffer of triangles, coloured by its vertices or from a ramp. */
+export function enqueueFill(target: DrawTarget, data: Float32Array, ramp: Ramp | null, blend = 'normal'): void {
+  enqueueDraw(target, ramp, blend, [data.length / GEOMETRY_STRIDE], target.bufferManager.createGeometryBuffer(data));
 }
 
-/** The same target, drawing a flat colour rather than sampling a ramp. */
-export function solidTargetOf(
-  ctx: GPUVegaCanvasContext,
-  device: GPUDevice,
-  name: string,
-  res: {
-    pipelineFor: (blend: string) => GPURenderPipeline;
-    bufferManager: BufferManager;
-  },
-  uniformBuffer: GPUBuffer,
-  clip: ClipRect | undefined,
-): DrawTarget {
-  return {
-    ctx,
-    device,
-    name,
-    pipelineFor: res.pipelineFor,
-    bufferManager: res.bufferManager,
-    uniformBuffer,
-    clip,
-  };
-}
-
-/** Queues one buffer of triangles at a flat colour. */
-export function enqueueSolid(target: DrawTarget, data: Float32Array, blend = 'normal'): void {
-  const { ctx, device } = target;
-  const pipeline = target.pipelineFor(blend);
-  ctx._renderQueue.enqueue({
-    pipeline,
-    drawCounts: [data.length / GEOMETRY_STRIDE],
-    vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
-    bindGroups: [uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer)],
-    clip: target.clip,
-  });
-}
-
-/** Draws geometry whose color comes from a ramp rather than its vertices. */
-export function enqueueGradient(
+function enqueueDraw(
   target: DrawTarget,
-  data: Float32Array,
-  gradient: SceneGradient,
-  bounds: Bounds,
-  blend = 'normal',
+  ramp: Ramp | null,
+  blend: string,
+  drawCounts: DrawCounts,
+  vertexBuffer: GPUBuffer,
 ): void {
   const { ctx, device } = target;
-  const pipeline = target.pipelineFor(blend);
-  ctx._renderQueue.enqueue({
-    pipeline,
-    drawCounts: [data.length / GEOMETRY_STRIDE],
-    vertexBuffers: [target.bufferManager.createGeometryBuffer(data)],
-    bindGroups: [
-      uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer),
-      createGradientBindGroup(getGradientResources(device, ctx), pipeline, gradient, gradientBounds(bounds)),
-    ],
-    clip: target.clip,
-  });
+  const pipeline = ramp ? target.gradientPipelineFor(blend) : target.pipelineFor(blend);
+  const bindGroups = [uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer)];
+  if (ramp) {
+    bindGroups.push(createGradientBindGroup(getGradientResources(device, ctx), pipeline, ramp.gradient, ramp.bounds));
+  }
+  ctx._renderQueue.enqueue({ pipeline, drawCounts, vertexBuffers: [vertexBuffer], bindGroups, clip: target.clip });
 }
 
 /**
@@ -506,14 +496,6 @@ export function blendPipelines(
   return blend => markPipeline(ctx, device, name, shader, vertexManager, fragmentEntryPoint, blend);
 }
 
-export interface OutlineTarget extends OutlinePipelines {
-  ctx: GPUVegaCanvasContext;
-  device: GPUDevice;
-  bufferManager: BufferManager;
-  uniformBuffer: GPUBuffer;
-  clip: ClipRect | undefined;
-}
-
 /**
  * Draws an outline as segments, taking its colour from a ramp when the stroke
  * is a gradient.
@@ -523,29 +505,8 @@ export interface OutlineTarget extends OutlinePipelines {
  * solid with the dash silently dropped. The segment shader has a gradient entry
  * now, so both reach the same draw.
  */
-export function enqueueOutline(
-  target: OutlineTarget,
-  data: Float32Array,
-  blend: string,
-  gradient: SceneGradient | null,
-  bounds: Bounds | undefined,
-): void {
-  const { ctx, device } = target;
-  const ramp = gradient !== null && bounds !== undefined;
-  const pipeline = ramp ? target.gradientPipelineFor(blend) : target.pipelineFor(blend);
-  const bindGroups = [uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer)];
-  if (ramp) {
-    bindGroups.push(
-      createGradientBindGroup(getGradientResources(device, ctx), pipeline, gradient, gradientBounds(bounds as Bounds)),
-    );
-  }
-  ctx._renderQueue.enqueue({
-    pipeline,
-    drawCounts: [6, data.length / SEGMENT_STRIDE],
-    vertexBuffers: [target.bufferManager.createInstanceBuffer(data)],
-    bindGroups,
-    clip: target.clip,
-  });
+export function enqueueOutline(target: DrawTarget, data: Float32Array, ramp: Ramp | null, blend: string): void {
+  enqueueDraw(target, ramp, blend, [6, data.length / SEGMENT_STRIDE], target.bufferManager.createInstanceBuffer(data));
 }
 
 /** What drawing a clip path's coverage needs. */
@@ -766,7 +727,7 @@ export function strokeReach(item: { strokeWidth?: number; strokeJoin?: string; s
  * cost follows the mark and not the canvas.
  */
 export function enqueueMaskedOutline(
-  target: OutlineTarget,
+  target: DrawTarget,
   data: Float32Array,
   blend: string,
   color: RGBA,
@@ -1116,13 +1077,9 @@ export function withStrokeOffset(item: SceneGroupExt): SceneGroupExt {
  * when a pattern is set and whole when it is not. Returns null when the item
  * has no border this has to draw.
  */
-export function borderInstances(
-  ctx: GPUVegaCanvasContext,
-  item: SceneRectExt,
-  gradient: SceneGradient | null,
-): Float32Array | null {
+export function borderInstances(ctx: GPUVegaCanvasContext, item: SceneRectExt, ramp: Ramp | null): Float32Array | null {
   const pattern = dashPatternOf(item);
-  if ((!pattern && !gradient) || !item.stroke) {
+  if ((!pattern && !ramp) || !item.stroke) {
     return null;
   }
   const [x, y, w, h] = rectBox(item);
@@ -1141,9 +1098,7 @@ export function borderInstances(
   ];
   const { caps, join, bridge, square } = strokeEnds(item);
   const runs = pattern ? outline.flatMap(line => dashPolyline(line, pattern, offset, bridge)) : outline;
-  const color = gradient
-    ? whiteCarrier(item.opacity, item.strokeOpacity)
-    : Color.from(item.stroke, item.opacity, item.strokeOpacity);
+  const color = paintColour(item.stroke, item.opacity, item.strokeOpacity, ramp);
   return segmentInstances(runs, color, item.strokeWidth ?? 1, caps, join, square);
 }
 

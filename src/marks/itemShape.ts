@@ -6,28 +6,24 @@ import type { FillStyle, SceneItem, StrokeStyle } from '../types/scene.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem from '../path/geometryForItem.js';
 import { blendKey, needsBackdrop } from '../util/blend.js';
-import { Color, isGradient } from '../util/color.js';
 import { GeometryBatch } from '../util/geometryBatch.js';
 import {
   cachedGeometryData,
   dashPatternOf,
-  enqueueGradient,
   enqueueOutline,
-  enqueueSolid,
   fillResources,
   vertexData,
   getMarkResources,
-  gradientTargetOf,
   markClip,
   markItems,
-  outlineTargetOf,
-  solidTargetOf,
   strokeEnds,
   strokeOutline,
-  whiteCarrier,
   type FillResources,
   type GeometryCache,
   type MarkModule,
+  enqueueFill,
+  paintOf,
+  targetOf,
 } from './util.js';
 
 /** One item's shape, at the given curve flatness. */
@@ -81,9 +77,8 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
     }));
     const uniformBuffer = res.bufferManager.createUniformBuffer();
     const clip = markClip(ctx, scene);
-    const gradientTarget = gradientTargetOf(ctx, device, `${name}Gradient`, res, uniformBuffer, clip);
-    const solidTarget = solidTargetOf(ctx, device, name, res, uniformBuffer, clip);
-    const outlineTarget = outlineTargetOf(ctx, device, res, uniformBuffer, clip);
+    const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer, clip);
+    const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
 
     // Solid fills and strokes share one pipeline and are accumulated in paint
     // order into a single buffer/draw. Gradient fills interrupt the batch.
@@ -93,7 +88,7 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
     const flushBatch = () => {
       const data = batch.flush();
       if (data) {
-        enqueueSolid(solidTarget, data, batchBlend);
+        enqueueFill(fillTarget, data, null, batchBlend);
       }
     };
 
@@ -103,15 +98,8 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
         flushBatch();
         batchBlend = blend;
       }
-      const bounds = item.bounds;
-      const gradient = isGradient(item.fill) && bounds ? item.fill : null;
-      const fill = gradient
-        ? whiteCarrier(item.opacity, item.fillOpacity)
-        : Color.from(item.fill, item.opacity, item.fillOpacity);
-      const strokeGradient = isGradient(item.stroke) && bounds ? item.stroke : null;
-      const stroke = strokeGradient
-        ? whiteCarrier(item.opacity, item.strokeOpacity)
-        : Color.from(item.stroke, item.opacity, item.strokeOpacity);
+      const fill = paintOf(item.fill, item.opacity, item.fillOpacity, item.bounds);
+      const stroke = paintOf(item.stroke, item.opacity, item.strokeOpacity, item.bounds);
 
       const dash = dashPatternOf(item);
       const transform = transformOf?.(item);
@@ -125,13 +113,13 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
       const strokeItem = { ...item, stroke: undefined };
       const build = (): Float32Array => {
         const geometry = geometryForItem(ctx, strokeItem, shape(), false, item.x || 0, item.y || 0, transform);
-        return vertexData(geometry.fillTriangles, geometry.fillCount, fill);
+        return vertexData(geometry.fillTriangles, geometry.fillCount, fill.colour);
       };
-      const fillData = cached ? cachedGeometryData(res.cache, strokeItem, fill, build) : build();
+      const fillData = cached ? cachedGeometryData(res.cache, strokeItem, fill.colour, build) : build();
 
-      if (fillData.length > 0 && gradient && bounds) {
+      if (fillData.length > 0 && fill.ramp) {
         flushBatch();
-        enqueueGradient(gradientTarget, fillData, gradient, bounds, blend);
+        enqueueFill(fillTarget, fillData, fill.ramp, blend);
       } else {
         batch.push(fillData);
       }
@@ -141,7 +129,7 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
         const data = strokeOutline(
           dash ? shapeOf(ctx, item, DASH_FLATNESS).lines : shape().lines,
           dash,
-          stroke,
+          stroke.colour,
           item.strokeWidth ?? 1,
           item.strokeDashOffset ?? 0,
           item.x || 0,
@@ -151,7 +139,7 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
         );
         if (data) {
           flushBatch();
-          enqueueOutline(outlineTarget, data, blend, strokeGradient, bounds);
+          enqueueOutline(outlineTarget, data, stroke.ramp, blend);
         }
       }
       // One draw per item, see needsBackdrop.
