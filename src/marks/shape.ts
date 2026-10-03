@@ -17,14 +17,13 @@ import {
   enqueueOutline,
   vertexData,
   getMarkResources,
-  MAX_GEOMETRY_CACHE,
   markClip,
   markItems,
-  copyBounds,
-  recolor,
-  sameBounds,
+  cacheFill,
+  cachedFill,
+  geometryCache,
   sameColor,
-  type BoundsSnapshot,
+  type GeometryCache,
   fillResources,
   type FillResources,
   strokeEnds,
@@ -39,20 +38,14 @@ import {
 
 const drawName = 'Shape';
 
-interface ShapeCacheEntry {
-  fill: RGBA;
-  stroke: RGBA;
-  x?: number;
-  y?: number;
-  angle?: number;
-  bounds?: BoundsSnapshot;
-  strokeWidth?: number;
-  strokeIsGradient: boolean;
-  data: Float32Array;
+/** What a cached shape keeps beside its fill, for the outline. */
+interface ShapeOutline {
   /** Contours the outline is built from, so a hit never re-runs the shape generator. */
   lines: Point[][];
   /** What the outline is cut and ended by, which the fill geometry says nothing about. */
   outline: string;
+  stroke: RGBA;
+  strokeIsGradient: boolean;
 }
 
 /**
@@ -80,7 +73,7 @@ interface ShapeResources extends FillResources {
    * them would leave every draw reading whichever mark wrote last.
    */
   outlineState: WeakMap<GPUVegaScene, OutlineState>;
-  cache: Map<unknown, ShapeCacheEntry>;
+  cache: GeometryCache<ShapeOutline>;
 }
 
 function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): ShapeResources {
@@ -88,7 +81,7 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     ...fillResources(ctx, device, vb, drawName, `${drawName}Stroke`),
     outlines: new OutlineBuffer(),
     outlineState: new WeakMap(),
-    cache: new Map(),
+    cache: geometryCache<ShapeOutline>(),
   }));
 }
 
@@ -291,15 +284,6 @@ class OutlineBuffer {
   }
 }
 
-/**
- * The item itself, which vega keeps across re-renders of the same tuple. A
- * datum id is not unique: a county split across several polygons is several
- * items sharing one id, and they would then share one entry.
- */
-function cacheKey(item: SceneShapeItem): unknown {
-  return item;
-}
-
 function createGeometryData(
   ctx: GPUVegaCanvasContext,
   res: ShapeResources,
@@ -309,36 +293,23 @@ function createGeometryData(
   useCache: boolean,
   geom: () => PathGeometry,
 ): [fillData: Float32Array, lines: Point[][], unchanged: boolean] {
-  const key = cacheKey(item);
   const fill = fillPaint.colour;
   const stroke = strokePaint.colour;
   const strokeIsGradient = strokePaint.ramp !== null;
 
   const outline = outlineSignature(item);
-  if (useCache) {
-    const entry = res.cache.get(key);
-    if (
-      entry &&
-      strokeIsGradient === entry.strokeIsGradient &&
-      item.strokeWidth === entry.strokeWidth &&
-      item.x === entry.x &&
-      item.y === entry.y &&
-      item.angle === entry.angle &&
-      sameBounds(item.bounds, entry.bounds)
-    ) {
-      // re-insert to keep the map in least-recently-used order
-      res.cache.delete(key);
-      res.cache.set(key, entry);
-      const heldOutline = outline === entry.outline;
-      entry.outline = outline;
-      if (sameColor(entry.fill, fill) && sameColor(entry.stroke, stroke)) {
-        return [entry.data, entry.lines, heldOutline];
-      }
-      // geometry unchanged, rewrite only the colors
-      const data = new Float32Array(entry.data.length);
-      recolor(data, entry.data, fill);
-      return [data, entry.lines, false];
-    }
+  // Keyed by the item itself, which vega keeps across re-renders of the same
+  // tuple. A datum id is not unique: a county split across several polygons is
+  // several items sharing one id, and they would then share one entry.
+  const entry = useCache ? cachedFill(res.cache, item, item, fill) : undefined;
+  if (entry) {
+    const kept = entry.extra;
+    const unchanged =
+      outline === kept.outline && strokeIsGradient === kept.strokeIsGradient && sameColor(stroke, kept.stroke);
+    kept.outline = outline;
+    kept.stroke = stroke;
+    kept.strokeIsGradient = strokeIsGradient;
+    return [entry.data, kept.lines, unchanged];
   }
 
   // the outline draws as segments, so the triangulation only builds the fill
@@ -353,25 +324,7 @@ function createGeometryData(
   const data = vertexData(geometry.fillTriangles, geometry.fillCount, fill);
 
   if (useCache) {
-    if (res.cache.size >= MAX_GEOMETRY_CACHE) {
-      const oldest = res.cache.keys().next().value;
-      if (oldest !== undefined) {
-        res.cache.delete(oldest);
-      }
-    }
-    res.cache.set(key, {
-      fill,
-      stroke,
-      x: item.x,
-      y: item.y,
-      angle: item.angle,
-      bounds: copyBounds(item.bounds),
-      strokeWidth: item.strokeWidth,
-      strokeIsGradient,
-      data,
-      lines: shapeGeom.lines,
-      outline,
-    });
+    cacheFill(res.cache, item, item, fill, data, { lines: shapeGeom.lines, outline, stroke, strokeIsGradient });
   }
   return [data, shapeGeom.lines, false];
 }

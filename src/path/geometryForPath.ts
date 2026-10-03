@@ -4,6 +4,7 @@ import triangulate from 'triangulate-contours';
 import { pathParse, pathRender } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { PathGeometry, Point } from '../types/geometry.js';
+import { setVariant } from '../util/lru.js';
 import { warnOnce } from '../util/warn.js';
 
 const EMPTY: PathGeometry = { lines: [], triangles: [], z: 0 };
@@ -174,8 +175,8 @@ export default function geometryForPath(
   const dpi = context._uniforms.dpi || 1;
   const flatness = scale ?? CURVE_FLATNESS * dpi;
 
-  const cacheKey = `${flatness}|${scaleX}|${scaleY}|${path}`;
-  const cached = context._pathCache[cacheKey];
+  const variant = `${flatness}|${scaleX}|${scaleY}`;
+  const cached = context._pathCache.get(path)?.get(variant);
   if (cached !== undefined) {
     return cached;
   }
@@ -232,14 +233,8 @@ export default function geometryForPath(
     triangles,
     z,
     // geometryForItem caches on this, and the flatness and scale shape it too
-    key: cacheKey,
+    key: { path, variant },
   };
-
-  context._pathCache[cacheKey] = geom;
-  context._pathCacheSize++;
-  if (context._pathCacheSize > 10000) {
-    context._pathCache = {};
-    context._pathCacheSize = 0;
-  }
+  setVariant(context._pathCache, path, variant, geom);
   return geom;
 }

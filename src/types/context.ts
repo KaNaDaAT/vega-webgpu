@@ -3,6 +3,7 @@ import type { Bounds, PathSink } from 'vega-scenegraph';
 import type WebGPURenderer from '../WebGPURenderer.js';
 import type { RenderQueue } from '../util/renderQueue.js';
 import type { ItemGeometry, PathGeometry } from './geometry.js';
+import type { LruMap } from '../util/lru.js';
 import type { SceneGroupExt, SceneItem } from './scene.js';
 
 /** Scissor rectangle in physical (device) pixels: x, y, width, height. */
@@ -154,8 +155,8 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   /** Per-mark GPU resources (pipelines, buffers), keyed by mark type. */
   _markCache: Record<string, unknown>;
 
-  _pathCache: Record<string, PathGeometry>;
-  _pathCacheSize: number;
-  _geometryCache: Record<string, ItemGeometry>;
-  _geometryCacheSize: number;
+  /** Traced and triangulated paths, keyed by the path and then its flatness and scale. */
+  _pathCache: LruMap<string, Map<string, PathGeometry>>;
+  /** Item geometry built on a cached path, keyed by the path and then what else shaped it. */
+  _geometryCache: LruMap<string, Map<string, ItemGeometry>>;
 };

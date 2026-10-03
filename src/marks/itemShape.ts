@@ -10,6 +10,8 @@ import { DrawRun } from '../util/drawRun.js';
 import { joinChunks } from '../util/geometryBatch.js';
 import {
   cachedGeometryData,
+  geometryCache,
+  itemKey,
   dashPatternOf,
   enqueueOutline,
   fillResources,
@@ -75,7 +77,7 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
 
     const res = getMarkResources<Resources>(ctx, type, device, vb, () => ({
       ...fillResources(ctx, device, vb, name),
-      cache: new Map(),
+      cache: geometryCache(),
     }));
     const uniformBuffer = res.bufferManager.createUniformBuffer();
     const clip = markClip(ctx, scene);
@@ -110,7 +112,7 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
         const geometry = geometryForItem(ctx, strokeItem, shape(), false, item.x || 0, item.y || 0, transform);
         return vertexData(geometry.fillTriangles, geometry.fillCount, fill.colour);
       };
-      const fillData = cached ? cachedGeometryData(res.cache, strokeItem, fill.colour, build) : build();
+      const fillData = cached ? cachedGeometryData(res.cache, itemKey(item), item, fill.colour, build) : build();
 
       if (fillData.length > 0 && fill.ramp) {
         run.flush();

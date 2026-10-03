@@ -4,7 +4,8 @@ import type { SceneSymbolExt } from '../types/scene.js';
 import geometryForItem, { itemTurn } from '../path/geometryForItem.js';
 import { symbol as symbolShapeGeometry } from '../path/shapes.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
-import { BufferManager } from '../util/bufferManager.js';
+import { BufferManager, bufferPool } from '../util/bufferManager.js';
+import { LruMap } from '../util/lru.js';
 import { blendKey } from '../util/blend.js';
 import { Color } from '../util/color.js';
 import { hasSdf } from '../shaders/symbolSdf.js';
@@ -54,7 +55,7 @@ interface SymbolResources {
   circlePipelineFor: (blend: string) => GPURenderPipeline;
   // Triangulated shapes, instanced per (shape, size).
   shapePipelineFor: (blend: string) => GPURenderPipeline;
-  shapeCache: Map<string, ShapeGeometry>;
+  shapeCache: LruMap<string, ShapeGeometry>;
   /** Pipelines for an outline drawn through the segment shader. */
   outline: OutlinePipelines;
   sdfVertexManager: VertexBufferManager;
@@ -103,7 +104,15 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       bufferManager,
       circlePipelineFor,
       shapePipelineFor,
-      shapeCache: new Map(),
+      // a draw queued this frame may still read an evicted one, so the pool frees it later
+      shapeCache: new LruMap<string, ShapeGeometry>(MAX_SHAPE_CACHE, ({ fill, stroke }) => {
+        if (fill) {
+          bufferPool(device).hold(fill);
+        }
+        if (stroke) {
+          bufferPool(device).hold(stroke);
+        }
+      }),
       outline,
       sdfVertexManager,
       quadGeometry,
@@ -392,8 +401,6 @@ function getShapeGeometry(
 ): ShapeGeometry {
   const cached = res.shapeCache.get(key);
   if (cached) {
-    res.shapeCache.delete(key);
-    res.shapeCache.set(key, cached);
     return cached;
   }
   const pathGeom = symbolShapeGeometry(ctx, shape, size);
@@ -415,21 +422,6 @@ function getShapeGeometry(
         : null,
     strokeCount: geometry.strokeCount,
   };
-  if (res.shapeCache.size >= MAX_SHAPE_CACHE) {
-    const oldest = res.shapeCache.keys().next().value;
-    if (oldest !== undefined) {
-      const evicted = res.shapeCache.get(oldest);
-      res.shapeCache.delete(oldest);
-      if (evicted) {
-        if (evicted.fill) {
-          ctx._renderer.deferDestroy(evicted.fill);
-        }
-        if (evicted.stroke) {
-          ctx._renderer.deferDestroy(evicted.stroke);
-        }
-      }
-    }
-  }
   res.shapeCache.set(key, entry);
   return entry;
 }

@@ -24,6 +24,7 @@ import type { SceneGroupExt, SceneRectExt, SceneItem } from '../types/scene.js';
 import { Color, isGradient, type RGBA } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { createUniformBindGroup } from '../util/webgpu.js';
+import { LruMap } from '../util/lru.js';
 import type { SceneColor, SceneGradient } from '../types/scene.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
 
@@ -1145,7 +1146,7 @@ export interface CacheableItem {
 
 export type BoundsSnapshot = { x1: number; y1: number; x2: number; y2: number };
 
-export interface GeometryCacheEntry {
+export interface GeometryCacheEntry<E = undefined> {
   fill: RGBA;
   x?: number;
   y?: number;
@@ -1156,16 +1157,22 @@ export interface GeometryCacheEntry {
   scaleX?: number;
   scaleY?: number;
   data: Float32Array;
+  /** What the caller keeps beside the data. */
+  extra: E;
 }
 
-export type GeometryCache = Map<unknown, GeometryCacheEntry>;
+export type GeometryCache<E = undefined> = LruMap<unknown, GeometryCacheEntry<E>>;
 
-// Bounds a per-context geometry cache so a streaming session, where every
-// frame brings new datum ids, cannot grow one without limit.
-export const MAX_GEOMETRY_CACHE = 4096;
+/**
+ * A per-context geometry cache, bounded so a streaming session, where every
+ * frame brings new datum ids, cannot grow one without limit.
+ */
+export function geometryCache<E = undefined>(): GeometryCache<E> {
+  return new LruMap(4096);
+}
 
 /** Identifies an item across frames: vega keeps tuple ids on a symbol. */
-function cacheKey(item: CacheableItem): unknown {
+export function itemKey(item: CacheableItem): unknown {
   if (item.datum?.id != null) {
     return item.datum.id;
   }
@@ -1218,47 +1225,48 @@ export function recolor(data: Float32Array, source: Float32Array, color: RGBA): 
 }
 
 /**
- * Returns the item's fill vertex data, building it only when the geometry
- * changed. A colour-only change rewrites the colours over the cached positions
- * instead of triangulating again.
+ * The cache entry for an item whose geometry has not changed since it was
+ * built. A colour-only change rewrites the colours over the cached positions
+ * instead of triangulating again, and keeps them.
  */
-export function cachedGeometryData(
-  cache: GeometryCache,
+export function cachedFill<E>(
+  cache: GeometryCache<E>,
+  key: unknown,
   item: CacheableItem,
   fill: RGBA,
-  build: () => Float32Array,
-): Float32Array {
-  const key = cacheKey(item);
+): GeometryCacheEntry<E> | undefined {
   const entry = cache.get(key);
   if (
-    entry &&
-    item.strokeWidth === entry.strokeWidth &&
-    item.x === entry.x &&
-    item.y === entry.y &&
-    item.path === entry.path &&
-    item.angle === entry.angle &&
-    item.scaleX === entry.scaleX &&
-    item.scaleY === entry.scaleY &&
-    sameBounds(item.bounds, entry.bounds)
+    !entry ||
+    item.strokeWidth !== entry.strokeWidth ||
+    item.x !== entry.x ||
+    item.y !== entry.y ||
+    item.path !== entry.path ||
+    item.angle !== entry.angle ||
+    item.scaleX !== entry.scaleX ||
+    item.scaleY !== entry.scaleY ||
+    !sameBounds(item.bounds, entry.bounds)
   ) {
-    // re-insert to keep the map in least-recently-used order
-    cache.delete(key);
-    cache.set(key, entry);
-    if (sameColor(entry.fill, fill)) {
-      return entry.data;
-    }
+    return undefined;
+  }
+  if (!sameColor(entry.fill, fill)) {
     const data = new Float32Array(entry.data.length);
     recolor(data, entry.data, fill);
-    return data;
+    entry.fill = fill;
+    entry.data = data;
   }
+  return entry;
+}
 
-  const data = build();
-  if (cache.size >= MAX_GEOMETRY_CACHE) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) {
-      cache.delete(oldest);
-    }
-  }
+/** Keeps an item's freshly built fill vertex data, for cachedFill to find. */
+export function cacheFill<E>(
+  cache: GeometryCache<E>,
+  key: unknown,
+  item: CacheableItem,
+  fill: RGBA,
+  data: Float32Array,
+  extra: E,
+): void {
   cache.set(key, {
     fill,
     x: item.x,
@@ -1270,6 +1278,23 @@ export function cachedGeometryData(
     scaleX: item.scaleX,
     scaleY: item.scaleY,
     data,
+    extra,
   });
+}
+
+/** The item's fill vertex data, building it only when the geometry changed. */
+export function cachedGeometryData(
+  cache: GeometryCache,
+  key: unknown,
+  item: CacheableItem,
+  fill: RGBA,
+  build: () => Float32Array,
+): Float32Array {
+  const entry = cachedFill(cache, key, item, fill);
+  if (entry) {
+    return entry.data;
+  }
+  const data = build();
+  cacheFill(cache, key, item, fill, data, undefined);
   return data;
 }

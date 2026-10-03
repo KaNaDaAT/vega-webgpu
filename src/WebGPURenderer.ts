@@ -8,6 +8,7 @@ import { GpuTimer } from './util/gpuTimer.js';
 import { RenderQueue, type FrameTargets } from './util/renderQueue.js';
 import resize, { pixelRatio } from './util/resize.js';
 import { bufferPool } from './util/bufferManager.js';
+import { LruMap } from './util/lru.js';
 import { defaultSampleCount, normalizeSampleCount, preferredColorFormat } from './util/webgpu.js';
 
 const viewBounds = (origin: readonly [number, number], width: number, height: number) =>
@@ -164,10 +165,8 @@ export default class WebGPURenderer extends Renderer {
     ctx._shaderCache = {};
     ctx._pipelineCache = {};
     ctx._markCache = {};
-    ctx._pathCache = {};
-    ctx._pathCacheSize = 0;
-    ctx._geometryCache = {};
-    ctx._geometryCacheSize = 0;
+    ctx._pathCache = new LruMap(10_000);
+    ctx._geometryCache = new LruMap(10_000);
     this._ctx = ctx;
 
     // this method will invoke resize to size the canvas appropriately

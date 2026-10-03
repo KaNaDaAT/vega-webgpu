@@ -1,3 +1,5 @@
+import { LruMap } from './lru.js';
+
 // A scene has few distinct group offsets, so this collapses to a handful.
 const MAX_UNIFORM_CACHE = 128;
 
@@ -83,7 +85,10 @@ export function uploadBuffer(
 }
 
 export class BufferManager {
-  private uniformCache = new Map<string, GPUBuffer>();
+  // a draw queued this frame may still read an evicted one, so the pool frees it later
+  private uniformCache = new LruMap<string, GPUBuffer>(MAX_UNIFORM_CACHE, buffer =>
+    bufferPool(this.device).hold(buffer),
+  );
   private resolution: [width: number, height: number] = [0, 0];
   private offset: [x: number, y: number] = [0, 0];
   private dpi = 1;
@@ -116,29 +121,17 @@ export class BufferManager {
     const values = this.uniformValues();
     const key = values.join(',');
     let buffer = this.uniformCache.get(key);
-    if (buffer) {
-      // re-insert to keep the map in least-recently-used order
-      this.uniformCache.delete(key);
+    if (!buffer) {
+      // cached across frames by value, so it cannot come from the frame pool
+      buffer = uploadBuffer(
+        this.device,
+        `${this.bufferName} Uniform`,
+        values,
+        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        true,
+      );
       this.uniformCache.set(key, buffer);
-      return buffer;
     }
-    // cached across frames by value, so it cannot come from the frame pool
-    buffer = uploadBuffer(
-      this.device,
-      `${this.bufferName} Uniform`,
-      values,
-      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      true,
-    );
-    if (this.uniformCache.size >= MAX_UNIFORM_CACHE) {
-      const oldest = this.uniformCache.keys().next().value;
-      if (oldest !== undefined) {
-        // a draw queued this frame may still read it, so the pool frees it later
-        bufferPool(this.device).hold(this.uniformCache.get(oldest) as GPUBuffer);
-        this.uniformCache.delete(oldest);
-      }
-    }
-    this.uniformCache.set(key, buffer);
     return buffer;
   }
 

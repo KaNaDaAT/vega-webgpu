@@ -8,7 +8,8 @@ export interface PathGeometry {
   /** Flat [x, y, z] triples forming fill triangles. */
   triangles: number[];
   z: number;
-  key?: string;
+  /** The path and the flatness and scale it was traced at, for geometryForItem to cache on. */
+  key?: { path: string; variant: string };
 }
 
 /** Per-item fill/stroke triangle buffers, produced by geometryForItem. */

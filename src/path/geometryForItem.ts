@@ -4,6 +4,7 @@ import type { ItemGeometry, PathGeometry, Point } from '../types/geometry.js';
 import type { FillStyle, StrokeStyle } from '../types/scene.js';
 import { samePoint } from '../util/dash.js';
 import { joinStyleOf } from '../util/join.js';
+import { setVariant } from '../util/lru.js';
 
 /** extrude-polyline knows miter and bevel, so a round join takes the miter. */
 function extrudeJoin(strokeJoin: string | undefined): 'miter' | 'bevel' {
@@ -97,12 +98,12 @@ export default function geometryForItem(
   // The path alone does not determine the geometry: stroke width, cap and the
   // item translation all move vertices, and whether a fill or stroke is built
   // at all changes what comes back.
-  const key =
-    !cache || shapeGeom.key === undefined
-      ? undefined
-      : `${shapeGeom.key}|${lineWidth}|${lineCap}|${lineJoin}|${miterLimit}|${dx}|${dy}|${angle}|${scaleX}|${scaleY}|${fill ? 1 : 0}|${strokeOn ? 1 : 0}`;
-  if (key !== undefined) {
-    const entry = context._geometryCache[key];
+  const source = cache ? shapeGeom.key : undefined;
+  const variant =
+    source &&
+    `${source.variant}|${lineWidth}|${lineCap}|${lineJoin}|${miterLimit}|${dx}|${dy}|${angle}|${scaleX}|${scaleY}|${fill ? 1 : 0}|${strokeOn ? 1 : 0}`;
+  if (source && variant) {
+    const entry = context._geometryCache.get(source.path)?.get(variant);
     if (entry) {
       return entry;
     }
@@ -204,13 +205,8 @@ export default function geometryForItem(
     strokeCount: strokeVertexCount,
   };
 
-  if (key !== undefined) {
-    context._geometryCache[key] = result;
-    context._geometryCacheSize++;
-    if (context._geometryCacheSize > 10000) {
-      context._geometryCache = {};
-      context._geometryCacheSize = 0;
-    }
+  if (source && variant) {
+    setVariant(context._geometryCache, source.path, variant, result);
   }
 
   return result;
