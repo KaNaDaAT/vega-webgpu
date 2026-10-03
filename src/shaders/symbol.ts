@@ -2,7 +2,7 @@ import { FILL_STROKE_SHARE, TO_NDC, fragmentTail, uniformBlock } from './common.
 
 /** Analytic circles: one instanced quad per symbol, edge and stroke by distance. */
 export const symbolShader = (blend: string): string => `
-${uniformBlock('dpi')}
+${uniformBlock()}
 
 ${TO_NDC}
 
@@ -60,7 +60,7 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // distance from the symbol center, in logical pixels
     let d = distance(in.uv, vec2<f32>(0.5, 0.5)) * 2.0 * in.geom_radius;
-    let scale = max(uniforms.dpi, 0.001);
+    let scale = dpi();
     let half_sw = in.stroke_width * 0.5;
     let outer = clamp(0.5 - (d - in.radius - half_sw) * scale, 0.0, 1.0);
     let inner = clamp(0.5 - (d - in.radius + half_sw) * scale, 0.0, 1.0);

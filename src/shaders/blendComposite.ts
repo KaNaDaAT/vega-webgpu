@@ -1,3 +1,5 @@
+import { UNPREMULTIPLY } from './common.js';
+
 /**
  * What a mode does, as the CSS compositing spec writes it.
  *
@@ -49,7 +51,6 @@ const MODES: Record<string, Mode> = {
 
 /** Every mode this can evaluate, which is every one canvas has. */
 export const BLEND_MODES: readonly string[] = Object.keys(MODES);
-
 
 const BLEND_HELPERS = `fn blendHardLight(cb: vec3<f32>, cs: vec3<f32>) -> vec3<f32> {
     return select(1.0 - 2.0 * (1.0 - cb) * (1.0 - cs), 2.0 * cb * cs, cs <= vec3<f32>(0.5));
@@ -127,6 +128,8 @@ export const blendCompositeShader = (blend: string): string => {
   return `
 ${BLEND_HELPERS}
 
+${UNPREMULTIPLY}
+
 @group(0) @binding(0) var layerTexture: texture_2d<f32>;
 @group(0) @binding(1) var backdropTexture: texture_2d<f32>;
 
@@ -159,8 +162,8 @@ ${
     }`
 }
     let ba = dst.a;
-    let cs = src.rgb / max(sa, 1e-6);
-    let cb = dst.rgb / max(ba, 1e-6);
+    let cs = unpremultiply(src);
+    let cb = unpremultiply(dst);
     // the source with the blend already folded into the part the backdrop
     // covers, which is what the operator weights go on
     let csp = (1.0 - ba) * cs + ba * (${mode.blend ?? 'cs'});

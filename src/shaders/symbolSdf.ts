@@ -98,7 +98,7 @@ export const symbolSdfShader = (blend: string, shape?: string): string => {
     throw new Error(`[vega-webgpu] No distance function for symbol shape '${shape}'.`);
   }
   return `
-${uniformBlock('dpi')}
+${uniformBlock()}
 
 ${TO_NDC}
 
@@ -215,7 +215,7 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
  * only express quarter steps.
  */
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
-    let d = max(uniforms.dpi, 0.001);
+    let d = dpi();
     let half_sw = in.stroke_width * 0.5;
     let outer = clamp(0.5 - shapeDistance(in.local, in.size, half_sw) * d, 0.0, 1.0);
     let inner = clamp(0.5 - shapeDistance(in.local, in.size, -half_sw) * d, 0.0, 1.0);

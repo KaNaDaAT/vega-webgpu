@@ -5,29 +5,32 @@
  */
 
 /**
- * The group 0 uniform block. Every mark shader binds one, and `extra` names
- * the trailing f32 fields a particular mark adds.
+ * The group 0 uniform block every mark shader binds, laid out the way
+ * BufferManager writes it, with `dpi()` for the shaders that measure in device
+ * pixels.
  */
-export function uniformBlock(...extra: string[]): string {
-  const fields = [
-    'resolution: vec2<f32>',
-    'offset: vec2<f32>',
-    // the clipping box and its corner radii, both in device pixels
-    'clip: vec4<f32>',
-    'clipRadii: vec4<f32>',
-    // x is 1 where a clip path has a coverage mask to be read, 0 otherwise
-    'clipMask: vec4<f32>',
-    ...extra.map(name => `${name}: f32`),
-  ];
+export function uniformBlock(): string {
   return `struct Uniforms {
-  ${fields.join(',\n  ')},
+  resolution: vec2<f32>,
+  offset: vec2<f32>,
+  // the clipping box and its corner radii, both in device pixels
+  clip: vec4<f32>,
+  clipRadii: vec4<f32>,
+  // x is 1 where a clip path has a coverage mask to be read, 0 otherwise
+  clipMask: vec4<f32>,
+  dpi: f32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 
 // Coverage of the clip path, where the clip is one. A 1x1 placeholder is bound
 // when it is not, and the clipMask flag is what stops anything reading it.
-@group(0) @binding(1) var clipMaskTexture: texture_2d<f32>;`;
+@group(0) @binding(1) var clipMaskTexture: texture_2d<f32>;
+
+// device pixels per logical pixel, kept off zero for the shaders dividing by it
+fn dpi() -> f32 {
+    return max(uniforms.dpi, 0.001);
+}`;
 }
 
 /** Canvas pixels to clip space. y flips because canvas coordinates grow down. */
@@ -188,6 +191,20 @@ export const BOX_COVERAGE = `fn boxCoverage(p: vec2<f32>, lo: vec2<f32>, hi: vec
     let cx = clamp(hi.x - p.x + 0.5, 0.0, 1.0) - clamp(lo.x - p.x + 0.5, 0.0, 1.0);
     let cy = clamp(hi.y - p.y + 0.5, 0.0, 1.0) - clamp(lo.y - p.y + 0.5, 0.0, 1.0);
     return cx * cy;
+}`;
+
+/** The two triangles of a unit square, for a vertex stage that indexes its corners. */
+export const UNIT_QUAD = `array(
+        vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0),
+        vec2<f32>(1.0, 0.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 1.0),
+    )`;
+
+/**
+ * Straight colour out of a premultiplied texel. Textures stay premultiplied so
+ * filtering does not darken an edge, and the blend state takes straight alpha.
+ */
+export const UNPREMULTIPLY = `fn unpremultiply(c: vec4<f32>) -> vec3<f32> {
+    return c.rgb / max(c.a, 1e-6);
 }`;
 
 /** Builds one shader source. `arg` names a shape, curve or other sub-variant. */

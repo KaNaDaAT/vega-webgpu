@@ -6,7 +6,7 @@ import { BOX_COVERAGE, TO_NDC, fragmentTail, uniformBlock } from './common.js';
  * of the soft two canvas draws.
  */
 export const ruleShader = (blend: string): string => `
-${uniformBlock('dpi')}
+${uniformBlock()}
 
 ${TO_NDC}
 
@@ -30,7 +30,7 @@ struct VertexOutput {
 
 @vertex
 fn main_vertex(in: VertexInput) -> VertexOutput {
-    let d = max(uniforms.dpi, 0.001);
+    let d = dpi();
     let lo = in.center - uniforms.offset - in.axis_offset;
     let hi = lo + in.scale;
 

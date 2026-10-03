@@ -63,4 +63,10 @@ fn gradientT(p: vec2<f32>, wh: vec2<f32>) -> f32 {
         return clamp(hi, 0.0, 1.0);
     }
     return clamp(lo, 0.0, 1.0);
+}
+
+// The ramp's colour at a point in canvas coordinates, spread over the bounds.
+fn rampAt(world: vec2<f32>) -> vec4<f32> {
+    let p = (world - gradient.bounds.xy) / max(gradient.bounds.zw, vec2<f32>(1e-6, 1e-6));
+    return textureSample(stopRamp, stopSampler, vec2<f32>(gradientT(p, gradient.bounds.zw), 0.5));
 }`;

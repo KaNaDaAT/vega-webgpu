@@ -1,4 +1,4 @@
-import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
+import { TO_NDC, UNPREMULTIPLY, fragmentTail, uniformBlock } from './common.js';
 
 /** One instanced quad per image, sampling the decoded bitmap. */
 export const imageShader = (blend: string): string => `
@@ -35,12 +35,11 @@ fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
     return output;
 }
 
+${UNPREMULTIPLY}
+
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
-    // the texture is premultiplied so filtering stays correct, and the blend
-    // state expects straight alpha, so divide it back out
     let color = textureSample(imageTexture, imageSampler, in.uv);
-    let rgb = color.rgb / max(color.a, 1e-6);
-    return vec4<f32>(rgb, color.a * in.opacity);
+    return vec4<f32>(unpremultiply(color), color.a * in.opacity);
 }
 
 ${fragmentTail(blend)}

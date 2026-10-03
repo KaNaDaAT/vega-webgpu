@@ -1,4 +1,4 @@
-import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
+import { TO_NDC, UNIT_QUAD, fragmentTail, uniformBlock } from './common.js';
 
 /**
  * Paints one colour through a coverage mask, over the box the mask was drawn
@@ -14,7 +14,7 @@ import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
  * by whole texel at the pixel centre rather than sampled.
  */
 export const maskCompositeShader = (blend: string): string => `
-${uniformBlock('dpi')}
+${uniformBlock()}
 
 struct MaskParams {
   color: vec4<f32>,
@@ -32,14 +32,7 @@ struct VertexOutput {
 
 @vertex
 fn main_vertex(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    var corners = array(
-        vec2<f32>(0.0, 0.0),
-        vec2<f32>(1.0, 0.0),
-        vec2<f32>(0.0, 1.0),
-        vec2<f32>(1.0, 1.0),
-        vec2<f32>(1.0, 0.0),
-        vec2<f32>(0.0, 1.0),
-    );
+    var corners = ${UNIT_QUAD};
     let p = mask.rect.xy + corners[vertexIndex] * mask.rect.zw - uniforms.offset;
     var out: VertexOutput;
     out.pos = vec4<f32>(toNdc(p, uniforms.resolution), 0.0, 1.0);

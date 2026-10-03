@@ -34,9 +34,7 @@ fn main_vertex(model: VertexInput) -> VertexOutput {
 }
 
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
-    let normalized = (in.world - gradient.bounds.xy) / max(gradient.bounds.zw, vec2<f32>(1e-6, 1e-6));
-    let t = gradientT(normalized, gradient.bounds.zw);
-    let sample = textureSample(stopRamp, stopSampler, vec2<f32>(t, 0.5));
+    let sample = rampAt(in.world);
     return vec4<f32>(sample.rgb, sample.a * in.fill.a);
 }
 

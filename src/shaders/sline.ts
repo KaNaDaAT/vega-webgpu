@@ -1,3 +1,4 @@
+import { KIND_BEVEL, KIND_BUTT, KIND_CAP_MEET, KIND_MITER, KIND_ROUND_CAP, KIND_ROUND_JOIN } from '../util/join.js';
 import { SEGMENT_NORMAL, TO_NDC, fragmentTail, uniformBlock } from './common.js';
 import { GRADIENT_BLOCK } from './gradient.js';
 
@@ -12,7 +13,7 @@ import { GRADIENT_BLOCK } from './gradient.js';
  * it, so their union is the joined outline with no overlap between them.
  */
 export const slineShader = (blend: string): string => `
-${uniformBlock('dpi')}
+${uniformBlock()}
 
 ${GRADIENT_BLOCK}
 
@@ -47,13 +48,13 @@ struct VertexOutput {
     @location(7) @interpolate(flat) reach: vec2<f32>,
 }
 
-// What a segment does at one of its ends. util/join.ts writes these.
-const END_BUTT: f32 = 0.0;
-const END_ROUND_CAP: f32 = 1.0;
-const END_ROUND_JOIN: f32 = 2.0;
-const END_MITER: f32 = 3.0;
-const END_BEVEL: f32 = 4.0;
-const END_CAP_MEET: f32 = 5.0;
+// What a segment does at one of its ends, as util/join.ts writes it.
+const END_BUTT: f32 = ${KIND_BUTT.toFixed(1)};
+const END_ROUND_CAP: f32 = ${KIND_ROUND_CAP.toFixed(1)};
+const END_ROUND_JOIN: f32 = ${KIND_ROUND_JOIN.toFixed(1)};
+const END_MITER: f32 = ${KIND_MITER.toFixed(1)};
+const END_BEVEL: f32 = ${KIND_BEVEL.toFixed(1)};
+const END_CAP_MEET: f32 = ${KIND_CAP_MEET.toFixed(1)};
 
 /**
  * How far past the end point the quad has to reach: nothing for a flat end,
@@ -73,7 +74,7 @@ fn endReach(join: vec4<f32>, half_w: f32, outward: vec2<f32>) -> f32 {
 
 @vertex
 fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    let d = max(uniforms.dpi, 0.001);
+    let d = dpi();
     let delta = in.end - in.start;
     let direction = safeDirection(delta);
     let normal = normalAt(delta);
@@ -219,9 +220,7 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
  */
 fn gradientColor(in: VertexOutput) -> vec4<f32> {
     let solid = fragmentColor(in);
-    let normalized = (in.world - gradient.bounds.xy) / max(gradient.bounds.zw, vec2<f32>(1e-6, 1e-6));
-    let t = gradientT(normalized, gradient.bounds.zw);
-    let ramp = textureSample(stopRamp, stopSampler, vec2<f32>(t, 0.5));
+    let ramp = rampAt(in.world);
     return vec4<f32>(ramp.rgb, ramp.a * solid.a);
 }
 

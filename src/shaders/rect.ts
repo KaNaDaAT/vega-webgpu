@@ -8,7 +8,7 @@ import { GRADIENT_BLOCK } from './gradient.js';
  * which shares the geometry and differs only in where the fill comes from.
  */
 export const rectShader = (blend: string): string => `
-${uniformBlock('dpi')}
+${uniformBlock()}
 
 ${GRADIENT_BLOCK}
 
@@ -46,7 +46,7 @@ struct VertexOutput {
 
 @vertex
 fn main_vertex(model: VertexInput, instance: InstanceInput) -> VertexOutput {
-    let d = max(uniforms.dpi, 0.001);
+    let d = dpi();
     let sw = vec2<f32>(instance.strokewidth, instance.strokewidth);
     let size = instance.scale + sw;
     let lo = instance.center - uniforms.offset - sw / 2.0;
@@ -91,7 +91,7 @@ fn sdRoundedRect(p: vec2<f32>, b: vec2<f32>, radii: vec4<f32>) -> f32 {
 // nominal edge like canvas strokes do. aa is the antialiasing width.
 fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     let p = (in.uv - vec2<f32>(0.5, 0.5)) * (in.scale + vec2<f32>(in.strokewidth, in.strokewidth));
-    let scale = max(uniforms.dpi, 0.001);
+    let scale = dpi();
     let d = sdRoundedRect(p, in.scale * 0.5, in.corner_radii) * scale;
     let half_sw = in.strokewidth * 0.5 * scale;
     let aa = 0.75;
@@ -104,7 +104,7 @@ fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
 
 fn straightRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     let p = in.pos.xy;
-    let sw = vec2<f32>(in.strokewidth, in.strokewidth) * max(uniforms.dpi, 0.001);
+    let sw = vec2<f32>(in.strokewidth, in.strokewidth) * dpi();
     let outer = boxCoverage(p, in.lo_dev, in.hi_dev);
     let inner = boxCoverage(p, in.lo_dev + sw, in.hi_dev - sw);
     // this stroke sits inside the edge, so the nominal fill is the whole box
@@ -129,10 +129,7 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
 // The ramp spans the item's bounds, which is what canvas fills a gradient
 // from, so it is wider than the box wherever a stroke widens the bounds.
 fn gradientColor(in: VertexOutput) -> vec4<f32> {
-    let world = in.pos.xy / max(uniforms.dpi, 0.001) + uniforms.offset;
-    let p = (world - gradient.bounds.xy) / max(gradient.bounds.zw, vec2<f32>(1e-6, 1e-6));
-    let t = gradientT(p, gradient.bounds.zw);
-    let sample = textureSample(stopRamp, stopSampler, vec2<f32>(t, 0.5));
+    let sample = rampAt(in.pos.xy / dpi() + uniforms.offset);
     return rectColor(in, vec4<f32>(sample.rgb, sample.a * in.fill.a));
 }
 

@@ -1,4 +1,4 @@
-import { TO_NDC, fragmentTail, uniformBlock } from './common.js';
+import { TO_NDC, UNIT_QUAD, UNPREMULTIPLY, fragmentTail, uniformBlock } from './common.js';
 
 /**
  * One quad per label, sampling the sub-rect it was packed into on the atlas.
@@ -31,10 +31,7 @@ struct VertexOutput {
 
 @vertex
 fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    var corners = array(
-        vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0),
-        vec2<f32>(1.0, 0.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 1.0),
-    );
+    var corners = ${UNIT_QUAD};
     let c = corners[vertexIndex];
     var p = mix(in.rect.xy, in.rect.zw, c);
     if (in.turn.w != 0.0 || in.turn.z != 1.0) {
@@ -49,14 +46,13 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
     return output;
 }
 
+${UNPREMULTIPLY}
+
+// The glyph is rasterized with its fill and stroke baked in, so only the item
+// opacity is applied here.
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
-    // The glyph texture is rasterized with the fill/stroke colors baked in and
-    // kept premultiplied, so filtering does not darken an edge. The blend state
-    // expects straight alpha, so divide it back out. Only the item opacity is
-    // applied here.
     let c = textureSample(tex, texSampler, in.uv);
-    let rgb = c.rgb / max(c.a, 1e-6);
-    return vec4<f32>(rgb, c.a * in.opacity);
+    return vec4<f32>(unpremultiply(c), c.a * in.opacity);
 }
 
 ${fragmentTail(blend)}

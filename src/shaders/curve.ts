@@ -37,7 +37,7 @@ export const curveShader = (blend: string, kind = 'basis'): string => {
     throw new Error(`[vega-webgpu] No curve evaluation named '${kind}'.`);
   }
   return `
-${uniformBlock('dpi')}
+${uniformBlock()}
 
 ${TO_NDC}
 
@@ -75,7 +75,7 @@ const K: u32 = ${CURVE_SUBDIVISIONS}u;
  */
 fn spanQuads(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>) -> u32 {
     let poly = length(p1 - p0) + length(p2 - p1) + length(p3 - p2);
-    let want = u32(ceil(poly * max(uniforms.dpi, 0.001) * 0.5));
+    let want = u32(ceil(poly * dpi() * 0.5));
     return clamp(want, 1u, K);
 }
 
@@ -101,6 +101,16 @@ fn spanTangent(p0: vec2<f32>, p1: vec2<f32>, p2: vec2<f32>, p3: vec2<f32>, t: f3
 
 ${SEGMENT_NORMAL}
 
+/** A quad the span does not need, collapsed to a point the rasterizer drops. */
+fn culled() -> VertexOutput {
+    var out: VertexOutput;
+    out.pos = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    out.across = 0.0;
+    out.half_width = 1.0;
+    return out;
+}
+
 /**
  * Every joint offsets along the analytic tangent, so neighbouring quads share
  * an edge exactly. Overlapping them instead would double-blend a translucent
@@ -119,12 +129,7 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
     if straight {
         // one quad carries the run, the rest collapse and are culled
         if sub > 0u {
-            var out: VertexOutput;
-            out.pos = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-            out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-            out.across = 0.0;
-            out.half_width = 1.0;
-            return out;
+            return culled();
         }
         a = instance.p0;
         b = instance.p1;
@@ -135,12 +140,7 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
         // straight run's do, so a gentle curve does not pay for a hairpin
         let quads = spanQuads(instance.p0, instance.p1, instance.p2, instance.p3);
         if sub >= quads {
-            var out: VertexOutput;
-            out.pos = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-            out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-            out.across = 0.0;
-            out.half_width = 1.0;
-            return out;
+            return culled();
         }
         let t0 = f32(sub) / f32(quads);
         let t1 = f32(sub + 1u) / f32(quads);
@@ -173,7 +173,7 @@ fn main_vertex(instance: InstanceInput, @builtin(vertex_index) vertexIndex: u32)
 
 fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // coverage across the stroke, the way canvas antialiases an edge
-    let d = max(uniforms.dpi, 0.001);
+    let d = dpi();
     let coverage = clamp((in.half_width - abs(in.across)) * d + 0.5, 0.0, 1.0);
     return vec4<f32>(in.color.rgb, in.color.a * coverage);
 }
