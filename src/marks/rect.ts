@@ -1,17 +1,17 @@
 import type { Bounds } from 'vega-scenegraph';
-import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneItem, SceneRectExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
-import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import {
   rectBox,
   outlinePipelines,
   type OutlinePipelines,
   borderInstances,
+  enqueueDraw,
   enqueueOutline,
   getMarkResources,
   instanceScratch,
@@ -20,57 +20,104 @@ import {
   blendPipelines,
   whiteCarrier,
   type MarkModule,
-  uniformBindGroup,
   boxRampOf,
   targetOf,
+  type DrawTarget,
+  type Ramp,
 } from './util.js';
 import { DrawRun } from '../util/drawRun.js';
 
 const drawName = 'Rect';
 
-interface RectResources {
+/** What a rect, or a group's background, draws with. */
+export interface RectResources {
   device: GPUDevice;
+  /** Labels the pipelines and the bind groups made from them. */
+  name: string;
   bufferManager: BufferManager;
+  /** The box, one pipeline per blend mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
   gradientPipelineFor: (blend: string) => GPURenderPipeline;
   geometryBuffer: GPUBuffer;
-  /** The background, one pipeline per blend mode. */
-  pipelineFor: (blend: string) => GPURenderPipeline;
   /** Pipelines for an outline drawn through the segment shader. */
   outline: OutlinePipelines;
 }
 
-function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RectResources {
-  return getMarkResources(ctx, 'rect', device, vb, () => {
-    const bufferManager = new BufferManager(device, drawName);
+export function rectResources(ctx: GPUVegaCanvasContext, device: GPUDevice, vb: Bounds, name: string): RectResources {
+  return getMarkResources(ctx, name.toLowerCase(), device, vb, () => {
+    const bufferManager = new BufferManager(device, name);
     const vertexManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, dimensions, fill color, stroke color, stroke width, corner radii
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4'],
     );
-    // a gradient fill under a blend needs its own pipeline too
-    const gradientPipelineFor = blendPipelines(
-      ctx,
-      device,
-      `${drawName}Gradient`,
-      'Rect',
-      vertexManager,
-      'main_fragment_gradient',
-    );
-
-    // The analytic stroke cannot express a pattern, so a dashed border is
-    // walked as a polyline and drawn as segments, the way a group's is.
-    const outline = outlinePipelines(ctx, device, `${drawName}Dash`);
-
-    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, true);
     return {
       device,
+      name,
       bufferManager,
-      gradientPipelineFor,
-      geometryBuffer,
-      pipelineFor: blendPipelines(ctx, device, drawName, 'Rect', vertexManager),
-      outline,
+      pipelineFor: blendPipelines(ctx, device, name, 'Rect', vertexManager),
+      // a gradient fill under a blend needs its own pipeline too
+      gradientPipelineFor: blendPipelines(
+        ctx,
+        device,
+        `${name}Gradient`,
+        'Rect',
+        vertexManager,
+        'main_fragment_gradient',
+      ),
+      geometryBuffer: bufferManager.createGeometryBuffer(quadVertex, true),
+      // The analytic stroke cannot express a pattern, so a dashed border is
+      // walked as a polyline and drawn as segments.
+      outline: outlinePipelines(ctx, device, `${name}Dash`),
     };
   });
+}
+
+/**
+ * Draws boxes in the order they are painted: fills in runs, and a ramp fill or
+ * a border drawn as segments on its own.
+ */
+export class BoxPainter {
+  private readonly fill: DrawTarget;
+  private readonly outline: DrawTarget;
+  private readonly run: DrawRun<SceneRectExt>;
+
+  constructor(
+    ctx: GPUVegaCanvasContext,
+    device: GPUDevice,
+    private readonly res: RectResources,
+    clip: ClipRect | undefined,
+  ) {
+    const uniformBuffer = res.bufferManager.createUniformBuffer();
+    this.fill = targetOf(ctx, device, res.name, res, res.bufferManager, uniformBuffer, clip);
+    this.outline = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
+    this.run = new DrawRun(ctx._opaqueBackdrop, (boxes, blend) => this.enqueue(boxes, null, blend));
+  }
+
+  /** A box's fill, and its stroke when the analytic one draws it. */
+  paint(box: SceneRectExt, fillRamp: Ramp | null, blend: string): void {
+    if (fillRamp) {
+      this.run.flush();
+      this.enqueue([box], fillRamp, blend);
+    } else {
+      this.run.add(box, blend);
+    }
+  }
+
+  /** A border drawn as segments, over everything painted before it. */
+  border(data: Float32Array, ramp: Ramp | null, blend: string): void {
+    this.run.flush();
+    enqueueOutline(this.outline, data, ramp, blend);
+  }
+
+  flush(): void {
+    this.run.flush();
+  }
+
+  private enqueue(boxes: SceneRectExt[], ramp: Ramp | null, blend: string): void {
+    const instances = this.res.bufferManager.createInstanceBuffer(rectAttributes(boxes, ramp !== null));
+    enqueueDraw(this.fill, ramp, blend, [6, boxes.length], [this.res.geometryBuffer, instances]);
+  }
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
@@ -79,70 +126,20 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     return;
   }
 
-  const res = getResources(device, ctx, vb);
-
-  const uniformBuffer = res.bufferManager.createUniformBuffer();
-  const clip = markClip(ctx, scene);
-
-  // only materialise the gradient sampler and ramp cache if a gradient shows up
-  let gres: ReturnType<typeof getGradientResources> | null = null;
-  const gradientResources = () => (gres ??= getGradientResources(device, ctx));
-  const run = new DrawRun<SceneRectExt>(ctx._opaqueBackdrop, (rects, blend) => {
-    const pipeline = res.pipelineFor(blend);
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(rects));
-    ctx._renderQueue.enqueue({
-      pipeline,
-      drawCounts: [6, rects.length],
-      vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
-      clip,
-    });
-  });
-
+  const painter = new BoxPainter(ctx, device, rectResources(ctx, device, vb, drawName), markClip(ctx, scene));
   for (const item of items) {
     const blend = blendKey(item.blend);
-    const fillRamp = boxRampOf(item.fill, item);
     const strokeRamp = boxRampOf(item.stroke, item);
     const border = borderInstances(ctx, item, strokeRamp);
     // A dash or a ramp takes the border off the analytic path, and the stroke
-    // comes off the fill with it so it is not drawn solid underneath.
-    const filled: SceneRectExt = border ? { ...item, stroke: undefined } : item;
-
-    // The fill first, which is the order canvas paints them in. How the border
-    // draws does not decide this: a ramp needs the gradient pipeline either
-    // way, and through the plain one it resolves to the placeholder colour.
-    if (fillRamp) {
-      run.flush();
-      const gradientPipeline = res.gradientPipelineFor(blend);
-      const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([filled], true));
-      ctx._renderQueue.enqueue({
-        pipeline: gradientPipeline,
-        drawCounts: [6, 1],
-        vertexBuffers: [res.geometryBuffer, instanceBuffer],
-        bindGroups: [
-          uniformBindGroup(ctx, device, `${drawName}Gradient`, gradientPipeline, uniformBuffer),
-          createGradientBindGroup(gradientResources(), gradientPipeline, fillRamp.gradient, fillRamp.bounds),
-        ],
-        clip,
-      });
-    } else {
-      run.add(filled, blend);
-      // the border draws after the fill, so the run closes here
-      if (border) {
-        run.flush();
-      }
-    }
-
+    // comes off the fill with it so it is not drawn solid underneath. The fill
+    // goes first, which is the order canvas paints them in.
+    painter.paint(border ? { ...item, stroke: undefined } : item, boxRampOf(item.fill, item), blend);
     if (border) {
-      enqueueOutline(
-        targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip),
-        border,
-        strokeRamp,
-        blend,
-      );
+      painter.border(border, strokeRamp, blend);
     }
   }
-  run.flush();
+  painter.flush();
 }
 
 /** Floats per rect instance: box, fill, stroke, stroke width, four radii. */

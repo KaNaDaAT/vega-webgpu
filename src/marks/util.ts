@@ -339,15 +339,16 @@ export function markItems<T extends SceneItem>(scene: GPUVegaScene): T[] {
 
 /** Queues one buffer of triangles, coloured by its vertices or from a ramp. */
 export function enqueueFill(target: DrawTarget, data: Float32Array, ramp: Ramp | null, blend = 'normal'): void {
-  enqueueDraw(target, ramp, blend, [data.length / GEOMETRY_STRIDE], target.bufferManager.createGeometryBuffer(data));
+  enqueueDraw(target, ramp, blend, [data.length / GEOMETRY_STRIDE], [target.bufferManager.createGeometryBuffer(data)]);
 }
 
-function enqueueDraw(
+/** Queues a draw through the target's pipelines, sampling the ramp when there is one. */
+export function enqueueDraw(
   target: DrawTarget,
   ramp: Ramp | null,
   blend: string,
   drawCounts: DrawCounts,
-  vertexBuffer: GPUBuffer,
+  vertexBuffers: GPUBuffer[],
 ): void {
   const { ctx, device } = target;
   const pipeline = ramp ? target.gradientPipelineFor(blend) : target.pipelineFor(blend);
@@ -355,7 +356,7 @@ function enqueueDraw(
   if (ramp) {
     bindGroups.push(createGradientBindGroup(getGradientResources(device, ctx), pipeline, ramp.gradient, ramp.bounds));
   }
-  ctx._renderQueue.enqueue({ pipeline, drawCounts, vertexBuffers: [vertexBuffer], bindGroups, clip: target.clip });
+  ctx._renderQueue.enqueue({ pipeline, drawCounts, vertexBuffers, bindGroups, clip: target.clip });
 }
 
 /**
@@ -506,7 +507,13 @@ export function blendPipelines(
  * now, so both reach the same draw.
  */
 export function enqueueOutline(target: DrawTarget, data: Float32Array, ramp: Ramp | null, blend: string): void {
-  enqueueDraw(target, ramp, blend, [6, data.length / SEGMENT_STRIDE], target.bufferManager.createInstanceBuffer(data));
+  enqueueDraw(
+    target,
+    ramp,
+    blend,
+    [6, data.length / SEGMENT_STRIDE],
+    [target.bufferManager.createInstanceBuffer(data)],
+  );
 }
 
 /** What drawing a clip path's coverage needs. */
