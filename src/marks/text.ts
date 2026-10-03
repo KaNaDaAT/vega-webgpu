@@ -18,9 +18,10 @@ import {
   type GlyphMetrics,
   type Turn,
 } from '../util/textTexture.js';
-import { blendKey, needsBackdrop } from '../util/blend.js';
+import { blendKey } from '../util/blend.js';
 import { linearSampler, textureBindGroup } from '../util/webgpu.js';
 import { blendPipelines, getMarkResources, markClip, markItems, type MarkModule, uniformBindGroup } from './util.js';
+import { DrawRun } from '../util/drawRun.js';
 
 const drawName = 'Text';
 
@@ -178,7 +179,13 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // Atlas coordinates stay in pixels until the batch closes, since begin may
   // have resized it and every slot in a batch shares one size.
   const packed: number[] = [];
-  const oversized: { texture: GPUTexture; data: Float32Array }[] = [];
+  // which labels draw together, recorded as they pack and drawn once the atlas
+  // has its final size
+  const runs: { blend: string; first: number; count: number }[] = [];
+  const run = new DrawRun<number>(ctx._opaqueBackdrop, (labels, blend) => {
+    runs.push({ blend, first: labels[0], count: labels.length });
+  });
+  const oversized: { texture: GPUTexture; data: Float32Array; blend: string }[] = [];
 
   for (const item of items) {
     const opacity = item.opacity == null ? 1 : item.opacity;
@@ -188,12 +195,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
     const [ax, ay] = textAnchor(item);
     const turn = turnOf(item);
+    const blend = blendKey(item.blend);
 
     const placed = place(ctx, res, item, vb, turn, exact);
     deferred ||= placed !== null && placed.turn !== NO_TURN;
     if (placed) {
       const { slot } = placed;
       const [x1, y1, x2, y2] = labelRect(vb, dpi, item, slot, driftShift(ctx, item, vb, placed.turn, drift));
+      run.add(packed.length / LABEL_STRIDE, blend);
       packed.push(
         x1,
         y1,
@@ -227,8 +236,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     oversized.push({
       texture,
       data: Float32Array.from([x1, y1, x2, y2, 0, 0, 1, 1, ax, ay, cos, sin, opacity]),
+      blend,
     });
   }
+  run.flush();
 
   const t0 = performance.now();
   res.atlas.flush();
@@ -249,44 +260,40 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const uniformBuffer = res.bufferManager.sharedUniformBuffer();
   // a pipeline with a default layout owns its bind group layout, so both groups
-  // have to come from the blend variant this mark draws with
-  const blend = blendKey(items[0]?.blend);
-  const textPipeline = res.pipelineFor(blend);
-  const uniforms = uniformBindGroup(ctx, device, drawName, textPipeline, uniformBuffer);
+  // come from the blend variant a draw uses, and the atlas ones are held per blend
+  const atlasGroups = new Map<string, GPUBindGroup[]>();
+  const bindGroups = (pipeline: GPURenderPipeline, texture: GPUTexture): GPUBindGroup[] => [
+    uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer),
+    textureBindGroup(device, 'Text Texture Bind Group', pipeline, linearSampler(device), texture.createView()),
+  ];
 
-  // One draw per label, see needsBackdrop. Two overlapping ones show it.
-  const perLabel = needsBackdrop(blend, ctx._opaqueBackdrop);
-
-  // One draw covers every label sharing a texture, and a blend belongs to the
-  // pipeline, so this takes the mark's blend rather than each item's. The line
-  // mark reads it the same way, and vega sets it per mark in practice.
-  const enqueue = (texture: GPUTexture, data: Float32Array) => {
-    const total = data.length / LABEL_STRIDE;
-    if (total === 0) {
-      return;
-    }
-    const buffer = res.bufferManager.createInstanceBuffer(data);
-    const bindGroups = [
-      uniforms,
-      textureBindGroup(device, 'Text Texture Bind Group', textPipeline, linearSampler(device), texture.createView()),
-    ];
-    const step = perLabel ? 1 : total;
-    for (let first = 0; first < total; first += step) {
+  if (packed.length > 0) {
+    const buffer = res.bufferManager.createInstanceBuffer(Float32Array.from(packed));
+    for (const { blend, first, count } of runs) {
+      const pipeline = res.pipelineFor(blend);
+      let groups = atlasGroups.get(blend);
+      if (!groups) {
+        groups = bindGroups(pipeline, res.atlas.texture);
+        atlasGroups.set(blend, groups);
+      }
       ctx._renderQueue.enqueue({
-        pipeline: textPipeline,
-        drawCounts: [6, step, 0, first],
+        pipeline,
+        drawCounts: [6, count, 0, first],
         vertexBuffers: [buffer],
-        bindGroups,
+        bindGroups: groups,
         clip,
       });
     }
-  };
-
-  if (packed.length > 0) {
-    enqueue(res.atlas.texture, Float32Array.from(packed));
   }
   for (const extra of oversized) {
-    enqueue(extra.texture, extra.data);
+    const pipeline = res.pipelineFor(extra.blend);
+    ctx._renderQueue.enqueue({
+      pipeline,
+      drawCounts: [6, 1],
+      vertexBuffers: [res.bufferManager.createInstanceBuffer(extra.data)],
+      bindGroups: bindGroups(pipeline, extra.texture),
+      clip,
+    });
   }
 }
 

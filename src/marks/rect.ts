@@ -3,7 +3,7 @@ import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneItem, SceneRectExt } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { blendKey, needsBackdrop } from '../util/blend.js';
+import { blendKey } from '../util/blend.js';
 import { Color, isGradient } from '../util/color.js';
 import { createGradientBindGroup, getGradientResources } from '../util/gradient.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
@@ -24,6 +24,7 @@ import {
   boxRampOf,
   targetOf,
 } from './util.js';
+import { DrawRun } from '../util/drawRun.js';
 
 const drawName = 'Rect';
 
@@ -86,23 +87,17 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // only materialise the gradient sampler and ramp cache if a gradient shows up
   let gres: ReturnType<typeof getGradientResources> | null = null;
   const gradientResources = () => (gres ??= getGradientResources(device, ctx));
-  let run: SceneRectExt[] = [];
-  let runBlend = 'normal';
-  const flushRun = () => {
-    if (run.length === 0) {
-      return;
-    }
-    const pipeline = res.pipelineFor(runBlend);
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(run));
+  const run = new DrawRun<SceneRectExt>(ctx._opaqueBackdrop, (rects, blend) => {
+    const pipeline = res.pipelineFor(blend);
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(rects));
     ctx._renderQueue.enqueue({
       pipeline,
-      drawCounts: [6, run.length],
+      drawCounts: [6, rects.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
       clip,
     });
-    run = [];
-  };
+  });
 
   for (const item of items) {
     const blend = blendKey(item.blend);
@@ -117,8 +112,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     // draws does not decide this: a ramp needs the gradient pipeline either
     // way, and through the plain one it resolves to the placeholder colour.
     if (fillRamp) {
-      flushRun();
-      runBlend = blend;
+      run.flush();
       const gradientPipeline = res.gradientPipelineFor(blend);
       const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([filled], true));
       ctx._renderQueue.enqueue({
@@ -132,17 +126,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         clip,
       });
     } else {
-      // a run shares one pipeline, so a change of blend starts a new one
-      if (blend !== runBlend && run.length > 0) {
-        flushRun();
-      }
-      runBlend = blend;
-      run.push(filled);
-      // The border draws after the fill, so the run closes here. canvas also
-      // composites each mark against what is already there, so two blended
-      // ones overlapping have to meet the frame one at a time.
-      if (border || needsBackdrop(blend, ctx._opaqueBackdrop)) {
-        flushRun();
+      run.add(filled, blend);
+      // the border draws after the fill, so the run closes here
+      if (border) {
+        run.flush();
       }
     }
 
@@ -155,7 +142,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       );
     }
   }
-  flushRun();
+  run.flush();
 }
 
 /** Floats per rect instance: box, fill, stroke, stroke width, four radii. */

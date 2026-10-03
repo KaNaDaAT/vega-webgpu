@@ -3,7 +3,7 @@ import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { SceneRule } from '../types/scene.js';
 import { quadVertex } from '../util/arrays.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { blendKey, needsBackdrop } from '../util/blend.js';
+import { blendKey } from '../util/blend.js';
 import { Color } from '../util/color.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import type { Point } from '../types/geometry.js';
@@ -26,6 +26,7 @@ import {
   rampOf,
   targetOf,
 } from './util.js';
+import { DrawRun } from '../util/drawRun.js';
 
 const drawName = 'Rule';
 
@@ -119,30 +120,20 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
 
-  let run: SceneRule[] = [];
-  let runBlend = 'normal';
-  const flushRun = () => {
-    if (run.length === 0) {
-      return;
-    }
-    const pipeline = res.pipelineFor(runBlend);
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(run));
+  const run = new DrawRun<SceneRule>(ctx._opaqueBackdrop, (rules, blend) => {
+    const pipeline = res.pipelineFor(blend);
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(rules));
     ctx._renderQueue.enqueue({
       pipeline,
-      drawCounts: [6, run.length],
+      drawCounts: [6, rules.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
       clip,
     });
-    run = [];
-  };
+  });
 
   for (const item of items) {
     const blend = blendKey(item.blend);
-    if (blend !== runBlend && run.length > 0) {
-      flushRun();
-    }
-    runBlend = blend;
     const pattern = dashPatternOf(item);
     // The rect shader draws a rule with a butt end and a solid colour, so a cap
     // or a ramp takes the segment path the diagonal and dashed ones take.
@@ -155,14 +146,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       continue;
     }
     if (!pattern && !isDiagonal(item) && !strokeRamp && !shaped) {
-      run.push(item);
-      // One draw per item, see needsBackdrop.
-      if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
-        flushRun();
-      }
+      run.add(item, blend);
       continue;
     }
-    flushRun();
+    run.flush();
     const color = paintColour(item.stroke, item.opacity, item.strokeOpacity, strokeRamp);
     const dashed = pattern ? dashedAttributes(item, pattern, color) : null;
     if (pattern && !dashed) {
@@ -179,7 +166,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       blend,
     );
   }
-  flushRun();
+  run.flush();
 }
 
 function createAttributes(items: SceneRule[]): Float32Array {

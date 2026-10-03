@@ -1,0 +1,82 @@
+{
+  "description": "Labels in one text mark, each with its own blend, over a coloured rect: normal, multiply and screen. The mark drew every label with its first label's blend, so the other two came out plain.",
+  "width": 360,
+  "height": 130,
+  "origin": [0, 0],
+  "background": "white",
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 25,
+                "width": 320,
+                "height": 80,
+                "fill": "#e45756"
+              }
+            ]
+          },
+          {
+            "marktype": "text",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 75,
+                "y": 65,
+                "text": "plain",
+                "font": "sans-serif",
+                "fontSize": 30,
+                "fontWeight": "bold",
+                "fill": "#4c78a8",
+                "align": "center",
+                "baseline": "middle"
+              },
+              {
+                "x": 180,
+                "y": 65,
+                "text": "multiply",
+                "font": "sans-serif",
+                "fontSize": 30,
+                "fontWeight": "bold",
+                "fill": "#4c78a8",
+                "blend": "multiply",
+                "align": "center",
+                "baseline": "middle"
+              },
+              {
+                "x": 290,
+                "y": 65,
+                "text": "screen",
+                "font": "sans-serif",
+                "fontSize": 30,
+                "fontWeight": "bold",
+                "fill": "#4c78a8",
+                "blend": "screen",
+                "align": "center",
+                "baseline": "middle"
+              }
+            ]
+          }
+        ],
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 130
+      }
+    ]
+  }
+}

@@ -24,6 +24,7 @@ import {
   type Ramp,
 } from './util.js';
 import type WebGPURenderer from '../WebGPURenderer.js';
+import { DrawRun } from '../util/drawRun.js';
 
 const drawName = 'Group';
 
@@ -95,27 +96,19 @@ function draw(
   // only materialise the gradient sampler and ramp cache if a gradient shows up
   let gres: ReturnType<typeof getGradientResources> | null = null;
   const gradientResources = () => (gres ??= getGradientResources(device, ctx));
-  let run: SceneGroupExt[] = [];
-  // one run draws with one pipeline, so a change of blend closes it
-  let runBlend = 'normal';
-  const flushRun = () => {
-    if (run.length === 0) {
-      return;
-    }
-    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(run));
-    // Each blend gets its own pipeline, and a pipeline built with a default
-    // layout owns its bind group layout, so the group has to come from the one
-    // this draw actually uses.
-    const runPipeline = res.pipelineFor(runBlend);
+  const run = new DrawRun<SceneGroupExt>(ctx._opaqueBackdrop, (groups, blend) => {
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes(groups));
+    // a pipeline built with a default layout owns its bind group layout, so the
+    // group has to come from the one this draw uses
+    const runPipeline = res.pipelineFor(blend);
     ctx._renderQueue.enqueue({
       pipeline: runPipeline,
-      drawCounts: [6, run.length],
+      drawCounts: [6, groups.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
       bindGroups: [uniformBindGroup(ctx, device, drawName, runPipeline, uniformBuffer)],
       clip: ctx._clip,
     });
-    run = [];
-  };
+  });
 
   /** Borders held back until after the backgrounds, which is the order canvas paints them in. */
   const dashed: { data: Float32Array; ramp: Ramp | null; blend: string }[] = [];
@@ -141,14 +134,10 @@ function draw(
     const drawn = border || fore ? { ...edged, stroke: undefined } : edged;
     const fillRamp = boxRampOf(drawn.fill, item);
     if (!fillRamp) {
-      if (run.length && blend !== runBlend) {
-        flushRun();
-      }
-      runBlend = blend;
-      run.push(drawn);
+      run.add(drawn, blend);
       return;
     }
-    flushRun();
+    run.flush();
     const gradientPipeline = res.gradientPipelineFor(blend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(rectAttributes([drawn], true));
     ctx._renderQueue.enqueue({
@@ -179,14 +168,14 @@ function draw(
     for (const item of items as SceneGroupExt[]) {
       paintBackdrop(item);
     }
-    flushRun();
+    run.flush();
     flushDashed();
   }
 
   sceneVisit(scene, (group: SceneGroupExt) => {
     if (interleaved) {
       paintBackdrop(group);
-      flushRun();
+      run.flush();
       flushDashed();
     }
     const gx = group.x || 0;

@@ -5,8 +5,9 @@ import type { ItemTransform } from '../path/geometryForItem.js';
 import type { FillStyle, SceneItem, StrokeStyle } from '../types/scene.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem from '../path/geometryForItem.js';
-import { blendKey, needsBackdrop } from '../util/blend.js';
-import { GeometryBatch } from '../util/geometryBatch.js';
+import { blendKey } from '../util/blend.js';
+import { DrawRun } from '../util/drawRun.js';
+import { joinChunks } from '../util/geometryBatch.js';
 import {
   cachedGeometryData,
   dashPatternOf,
@@ -80,24 +81,17 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
     const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer, clip);
     const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip);
 
-    // Solid fills and strokes share one pipeline and are accumulated in paint
-    // order into a single buffer/draw. Gradient fills interrupt the batch.
-    const batch = new GeometryBatch();
-    // one batch draws with one pipeline, so a change of blend closes it
-    let batchBlend = 'normal';
-    const flushBatch = () => {
-      const data = batch.flush();
+    // Solid fills share one draw in paint order, and a gradient fill or an
+    // outline closes the run.
+    const run = new DrawRun<Float32Array>(ctx._opaqueBackdrop, (chunks, blend) => {
+      const data = joinChunks(chunks);
       if (data) {
-        enqueueFill(fillTarget, data, null, batchBlend);
+        enqueueFill(fillTarget, data, null, blend);
       }
-    };
+    });
 
     for (const item of items) {
       const blend = blendKey(item.blend);
-      if (blend !== batchBlend) {
-        flushBatch();
-        batchBlend = blend;
-      }
       const fill = paintOf(item.fill, item.opacity, item.fillOpacity, item.bounds);
       const stroke = paintOf(item.stroke, item.opacity, item.strokeOpacity, item.bounds);
 
@@ -118,10 +112,10 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
       const fillData = cached ? cachedGeometryData(res.cache, strokeItem, fill.colour, build) : build();
 
       if (fillData.length > 0 && fill.ramp) {
-        flushBatch();
+        run.flush();
         enqueueFill(fillTarget, fillData, fill.ramp, blend);
       } else {
-        batch.push(fillData);
+        run.add(fillData, blend);
       }
       // After the fill, which is the order canvas paints them in. Enqueued
       // ahead of it the fill covers the inner half of every dash.
@@ -138,16 +132,12 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
           strokeEnds(item),
         );
         if (data) {
-          flushBatch();
+          run.flush();
           enqueueOutline(outlineTarget, data, stroke.ramp, blend);
         }
       }
-      // One draw per item, see needsBackdrop.
-      if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
-        flushBatch();
-      }
     }
-    flushBatch();
+    run.flush();
   }
 
   return { draw } satisfies MarkModule;

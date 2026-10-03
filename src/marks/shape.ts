@@ -8,7 +8,8 @@ import { blendKey, needsBackdrop } from '../util/blend.js';
 import type { Point } from '../types/geometry.js';
 import { dashPolyline } from '../util/dash.js';
 import { Color, type RGBA } from '../util/color.js';
-import { GeometryBatch } from '../util/geometryBatch.js';
+import { DrawRun } from '../util/drawRun.js';
+import { joinChunks } from '../util/geometryBatch.js';
 import {
   SEGMENT_STRIDE,
   segmentCount,
@@ -105,11 +106,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const clip = markClip(ctx, scene);
   const fillTarget = targetOf(ctx, device, drawName, res, res.bufferManager, uniformBuffer, clip);
 
-  // Solid fills and strokes share one pipeline and are accumulated in paint
-  // order into a single buffer/draw. Gradient fills interrupt the batch.
-  const batch = new GeometryBatch();
-  // one batch draws with one pipeline, so a change of blend closes it
-  let batchBlend = 'normal';
+  // Solid fills share one draw in paint order, and a gradient fill or an outline
+  // drawn on its own closes the run.
+  const run = new DrawRun<Float32Array>(ctx._opaqueBackdrop, (chunks, blend) => {
+    const data = joinChunks(chunks);
+    if (data) {
+      enqueueFill(fillTarget, data, null, blend);
+    }
+  });
   // Outlines accumulate separately and draw after the fills. A sub pixel
   // stroke on a triangulated ribbon takes its coverage from MSAA, which can
   // only express quarter steps, so a 0.2 px country border came out patchy.
@@ -122,19 +126,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   // Which stretch of the shared outline buffer carries which blend, so one
   // buffer can still serve a mark whose items do not agree on it.
   const outlineRuns: { blend: string; start: number; count: number }[] = [];
-  const flushBatch = () => {
-    const data = batch.flush();
-    if (data) {
-      enqueueFill(fillTarget, data, null, batchBlend);
-    }
-  };
 
   for (const item of items) {
     const blend = blendKey(item.blend);
-    if (blend !== batchBlend) {
-      flushBatch();
-      batchBlend = blend;
-    }
     const fill = paintOf(item.fill, item.opacity, item.fillOpacity, item.bounds);
     const stroke = paintOf(item.stroke, item.opacity, item.strokeOpacity, item.bounds);
     let shapeGeom: PathGeometry | null = null;
@@ -142,10 +136,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const [fillData, lines, unchanged] = createGeometryData(ctx, res, item, fill, stroke, useCache, geom);
 
     if (fillData.length > 0 && fill.ramp) {
-      flushBatch();
+      run.flush();
       enqueueFill(fillTarget, fillData, fill.ramp, blend);
     } else {
-      batch.push(fillData);
+      run.add(fillData, blend);
     }
     // One draw per item, see needsBackdrop.
     const layered = needsBackdrop(blend, ctx._opaqueBackdrop);
@@ -156,7 +150,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       // before it fills the next.
       const own = stroke.colour[3] > 0 ? outlineInstances(item, lines, stroke.colour) : null;
       if (own) {
-        flushBatch();
+        run.flush();
         enqueueOutline(
           targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer, clip),
           own,
@@ -176,11 +170,8 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         outlineRuns.push({ blend, start: before, count: after - before });
       }
     }
-    if (layered) {
-      flushBatch();
-    }
   }
-  flushBatch();
+  run.flush();
 
   const state = res.outlineState.get(scene) ?? { buffer: null, capacity: 0, length: -1 };
   res.outlineState.set(scene, state);

@@ -20,19 +20,30 @@ export class GeometryBatch {
     const { chunks, total } = this;
     this.chunks = [];
     this.total = 0;
-    if (total === 0) {
-      return null;
-    }
-    // it is uploaded straight away, so a lone chunk goes up as it is
-    if (chunks.length === 1 && chunks[0] instanceof Float32Array) {
-      return chunks[0];
-    }
-    const out = new Float32Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      out.set(chunk, offset);
-      offset += chunk.length;
-    }
-    return out;
+    return joinChunks(chunks, total);
   }
+}
+
+/**
+ * The chunks in one array, or null when they hold nothing. It is uploaded
+ * straight away, so a lone chunk goes up as it is.
+ */
+export function joinChunks(
+  chunks: ArrayLike<number>[],
+  total = chunks.reduce((sum, chunk) => sum + chunk.length, 0),
+): Float32Array | null {
+  if (total === 0) {
+    return null;
+  }
+  const filled = chunks.filter(chunk => chunk.length > 0);
+  if (filled.length === 1 && filled[0] instanceof Float32Array) {
+    return filled[0];
+  }
+  const out = new Float32Array(total);
+  let offset = 0;
+  for (const chunk of filled) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
 }

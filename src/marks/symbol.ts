@@ -5,7 +5,7 @@ import geometryForItem, { itemTurn } from '../path/geometryForItem.js';
 import { symbol as symbolShapeGeometry } from '../path/shapes.js';
 import { DASH_FLATNESS } from '../path/geometryForPath.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { blendKey, needsBackdrop } from '../util/blend.js';
+import { blendKey } from '../util/blend.js';
 import { Color } from '../util/color.js';
 import { hasSdf } from '../shaders/symbolSdf.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
@@ -31,6 +31,7 @@ import {
   targetOf,
   type Ramp,
 } from './util.js';
+import { DrawRun } from '../util/drawRun.js';
 
 const drawName = 'Symbol';
 // Bounds the triangulated-shape cache. `size` is continuous, so a size-encoded
@@ -122,15 +123,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   const clip = markClip(ctx, scene);
 
-  let run: SceneSymbolExt[] = [];
-  let runBlend = 'normal';
   let circleBindGroup: { group: GPUBindGroup; pipeline: GPURenderPipeline } | null = null;
 
-  const flushRun = () => {
-    if (run.length === 0) {
-      return;
-    }
-    const shape = symbolShape(run[0]);
+  const run = new DrawRun<SceneSymbolExt>(ctx._opaqueBackdrop, (symbols, runBlend) => {
+    const shape = symbolShape(symbols[0]);
     if (shape === 'circle') {
       const circlePipeline = res.circlePipelineFor(runBlend);
       // A bind group belongs to the layout it was made from, so a mark whose
@@ -141,10 +137,10 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
           pipeline: circlePipeline,
         };
       }
-      const instanceBuffer = res.bufferManager.createInstanceBuffer(quadInstances(run, true));
+      const instanceBuffer = res.bufferManager.createInstanceBuffer(quadInstances(symbols, true));
       ctx._renderQueue.enqueue({
         pipeline: circlePipeline,
-        drawCounts: [6, run.length],
+        drawCounts: [6, symbols.length],
         vertexBuffers: [res.quadGeometry, instanceBuffer],
         bindGroups: [circleBindGroup.group],
         clip,
@@ -159,19 +155,18 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         undefined,
         runBlend,
       );
-      const instanceBuffer = res.bufferManager.createInstanceBuffer(quadInstances(run, false));
+      const instanceBuffer = res.bufferManager.createInstanceBuffer(quadInstances(symbols, false));
       ctx._renderQueue.enqueue({
         pipeline,
-        drawCounts: [6, run.length],
+        drawCounts: [6, symbols.length],
         vertexBuffers: [res.quadGeometry, instanceBuffer],
         bindGroups: [uniformBindGroup(ctx, device, `${drawName}Sdf`, pipeline, uniformBuffer)],
         clip,
       });
     } else {
-      drawShapeGroup(device, ctx, res, uniformBuffer, runBlend, run, clip);
+      drawShapeGroup(device, ctx, res, uniformBuffer, runBlend, symbols, clip);
     }
-    run = [];
-  };
+  });
 
   for (const item of items) {
     const blend = blendKey(item.blend);
@@ -184,37 +179,28 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const strokeRamp = rampOf(item.stroke, item.bounds);
     const fillRamp = rampOf(item.fill, item.bounds);
     if (dash || strokeRamp) {
-      flushRun();
+      run.flush();
       // The fill first, which is the order canvas paints them in. Drawn after
       // the dash it covers the inner half of every run.
       const filled = { ...item, stroke: undefined } as SceneSymbolExt;
       if (fillRamp) {
         drawGradientSymbol(device, ctx, res, filled, fillRamp, blend, clip);
       } else if (item.fill) {
-        runBlend = blend;
-        run.push(filled);
-        flushRun();
+        run.add(filled, blend, runKey(filled));
+        run.flush();
       }
       drawSymbolOutline(device, ctx, res, item, blend, dash, strokeRamp, clip);
       continue;
     }
     // Gradient fills need the gradient pipeline and are drawn one at a time.
     if (fillRamp) {
-      flushRun();
+      run.flush();
       drawGradientSymbol(device, ctx, res, item, fillRamp, blend, clip);
       continue;
     }
-    if (run.length > 0 && (blend !== runBlend || !sharesRun(run[0], item))) {
-      flushRun();
-    }
-    runBlend = blend;
-    run.push(item);
-    // One draw per item, see needsBackdrop.
-    if (needsBackdrop(blend, ctx._opaqueBackdrop)) {
-      flushRun();
-    }
+    run.add(item, blend, runKey(item));
   }
-  flushRun();
+  run.flush();
 }
 
 /** vega's defaults, which a symbol that sets neither is drawn with. */
@@ -222,20 +208,14 @@ const symbolShape = (item: SceneSymbolExt): string => item.shape || 'circle';
 const symbolSize = (item: SceneSymbolExt): number => item.size ?? 64;
 
 /**
- * Whether two items with the same blend can share a draw. A circle and a shape
- * with a distance function are one instanced quad each, so a run can hold any
- * mix of sizes, stroke widths and angles. A triangulated shape shares its
- * geometry buffer, so those have to agree as well.
+ * What a symbol shares a draw on, beside its blend. A circle and a shape with a
+ * distance function are one instanced quad each, so a run can hold any mix of
+ * sizes, stroke widths and angles. A triangulated shape shares its geometry
+ * buffer, so those have to agree as well.
  */
-function sharesRun(a: SceneSymbolExt, b: SceneSymbolExt): boolean {
-  const shape = symbolShape(a);
-  if (shape !== symbolShape(b)) {
-    return false;
-  }
-  if (shape === 'circle' || hasSdf(shape)) {
-    return true;
-  }
-  return symbolSize(a) === symbolSize(b) && strokeWidthOf(a) === strokeWidthOf(b);
+function runKey(item: SceneSymbolExt): string {
+  const shape = symbolShape(item);
+  return shape === 'circle' || hasSdf(shape) ? shape : `${shape}|${symbolSize(item)}|${strokeWidthOf(item)}`;
 }
 
 /** The width a triangulated symbol's shared geometry is built at. */
