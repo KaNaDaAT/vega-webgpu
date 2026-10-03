@@ -2,7 +2,7 @@ import { Bounds, boundContext, sceneVisit, pathRectangle, type PathSink } from '
 import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem, { type ItemTransform } from '../path/geometryForItem.js';
 import { BufferManager, uploadBuffer } from '../util/bufferManager.js';
-import type { Point } from '../types/geometry.js';
+import type { PathGeometry, Point } from '../types/geometry.js';
 import { dashPolyline, prepareDash } from '../util/dash.js';
 import {
   KIND_CAP_MEET,
@@ -88,6 +88,23 @@ export function vertexData(triangles: Float32Array, count: number, color: RGBA):
     data[o + 5] = color[2];
     data[o + 6] = color[3];
   }
+  return data;
+}
+
+const heldFills = new WeakMap<Float32Array, { color: RGBA; data: Float32Array }>();
+
+/**
+ * vertexData for triangles a cache already holds, kept beside them while the
+ * colour stays the same. An area or a trail that has not moved is the same
+ * cached geometry frame after frame.
+ */
+export function heldVertexData(triangles: Float32Array, count: number, color: RGBA): Float32Array {
+  const held = heldFills.get(triangles);
+  if (held && sameColor(held.color, color)) {
+    return held.data;
+  }
+  const data = vertexData(triangles, count, color);
+  heldFills.set(triangles, { color, data });
   return data;
 }
 
@@ -590,8 +607,13 @@ export function drawClipMask(
   // the arc. The clip mask already in force does belong in it, which is what
   // makes a clip inside a clip the intersection of the two.
   res.bufferManager.setClipRound(undefined);
-  const geometry = geometryForItem(ctx, { fill: '#ffffff' } as never, geometryForPath(ctx, path), false, 0, 0);
-  const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, [1, 1, 1, 1]);
+  const traced = geometryForPath(ctx, path);
+  let fillData = clipFills.get(traced);
+  if (!fillData) {
+    const geometry = geometryForItem(ctx, { fill: '#ffffff' } as never, traced, false, 0, 0);
+    fillData = vertexData(geometry.fillTriangles, geometry.fillCount, [1, 1, 1, 1]);
+    clipFills.set(traced, fillData);
+  }
   if (fillData.length === 0) {
     return undefined;
   }
@@ -613,6 +635,9 @@ export function drawClipMask(
   });
   return target.read;
 }
+
+/** A clip path's coverage as vertex data, held beside the path it was traced from. */
+const clipFills = new WeakMap<PathGeometry, Float32Array>();
 
 /** Single channel coverage, which is all a mask holds. */
 export const MASK_FORMAT: GPUTextureFormat = 'r8unorm';

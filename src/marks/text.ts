@@ -78,20 +78,86 @@ interface Placement {
   turn: Turn;
 }
 
+/** A label's metrics and atlas key, and everything they were worked out from. */
+interface HeldLabel {
+  style: string;
+  x: number | undefined;
+  y: number | undefined;
+  radius: number | undefined;
+  theta: number | undefined;
+  dpi: number;
+  vx: number;
+  vy: number;
+  turn: Turn;
+  metrics: GlyphMetrics | null;
+  key: string;
+}
+
+/** Kept per item, so a label that has not changed is not measured again. */
+const heldLabels = new WeakMap<SceneTextItem, HeldLabel>();
+
+/**
+ * The label's metrics and atlas key, measured again only when something they
+ * come from changed. Keyed by the scene item, since `raster` may be a copy.
+ */
+function labelOf(
+  ctx: GPUVegaCanvasContext,
+  item: SceneTextItem,
+  raster: SceneTextItem,
+  vb: Bounds,
+  turn: Turn,
+): HeldLabel {
+  const dpi = ctx._uniforms.dpi || 1;
+  const style = textCacheKey(raster);
+  const held = heldLabels.get(item);
+  if (
+    held &&
+    held.style === style &&
+    held.x === raster.x &&
+    held.y === raster.y &&
+    held.radius === raster.radius &&
+    held.theta === raster.theta &&
+    held.dpi === dpi &&
+    held.vx === vb.x1 &&
+    held.vy === vb.y1 &&
+    held.turn[0] === turn[0] &&
+    held.turn[1] === turn[1]
+  ) {
+    return held;
+  }
+  const metrics = glyphMetrics(ctx, raster, vb, turn);
+  const key = metrics ? `${style}|${dpi}|${metrics.anchorTexX}|${metrics.anchorTexY}` : '';
+  const label: HeldLabel = {
+    style,
+    x: raster.x,
+    y: raster.y,
+    radius: raster.radius,
+    theta: raster.theta,
+    dpi,
+    vx: vb.x1,
+    vy: vb.y1,
+    turn,
+    metrics,
+    key,
+  };
+  heldLabels.set(item, label);
+  return label;
+}
+
 /** Slot for one rasterization of a label, drawn into the atlas on a miss. */
 function getSlot(
   ctx: GPUVegaCanvasContext,
   res: TextResources,
+  item: SceneTextItem,
   raster: SceneTextItem,
   vb: Bounds,
   turn: Turn,
 ): GlyphSlot | null {
   const dpi = ctx._uniforms.dpi || 1;
-  const metrics = glyphMetrics(ctx, raster, vb, turn);
+  const { metrics, key } = labelOf(ctx, item, raster, vb, turn);
   if (!metrics) {
     return null;
   }
-  const key = `${textCacheKey(raster)}|${dpi}|${metrics.anchorTexX}|${metrics.anchorTexY}`;
 
   const cached = res.atlas.find(key);
   if (cached) {
@@ -123,10 +189,10 @@ function place(
   exact: boolean,
 ): Placement | null {
   if (turn === NO_TURN || exact) {
-    const slot = getSlot(ctx, res, item, vb, NO_TURN);
+    const slot = getSlot(ctx, res, item, item, vb, NO_TURN);
     return slot && { slot, turn: NO_TURN };
   }
-  const slot = getSlot(ctx, res, upright(item), vb, turn);
+  const slot = getSlot(ctx, res, item, upright(item), vb, turn);
   return slot && { slot, turn };
 }
 

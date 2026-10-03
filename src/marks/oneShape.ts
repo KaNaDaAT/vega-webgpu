@@ -10,7 +10,7 @@ import {
   enqueueMaskedOutline,
   enqueueOutline,
   fillResources,
-  vertexData,
+  heldVertexData,
   getMarkResources,
   segmentInstances,
   strokeEnds,
@@ -64,7 +64,7 @@ export function oneShapeMark({ type, name, shapeOf, maskOutline }: OneShapeMark)
     const dash = dashPatternOf(item);
     const shapeGeom = shapeOf(ctx, items);
     const geometry = geometryForItem(ctx, { ...item, stroke: undefined }, shapeGeom, true);
-    const fillData = vertexData(geometry.fillTriangles, geometry.fillCount, fill.colour);
+    const fillData = heldVertexData(geometry.fillTriangles, geometry.fillCount, fill.colour);
 
     const uniformBuffer = res.bufferManager.createUniformBuffer();
     const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer);
