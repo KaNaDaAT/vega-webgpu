@@ -110,6 +110,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
+  const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
 
   const run = new DrawRun<SceneRule>(ctx._opaqueBackdrop, (rules, blend) => {
     const pipeline = res.pipelineFor(blend);
@@ -146,12 +147,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (!data) {
       continue; // a zero length rule, or a dash that left nothing drawn
     }
-    enqueueOutline(
-      targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer),
-      data,
-      strokeRamp,
-      blend,
-    );
+    enqueueOutline(outlineTarget, data, strokeRamp, blend);
   }
   run.flush();
 }

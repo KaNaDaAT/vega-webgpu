@@ -30,6 +30,7 @@ import {
   paintColour,
   rampOf,
   targetOf,
+  type DrawTarget,
   type Ramp,
 } from './util.js';
 import { DrawRun } from '../util/drawRun.js';
@@ -132,6 +133,27 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const uniformBuffer = res.bufferManager.createUniformBuffer();
 
   let circleBindGroup: { group: GPUBindGroup; pipeline: GPURenderPipeline } | null = null;
+  // Built for the first dashed or gradient symbol, and kept for the rest.
+  let outline: DrawTarget | null = null;
+  let gradient: DrawTarget | null = null;
+  const outlineTarget = () =>
+    (outline ??= targetOf(
+      ctx,
+      device,
+      res.outline.name,
+      res.outline,
+      res.bufferManager,
+      res.bufferManager.sharedUniformBuffer(),
+    ));
+  const gradientTarget = () =>
+    (gradient ??= targetOf(
+      ctx,
+      device,
+      `${drawName}Fill`,
+      { pipelineFor: res.solidPipelineFor, gradientPipelineFor: res.gradientPipelineFor },
+      res.bufferManager,
+      res.bufferManager.sharedUniformBuffer(),
+    ));
 
   const run = new DrawRun<SceneSymbolExt>(ctx._opaqueBackdrop, (symbols, runBlend) => {
     const shape = symbolShape(symbols[0]);
@@ -192,18 +214,18 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       // the dash it covers the inner half of every run.
       const filled = { ...item, stroke: undefined } as SceneSymbolExt;
       if (fillRamp) {
-        drawGradientSymbol(device, ctx, res, filled, fillRamp, blend);
+        drawGradientSymbol(ctx, gradientTarget(), filled, fillRamp, blend);
       } else if (item.fill) {
         run.add(filled, blend, runKey(filled));
         run.flush();
       }
-      drawSymbolOutline(device, ctx, res, item, blend, dash, strokeRamp);
+      drawSymbolOutline(ctx, outlineTarget(), item, blend, dash, strokeRamp);
       continue;
     }
     // Gradient fills need the gradient pipeline and are drawn one at a time.
     if (fillRamp) {
       run.flush();
-      drawGradientSymbol(device, ctx, res, item, fillRamp, blend);
+      drawGradientSymbol(ctx, gradientTarget(), item, fillRamp, blend);
       continue;
     }
     run.add(item, blend, runKey(item));
@@ -238,9 +260,8 @@ function strokeWidthOf(item: SceneSymbolExt): number {
  * `shape: 'stroke'` and a dash, which is where this shows.
  */
 function drawSymbolOutline(
-  device: GPUDevice,
   ctx: GPUVegaCanvasContext,
-  res: SymbolResources,
+  target: DrawTarget,
   item: SceneSymbolExt,
   blend: string,
   pattern: number[] | null,
@@ -261,12 +282,7 @@ function drawSymbolOutline(
   if (!data) {
     return;
   }
-  enqueueOutline(
-    targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, res.bufferManager.sharedUniformBuffer()),
-    data,
-    ramp,
-    blend,
-  );
+  enqueueOutline(target, data, ramp, blend);
 }
 
 function drawShapeGroup(
@@ -316,9 +332,8 @@ function drawShapeGroup(
 
 /** Draws one gradient-filled symbol: gradient fill + solid stroke, triangulated. */
 function drawGradientSymbol(
-  device: GPUDevice,
   ctx: GPUVegaCanvasContext,
-  res: SymbolResources,
+  target: DrawTarget,
   item: SceneSymbolExt,
   ramp: Ramp,
   blend: string,
@@ -338,14 +353,6 @@ function drawGradientSymbol(
     geometry.strokeTriangles,
     geometry.strokeCount,
     Color.from(item.stroke, item.opacity, item.strokeOpacity),
-  );
-  const target = targetOf(
-    ctx,
-    device,
-    `${drawName}Fill`,
-    { pipelineFor: res.solidPipelineFor, gradientPipelineFor: res.gradientPipelineFor },
-    res.bufferManager,
-    res.bufferManager.sharedUniformBuffer(),
   );
   if (fillData.length > 0) {
     enqueueFill(target, fillData, ramp, blend);

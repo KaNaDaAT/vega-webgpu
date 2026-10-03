@@ -106,6 +106,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       enqueueFill(fillTarget, data, null, blend);
     }
   });
+  const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
   // Outlines draw after the fills, from one buffer the scene keeps. A sub pixel
   // stroke on a triangulated ribbon takes its coverage from MSAA, which can
   // only express quarter steps, so a 0.2 px country border came out patchy.
@@ -139,12 +140,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       const own = stroke.colour[3] > 0 ? outlineInstances(item, lines, stroke.colour) : null;
       if (own) {
         run.flush();
-        enqueueOutline(
-          targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer),
-          own,
-          stroke.ramp,
-          blend,
-        );
+        enqueueOutline(outlineTarget, own, stroke.ramp, blend);
       }
       if (kept) {
         kept.count = undefined;
