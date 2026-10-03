@@ -170,9 +170,9 @@ export class RenderQueue {
       // All draws share one render pass: the attachment is loaded/cleared and
       // resolved exactly once per frame. Draw order = scenegraph paint order.
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-      let scissored = false;
+      const state = freshPass();
       for (const q of queue) {
-        scissored = encodeDraw(passEncoder, q, attachmentSize, scissored);
+        encodeDraw(passEncoder, q, attachmentSize, state);
       }
       passEncoder.end();
     }
@@ -276,52 +276,62 @@ function encodeSplit(
 
   let index = 0;
   let passEncoder = beginFrame(0);
-  let scissored = false;
+  let state = freshPass();
   for (const segment of segments) {
     if (segment.kind === 'frame') {
       for (const q of segment.items) {
-        scissored = encodeDraw(passEncoder, q, attachmentSize, scissored);
+        encodeDraw(passEncoder, q, attachmentSize, state);
       }
       continue;
     }
     passEncoder.end();
     const runPass = beginRun(segment.kind, segment.items[0].maskView, segment.items[0].maskResolve);
-    let runScissored = false;
+    const runState = freshPass();
     for (const q of segment.items) {
-      runScissored = encodeDraw(runPass, q, attachmentSize, runScissored);
+      encodeDraw(runPass, q, attachmentSize, runState);
     }
     runPass.end();
     index++;
     passEncoder = beginFrame(index);
-    scissored = false;
+    state = freshPass();
   }
   passEncoder.end();
 }
 
-/** Encodes one draw, returning whether a scissor rect is left set on the pass. */
+/** What a pass has set, so a draw that repeats it does not set it again. */
+interface PassState {
+  pipeline: GPURenderPipeline | null;
+  /** The scissor rect in force, undefined while it covers the whole attachment. */
+  scissor: ClipRect | undefined;
+}
+
+const freshPass = (): PassState => ({ pipeline: null, scissor: undefined });
+
+/** Encodes one draw, setting the scissor rect and the pipeline only where they change. */
 function encodeDraw(
   passEncoder: GPURenderPassEncoder,
   q: QueueElement,
   attachmentSize: [width: number, height: number],
-  scissored: boolean,
-): boolean {
+  state: PassState,
+): void {
   let clip: ClipRect | undefined;
   if (q.clip) {
     const clamped = clampClip(q.clip, attachmentSize);
     if (clamped === null) {
-      return scissored; // clipped to nothing
+      return; // clipped to nothing
     }
     clip = clamped;
   }
-  if (clip) {
-    passEncoder.setScissorRect(clip[0], clip[1], clip[2], clip[3]);
-    scissored = true;
-  } else if (scissored) {
-    // scissor state persists within the pass, so restore full coverage
-    passEncoder.setScissorRect(0, 0, attachmentSize[0], attachmentSize[1]);
-    scissored = false;
+  if (!sameClip(clip, state.scissor)) {
+    // scissor state persists within the pass, so a draw with no clip restores full coverage
+    const [x, y, w, h] = clip ?? [0, 0, attachmentSize[0], attachmentSize[1]];
+    passEncoder.setScissorRect(x, y, w, h);
+    state.scissor = clip;
   }
-  passEncoder.setPipeline(q.pipeline);
+  if (q.pipeline !== state.pipeline) {
+    passEncoder.setPipeline(q.pipeline);
+    state.pipeline = q.pipeline;
+  }
   for (let i = 0; i < q.vertexBuffers.length; i++) {
     passEncoder.setVertexBuffer(i, q.vertexBuffers[i]);
   }
@@ -329,7 +339,6 @@ function encodeDraw(
     passEncoder.setBindGroup(i, q.bindGroups[i]);
   }
   passEncoder.draw(q.drawCounts[0], q.drawCounts[1] ?? 1, q.drawCounts[2] ?? 0, q.drawCounts[3] ?? 0);
-  return scissored;
 }
 
 /**
