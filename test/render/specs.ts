@@ -142,8 +142,9 @@ export const biasDeltaOverrides: Record<string, number> = {
   'map-fit-stroked': 5.5, // 3.17, and 4.20 at dpr 2
   choropleth: 7, // 5.74
   'choropleth-stroked': 3.5, // 1.81, and 2.77 at dpr 2
-  // Sparse, so almost every inked pixel is an edge and the average is the
-  // coverage difference rather than a systematic error on top of it.
+  // Small symbols, so almost every inked pixel is an edge, and the two canvas
+  // rasterizers cover one differently. A size 4 circle is 3.14 square pixels:
+  // canvas draws 3.70 of them on a GPU and 3.01 on the CPU, and this draws 3.40.
   regression: 8, // 6.67
   panzoom: 5, // 4.04
   'nulls-scatter-plot': 5, // 3.86
@@ -172,8 +173,9 @@ export const flatMeanDeltaOverrides: Record<string, number> = {};
  * on a different font stack. Same reasons as crossCheckOverrides below.
  */
 export const meanDeltaOverrides: Record<string, number> = {
-  // Curve construction still differs from canvas.
-  'line-curves': 26, // 13.09 at dpr 1, 7.15 at dpr 2
+  // Thin curves, so nearly every inked pixel is an antialiased edge. The worst
+  // block is 32.8, so the curves are where canvas puts them.
+  'line-curves': 26, // 11.62 at dpr 1, 6.45 at dpr 2 on CI
 
   // Geographic outlines: the seam between abutting fills is most of the ink.
   'map-fit': 21, // 10.42 at dpr 1, 5.89 at dpr 2
@@ -200,10 +202,8 @@ export const renderDpr = Number(process.env.RENDER_DPR ?? 1);
 
 /** Per-spec budgets for the CI rasterizer, with the measured number in a note. */
 export const ciCrossCheckOverrides: Record<string, number> = {
-  // 1.263% there, 0.675% on a real adapter: the seam between abutting fills
+  // 0.851% there and 0.836% at dpr 2, 0.588% on a real adapter: the seam between abutting fills
   'choropleth-stroked': 0.016,
-  // 0.875% there, 0.365% on a real adapter
-  'map-fit-stroked': 0.012,
   // 0.914% there
   'map-bind': 0.012,
 };
@@ -223,7 +223,7 @@ export const ciBiasDeltaOverrides: Record<string, number> = {
 
 /** Per-spec densest-tile budgets for the CI rasterizer. */
 export const ciTileOverrides: Record<string, number> = {
-  // 40.0% in one 32px square there, 23.3% on a real adapter
+  // 24.1% in one 32px square there at dpr 2 and 17.7% at dpr 1, 5.5% on a real adapter
   'map-fit-stroked': 0.45,
 };
 
@@ -252,6 +252,6 @@ export const crossCheckOverrides: Record<string, number | null> = {
   // rasterizer that antialiases differently would fail a case that is not
   // wrong. The twelve entries the text and curve work closed are gone.
   choropleth: 0.016, // 0.770% at dpr 1, 0.363% at dpr 2: the seam between abutting fills
-  'dot-plot': 0.014, // 0.494% at dpr 1, 0.673% at dpr 2: many small labels, each with its own glyph fringe
+  'dot-plot': 0.014, // 0.494% at dpr 1, 0.998% at dpr 2 on CI: many small labels, each with its own glyph fringe
   'map-point-radius': 0.013, // 0.635% at dpr 1, 0.372% at dpr 2: geographic outlines
 };
