@@ -123,12 +123,14 @@ writeFileSync(
   )}\n`,
 );
 
-// The page and its two shared files, flattened so the directory stands alone.
+// The page and the files it shares with the demo, flattened so the directory stands alone.
 const page = readFileSync(join(root, 'test', 'render', 'gallery.html'), 'utf8')
   .replace('../compare-ui.css', './compare-ui.css')
+  .replace('../measures.js', './measures.js')
   .replace('../compare-core.js', './compare-core.js');
 writeFileSync(join(dest, 'index.html'), page);
 copyFileSync(join(root, 'test', 'compare-ui.css'), join(dest, 'compare-ui.css'));
+copyFileSync(join(root, 'test', 'measures.js'), join(dest, 'measures.js'));
 copyFileSync(join(root, 'test', 'compare-core.js'), join(dest, 'compare-core.js'));
 copyFileSync(join(root, 'test', 'render', 'gallery.js'), join(dest, 'gallery.js'));
 
