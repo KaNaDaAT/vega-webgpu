@@ -1,5 +1,5 @@
 {
-  "description": "Every paint symbol takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
+  "description": "Every paint symbol takes crossed with every way its stroke can draw: solid and gradient fills against no stroke, a solid one, a ramp, a dash, a dashed ramp, and a dashed square cap. In the last column a dash runs across the top left corner, where the square starts and closes. Canvas on a GPU bevels it as it does any join inside a dash, and so does this renderer. Canvas on the CPU, which records the hosted gallery, fills that corner in with these square caps, though it bevels it with butt caps. One property at a time is what let a rect with a gradient fill and a walked border go wrong unseen.",
   "width": 680,
   "height": 216,
   "origin": [

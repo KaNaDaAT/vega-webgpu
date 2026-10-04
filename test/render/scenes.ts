@@ -94,9 +94,9 @@ export const ciSceneBiasDeltaOverrides: Record<string, number> = {
 
 /** Per-fixture block budgets for the CI rasterizer. */
 export const ciQuadDeltaOverrides: Record<string, number> = {
-  // A dash running across the start of a closed square. canvas on the CPU joins
-  // it to the last dash and mitres the corner, on the GPU it caps both ends,
-  // which is what this draws.
+  // A square capped dash running across the corner where a closed square
+  // starts. Canvas on a GPU bevels it like any join inside a dash, and so does
+  // this. Canvas on the CPU fills the corner in, though it bevels it with butt caps.
   'symbol-variants': 160, // 135.8 there
 };
 

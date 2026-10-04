@@ -49,14 +49,15 @@ const WHY =
  * fill rows against the six stroke columns. Three of the marks do not have
  * that shape and pass their own, because a description that claims a row or a
  * column the fixture does not draw is a fixture nobody can check against.
+ * `note` is anything one cell needs said, which the gallery shows with it.
  */
-function write(name, rows, marks, what, lead) {
+function write(name, rows, marks, what, lead, note) {
   const [width, height] = size(rows, STROKES.length);
   const says =
     lead ??
     `Every paint ${what} takes crossed with every way its stroke can draw: solid and gradient fills against ${COLUMNS}.`;
   const doc = {
-    description: `${says} ${WHY}`,
+    description: [says, note, WHY].filter(Boolean).join(' '),
     width, height, origin: [0, 0],
     scene: {
       marktype: 'group', name: 'root', role: 'frame', interactive: true, clip: false,
@@ -68,7 +69,7 @@ function write(name, rows, marks, what, lead) {
 }
 
 /** A mark drawn one item per cell. */
-function perItem(type, build, fills = FILLS, lead) {
+function perItem(type, build, fills = FILLS, lead, note) {
   const items = [];
   fills.forEach((fill, i) =>
     STROKES.forEach((stroke, j) => {
@@ -76,7 +77,7 @@ function perItem(type, build, fills = FILLS, lead) {
       items.push(build(x, y, fill, stroke));
     }),
   );
-  write(`${type}-variants`, fills.length, [mark(type, items)], type, lead);
+  write(`${type}-variants`, fills.length, [mark(type, items)], type, lead, note);
 }
 
 /** A mark whose items are one shape, so one mark instance per cell. */
@@ -97,7 +98,16 @@ perItem('arc', (x, y, fill, s) => ({
 perItem('rect', (x, y, fill, s) => ({
   x: x + 12, y: y + 12, width: 70, height: 58, cornerRadius: 6, fill, ...s,
 }));
-perItem('symbol', (x, y, fill, s) => ({ x: x + 44, y: y + 42, size: 1800, shape: 'square', fill, ...s }));
+perItem(
+  'symbol',
+  (x, y, fill, s) => ({ x: x + 44, y: y + 42, size: 1800, shape: 'square', fill, ...s }),
+  FILLS,
+  undefined,
+  'In the last column a dash runs across the top left corner, where the square starts and closes. ' +
+    'Canvas on a GPU bevels it as it does any join inside a dash, and so does this renderer. Canvas ' +
+    'on the CPU, which records the hosted gallery, fills that corner in with these square caps, ' +
+    'though it bevels it with butt caps.',
+);
 perItem('path', (x, y, fill, s) => ({
   x: x + 10, y: y + 12, path: 'M0,56 L22,8 L44,56 L66,8 L86,56 Z', fill, ...s,
 }));
