@@ -1,13 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { collectPageErrors } from './drive.js';
 
 /** Compare and diff drive both views from one set of bound inputs. */
 test('bound inputs are shared between the two views', async ({ page }) => {
   test.setTimeout(180_000);
-  const errs: string[] = [];
-  page.on('pageerror', e => errs.push(String(e).slice(0, 200)));
-  page.on('console', m => {
-    if (m.type() === 'error') errs.push(m.text().slice(0, 200));
-  });
+  const errs = collectPageErrors(page, { withConsole: true, limit: 200 });
 
   await page.goto('/test/?spec=tree-radial-bundle&renderer=webgpu&version=dev&compare=1&offscreen=1');
   await page.waitForFunction(() => document.querySelectorAll('#panels canvas').length === 2, undefined, {

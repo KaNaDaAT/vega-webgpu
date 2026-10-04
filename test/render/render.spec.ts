@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { compareCase, renderInHarness, type RendererName, type RenderResult } from './compare.js';
+import { harnessUrl } from './drive.js';
 import {
   CROSS_CHECK_DEFAULT,
   FLAT_MEAN_DEFAULT,
@@ -34,7 +35,7 @@ test('the demo page lists every spec on disk', () => {
 });
 
 function renderSpec(page: Page, kase: SpecCase, renderer: RendererName): Promise<RenderResult> {
-  const url = `/test/render/harness.html?spec=${encodeURIComponent(kase.spec)}&renderer=${renderer}${kase.query}`;
+  const url = harnessUrl('spec', kase.spec, renderer, kase.query);
   return renderInHarness(page, url, renderer);
 }
 

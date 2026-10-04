@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { collectPageErrors } from './drive.js';
 
 /** The demo page's compare and diff views. */
 test('compare and diff checkboxes', async ({ page }) => {
   test.setTimeout(180_000);
-  const errors: string[] = [];
-  page.on('pageerror', e => errors.push(String(e)));
+  const errors = collectPageErrors(page);
 
   await page.goto('/test/?spec=choropleth&renderer=webgpu&version=dev&compare=1&offscreen=1');
   await page.waitForFunction(() => document.querySelectorAll('#panels canvas').length === 2, undefined, {
@@ -94,11 +94,7 @@ test('compare and diff checkboxes', async ({ page }) => {
  */
 test('picking a spec while the last one is still rendering', async ({ page }) => {
   test.setTimeout(300_000);
-  const errors: string[] = [];
-  page.on('console', m => {
-    if (m.type() === 'error') errors.push(m.text().slice(0, 200));
-  });
-  page.on('pageerror', e => errors.push(String(e).slice(0, 200)));
+  const errors = collectPageErrors(page, { withConsole: true, limit: 200 });
 
   await page.goto('/test/?spec=bar&renderer=webgpu&version=dev&offscreen=1');
   await page.waitForTimeout(2500);

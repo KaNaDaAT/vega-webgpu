@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 // @ts-expect-error the playground's table is plain js, and is the thing under test
 import { FEATURES, SUPPORT } from '../../releases/marks.js';
+import { collectPageErrors, type Capture } from './drive.js';
 
 /**
  * The mark playground states, per mark, whether each of five properties is
@@ -50,9 +51,7 @@ const IGNORED = cells('no');
  * for as long as it did. A walked border takes the fill down another path, so
  * the two paints together are their own case.
  */
-const PAIRS: [mark: string, a: string, b: string][] = Object.entries(
-  SUPPORT as Record<string, Record<string, string>>,
-)
+const PAIRS: [mark: string, a: string, b: string][] = Object.entries(SUPPORT as Record<string, Record<string, string>>)
   .filter(([, row]) => row.gradientFill === 'yes' && row.gradientStroke === 'yes')
   .flatMap(([mark]) => [
     [mark, 'gradientFill', 'gradientStroke'] as [string, string, string],
@@ -62,8 +61,7 @@ const PAIRS: [mark: string, a: string, b: string][] = Object.entries(
 
 test('the playground matches what its table claims', async ({ page }) => {
   test.setTimeout(300_000);
-  const errors: string[] = [];
-  page.on('pageerror', e => errors.push(String(e)));
+  const errors = collectPageErrors(page);
   await page.goto('/releases/marks.html?build=dev&view=both&mark=symbol&offscreen=1');
   await page.waitForFunction(() => (window as unknown as { __views?: unknown[] }).__views?.length === 2, undefined, {
     timeout: 60_000,
@@ -89,7 +87,7 @@ test('the playground matches what its table claims', async ({ page }) => {
         const shots: Record<string, { px: Uint8ClampedArray | Uint8Array; w: number; h: number }> = {};
         for (const v of views) {
           const r = v._renderer as {
-            captureFrame?: () => Promise<{ width: number; height: number; data: Uint8Array }>;
+            captureFrame?: () => Promise<Capture>;
             _canvas?: HTMLCanvasElement;
           };
           if (v.__renderer === 'webgpu' && r.captureFrame) {

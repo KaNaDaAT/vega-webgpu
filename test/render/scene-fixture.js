@@ -89,14 +89,16 @@ window.SceneFixture = (() => {
   /**
    * Draws a fixture with one renderer into `host`, the way the suite draws it:
    * the renderer directly, with no View, no dataflow and no layout between the
-   * scenegraph and the mark code.
+   * scenegraph and the mark code. `configure` sees the renderer before it is
+   * initialized, which is where options go.
    */
-  async function render(fixture, rendererName, host) {
+  async function render(fixture, rendererName, host, configure) {
     const module = vega.renderModule(rendererName);
     if (!module?.renderer) {
       throw new Error(`No renderer registered for '${rendererName}'.`);
     }
     const r = new module.renderer();
+    configure?.(r);
     r.initialize(host, fixture.width, fixture.height, fixture.origin ?? [0, 0]);
     r.background(fixture.background ?? '#ffffff');
     await r.renderAsync(sceneOf(fixture));

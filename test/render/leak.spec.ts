@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender } from './drive.js';
 
 test('buffers are not leaked across renders and renderer swaps', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/test/render/harness.html?spec=jobs&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'jobs'));
   await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     const counts = { buffers: 0, bufferBytes: 0, destroyed: 0, devices: 0 };

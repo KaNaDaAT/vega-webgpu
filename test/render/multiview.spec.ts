@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender, type Capture, type HarnessWindow } from './drive.js';
 
 interface Shot {
   name: string;
@@ -16,25 +16,13 @@ interface Shot {
  */
 test('several webgpu views render side by side', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'bar'));
   await waitForRender(page, 90_000);
 
   const out = await page.evaluate(async (): Promise<{ shots: Shot[]; alone: Shot | null }> => {
     const vega = (window as unknown as { vega: Record<string, (...a: unknown[]) => unknown> }).vega;
 
-    const inkOf = (shot: { width: number; height: number; data: Uint8Array }) => {
-      let n = 0;
-      for (let i = 0; i < shot.data.length; i += 4) {
-        const a = shot.data[i + 3] / 255;
-        for (let c = 0; c < 3; c++) {
-          if (shot.data[i + c] * a + 255 * (1 - a) < 240) {
-            n++;
-            break;
-          }
-        }
-      }
-      return n / (shot.width * shot.height);
-    };
+    const inkOf = (window as unknown as HarnessWindow).__ink;
 
     const build = async (name: string) => {
       const spec = await fetch(`/test/specs-valid/${name}.vg.json`).then(r => r.json());
@@ -59,9 +47,7 @@ test('several webgpu views render side by side', async ({ page }) => {
     const shoot = async (view: Record<string, unknown>, name: string): Promise<Shot> => {
       const r = view._renderer as Record<string, unknown>;
       try {
-        const shot = (await (
-          r.captureFrame as () => Promise<{ width: number; height: number; data: Uint8Array }>
-        )()) as {
+        const shot = (await (r.captureFrame as () => Promise<Capture>)()) as {
           width: number;
           height: number;
           data: Uint8Array;
@@ -104,7 +90,7 @@ test('several webgpu views render side by side', async ({ page }) => {
 /** Attachments and cached geometry are sized to the canvas, so a resize has to reach them. */
 test('a resized view redraws at the new size', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'bar'));
   await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     const view = (
@@ -118,20 +104,8 @@ test('a resized view redraws at the new size', async ({ page }) => {
       }
     ).view;
     const r = view._renderer;
-    const capture = r.captureFrame as () => Promise<{ width: number; height: number; data: Uint8Array }>;
-    const ink = (s: { width: number; height: number; data: Uint8Array }) => {
-      let n = 0;
-      for (let i = 0; i < s.data.length; i += 4) {
-        const a = s.data[i + 3] / 255;
-        for (let c = 0; c < 3; c++) {
-          if (s.data[i + c] * a + 255 * (1 - a) < 240) {
-            n++;
-            break;
-          }
-        }
-      }
-      return n / (s.width * s.height);
-    };
+    const capture = r.captureFrame as () => Promise<Capture>;
+    const ink = (window as unknown as HarnessWindow).__ink;
 
     const steps = [];
     for (const [w, h] of [
@@ -165,7 +139,7 @@ test('a resized view redraws at the new size', async ({ page }) => {
 /** A lost device takes every pipeline, texture and buffer with it. */
 test('a view recovers from a lost device', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'bar'));
   await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     const view = (
@@ -174,20 +148,8 @@ test('a view recovers from a lost device', async ({ page }) => {
       }
     ).view;
     const r = view._renderer;
-    const capture = r.captureFrame as () => Promise<{ width: number; height: number; data: Uint8Array }>;
-    const ink = (s: { width: number; height: number; data: Uint8Array }) => {
-      let n = 0;
-      for (let i = 0; i < s.data.length; i += 4) {
-        const a = s.data[i + 3] / 255;
-        for (let c = 0; c < 3; c++) {
-          if (s.data[i + c] * a + 255 * (1 - a) < 240) {
-            n++;
-            break;
-          }
-        }
-      }
-      return n / (s.width * s.height);
-    };
+    const capture = r.captureFrame as () => Promise<Capture>;
+    const ink = (window as unknown as HarnessWindow).__ink;
 
     const before = +ink(await capture.call(r)).toFixed(4);
     const firstDevice = r._device;

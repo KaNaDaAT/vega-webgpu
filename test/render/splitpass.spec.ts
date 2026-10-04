@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { collectPageErrors, harnessUrl, waitForRender } from './drive.js';
 
 /**
  * A frame that breaks its own render pass, on the two attachment shapes the
@@ -40,14 +40,10 @@ for (const { query, what } of SHAPES) {
       'the CI runner has no compositor, and acquiring the swapchain costs it the device',
     );
     test.setTimeout(180_000);
-    const errors: string[] = [];
-    page.on('pageerror', e => errors.push(String(e)));
-    page.on('console', m => {
-      if (m.type() === 'error') errors.push(m.text());
-    });
+    const errors = collectPageErrors(page, { withConsole: true });
 
     for (const scene of SCENES) {
-      await page.goto(`/test/render/scene-harness.html?scene=${scene}&renderer=webgpu${query}`);
+      await page.goto(harnessUrl('scene', scene, 'webgpu', query));
       await waitForRender(page);
       const state = await page.evaluate(async () => {
         const w = window as unknown as Harness;

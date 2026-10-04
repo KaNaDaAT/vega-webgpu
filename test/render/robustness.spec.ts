@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { png, renderInHarness, saveArtifact } from './compare.js';
+import { harnessUrl } from './drive.js';
 
 /**
  * Renders scenegraph fixtures built from input a mark should never see: NaN and
@@ -79,7 +80,7 @@ const cases = readdirSync(HOSTILE)
   .sort();
 
 async function renderHostile(page: Page, name: string) {
-  const url = `/test/render/scene-harness.html?dir=hostile&scene=${encodeURIComponent(name)}&renderer=webgpu`;
+  const url = harnessUrl('scene', name, 'webgpu', '&dir=hostile');
   const result = await renderInHarness(page, url, 'webgpu');
   const state = await page.evaluate(() => {
     const w = window as unknown as { renderer?: Record<string, unknown> };

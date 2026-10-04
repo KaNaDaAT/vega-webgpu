@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { channelStats, diffPngs, renderInHarness, type RendererName } from './compare.js';
 import { renderSpecs } from './specs.js';
 import { renderScenes } from './scenes.js';
+import { harnessUrl } from './drive.js';
 
 /**
  * Ranks every spec and fixture by how far its render is from canvas, so the
@@ -17,11 +18,11 @@ import { renderScenes } from './scenes.js';
  * WEBGPU_FIDELITY is set. `npx cross-env WEBGPU_FIDELITY=1 playwright test fidelity`
  */
 function specUrl(name: string, renderer: RendererName): string {
-  return `/test/render/harness.html?spec=${encodeURIComponent(name)}&renderer=${renderer}`;
+  return harnessUrl('spec', name, renderer);
 }
 
 function sceneUrl(name: string, renderer: RendererName): string {
-  return `/test/render/scene-harness.html?scene=${encodeURIComponent(name)}&renderer=${renderer}`;
+  return harnessUrl('scene', name, renderer);
 }
 
 interface Row {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender } from './drive.js';
 
 /**
  * The shape mark caches triangulated geometry per item. A key shared by two
@@ -8,7 +8,7 @@ import { waitForRender } from './drive.js';
  */
 test('shape geometry is cached one entry per item', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('/test/render/harness.html?spec=choropleth-stroked&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'choropleth-stroked'));
   await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     const view = (
@@ -58,7 +58,7 @@ interface StrokeItem {
  */
 test('a shape outline follows a change of stroke cap', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('/test/render/harness.html?spec=map-fit-stroked&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'map-fit-stroked'));
   await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     const w = window as unknown as {

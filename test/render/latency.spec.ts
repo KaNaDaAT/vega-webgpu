@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender } from './drive.js';
 
 /**
  * How long a render waits when one is already in flight, which is what an
@@ -9,7 +9,7 @@ test('render latency', async ({ page }) => {
   test.skip(!process.env.WEBGPU_BENCH, 'set WEBGPU_BENCH=1 to run the benchmark');
   const rows: string[] = [];
   for (const spec of ['tree-radial-bundle', 'bar', 'scatter-plot']) {
-    await page.goto(`/test/render/harness.html?spec=${spec}&renderer=webgpu`);
+    await page.goto(harnessUrl('spec', spec));
     await waitForRender(page, 45_000);
     const out = await page.evaluate(async () => {
       const w = window as unknown as {

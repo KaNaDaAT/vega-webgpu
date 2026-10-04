@@ -15,18 +15,10 @@
 
     const dir = params.get('dir') === 'hostile' ? 'scenes-hostile' : 'scenes';
     const fixture = await window.SceneFixture.load('./', name, dir);
-    const module = vega.renderModule(rendererName);
-    if (!module?.renderer) {
-      throw new Error(`No renderer registered for '${rendererName}'.`);
-    }
-
-    const r = new module.renderer();
-    applyTestOptions(r, params);
-    r.initialize(document.querySelector('#vis'), fixture.width, fixture.height, fixture.origin ?? [0, 0]);
-    r.background(fixture.background ?? '#ffffff');
-    window.renderer = r;
-
-    await r.renderAsync(window.SceneFixture.sceneOf(fixture));
+    const r = await window.SceneFixture.render(fixture, rendererName, document.querySelector('#vis'), renderer => {
+      applyTestOptions(renderer, params);
+      window.renderer = renderer;
+    });
 
     const kind = rendererKind(r);
     window.__rendererKind = kind;

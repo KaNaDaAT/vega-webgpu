@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { collectPageErrors } from './drive.js';
 
 test('an old build loads with the vega it was written for', async ({ page }) => {
   test.setTimeout(180_000);
-  const errors: string[] = [];
-  page.on('pageerror', e => errors.push(String(e)));
+  const errors = collectPageErrors(page);
   await page.goto('/releases/marks.html?build=1.2.0&view=canvas&mark=rect');
   await page.waitForFunction(
     () => ((window as unknown as { __views?: unknown[] }).__views?.length ?? 0) >= 1,

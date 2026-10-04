@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { renderScenes } from './scenes.js';
-import { waitForRender } from './drive.js';
+import { collectPageErrors, harnessUrl, waitForRender } from './drive.js';
 
 /**
  * WebGPU reports a misuse through `onuncapturederror` and carries on drawing,
@@ -23,14 +23,10 @@ const WATCHED = [
 
 test('redrawing a fixture reports no GPU error', async ({ page }) => {
   test.setTimeout(300_000);
-  const errors: string[] = [];
-  page.on('console', m => {
-    if (m.type() === 'error') errors.push(m.text());
-  });
-  page.on('pageerror', e => errors.push(String(e)));
+  const errors = collectPageErrors(page, { withConsole: true });
 
   for (const scene of WATCHED) {
-    await page.goto(`/test/render/scene-harness.html?scene=${scene}&renderer=webgpu&offscreen=1`);
+    await page.goto(harnessUrl('scene', scene, 'webgpu', '&offscreen=1'));
     await waitForRender(page);
     await page.evaluate(
       async ([name]: string[]) => {

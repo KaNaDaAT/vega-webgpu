@@ -1,9 +1,46 @@
 import type { Page } from '@playwright/test';
 
-/** What the harnesses publish on `window` once a render has settled. */
-interface HarnessWindow {
+/** A frame read back off the GPU, as `captureFrame` resolves it. */
+export interface Capture {
+  width: number;
+  height: number;
+  data: Uint8Array;
+}
+
+/** What the harnesses publish on `window`. */
+export interface HarnessWindow {
   __renderDone?: boolean;
   __renderError?: string;
+  /** Share of a frame drawn on, over white. See harness-common.js. */
+  __ink(shot: Capture): number;
+}
+
+/**
+ * The harness page for a spec or a scene fixture, drawn with `renderer`.
+ * `extra` is the rest of the query, as `&name=value` pairs.
+ */
+export function harnessUrl(kind: 'spec' | 'scene', name: string, renderer = 'webgpu', extra = ''): string {
+  const page = kind === 'spec' ? 'harness' : 'scene-harness';
+  return `/test/render/${page}.html?${kind}=${encodeURIComponent(name)}&renderer=${renderer}${extra}`;
+}
+
+/**
+ * Records a page's uncaught errors as they happen, and its console errors too
+ * when asked, for a test to assert there were none. Each is cut to `limit`
+ * characters, so a failure message stays readable.
+ */
+export function collectPageErrors(page: Page, { withConsole = false, limit = Infinity } = {}): string[] {
+  const errors: string[] = [];
+  const add = (text: string) => errors.push(text.slice(0, limit));
+  page.on('pageerror', e => add(String(e)));
+  if (withConsole) {
+    page.on('console', m => {
+      if (m.type() === 'error') {
+        add(m.text());
+      }
+    });
+  }
+  return errors;
 }
 
 /**

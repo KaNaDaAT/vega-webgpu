@@ -50,15 +50,6 @@
     const kind = rendererKind(r);
     window.__rendererKind = kind;
 
-    // Wait for the WebGPU renderer's async GPU submission plus any pending
-    // resource loads (images) and the re-render they trigger.
-    if (r && r._renderPromise) {
-      await r._renderPromise;
-      while (r._ready) {
-        await r._ready;
-        await r._renderPromise;
-      }
-    }
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
     installSnapshot(r, kind);

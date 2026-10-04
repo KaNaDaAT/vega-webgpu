@@ -1,7 +1,7 @@
 import { PNG } from 'pngjs';
 import { expect, test, type Page } from '@playwright/test';
 import { channelStats, renderInHarness } from './compare.js';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender } from './drive.js';
 
 /**
  * The one path the rest of the suite never takes.
@@ -48,7 +48,7 @@ interface Presented {
 
 /** What the browser shows, which is not the same as what the renderer drew. */
 async function present(page: Page, spec: string): Promise<Presented> {
-  await page.goto(`/test/render/harness.html?spec=${spec}&renderer=webgpu&offscreen=0`);
+  await page.goto(harnessUrl('spec', spec, 'webgpu', '&offscreen=0'));
   // swallowed, since this checks what the canvas shows even when nothing settled
   await waitForRender(page).catch(() => undefined);
 
@@ -88,7 +88,7 @@ test('a real canvas shows the frame', async ({ page }) => {
   const { shot, why } = await present(page, SPEC);
   test.skip(shot === null, why);
   const shown = shot as Buffer;
-  const drawn = await renderInHarness(page, `/test/render/harness.html?spec=${SPEC}&renderer=webgpu`, 'webgpu');
+  const drawn = await renderInHarness(page, harnessUrl('spec', SPEC), 'webgpu');
 
   expect(
     inked(shown),

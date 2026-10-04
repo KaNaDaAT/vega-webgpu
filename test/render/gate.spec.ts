@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { diffPngs, overWhite, renderInHarness, renderRatio, type DiffResult } from './compare.js';
+import { harnessUrl } from './drive.js';
 import {
   BIAS_DELTA_DEFAULT,
   CROSS_CHECK_DEFAULT,
@@ -92,15 +93,11 @@ function expectBlind(m: DiffResult, budgets: Record<Measure, number>, blind: Mea
 }
 
 function renderSpec(page: Page, spec: string): Promise<Buffer> {
-  return renderInHarness(page, `/test/render/harness.html?spec=${spec}&renderer=webgpu&offscreen=1`, 'webgpu').then(
-    s => s.png,
-  );
+  return renderInHarness(page, harnessUrl('spec', spec, 'webgpu', '&offscreen=1'), 'webgpu').then(s => s.png);
 }
 
 function renderScene(page: Page, scene: string): Promise<Buffer> {
-  return renderInHarness(page, `/test/render/scene-harness.html?scene=${scene}&renderer=webgpu`, 'webgpu').then(
-    s => s.png,
-  );
+  return renderInHarness(page, harnessUrl('scene', scene), 'webgpu').then(s => s.png);
 }
 
 /** The same render with every drawn pixel a few channel levels darker. */

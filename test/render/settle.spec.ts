@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender } from './drive.js';
 
 /** After a drag stops, one more frame redraws the labels at full quality. */
 test('settle after drag', async ({ page }) => {
-  await page.goto('/test/render/harness.html?spec=tree-radial-bundle&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'tree-radial-bundle'));
   await waitForRender(page, 45_000);
   const out = await page.evaluate(async () => {
     const view = (

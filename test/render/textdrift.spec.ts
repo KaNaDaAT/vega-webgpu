@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { diffPngs, renderInHarness } from './compare.js';
+import { harnessUrl } from './drive.js';
 
 /**
  * `canvasTextDrift` places a label where the canvas renderer puts it rather
@@ -10,8 +11,7 @@ import { diffPngs, renderInHarness } from './compare.js';
  * for. `bar` has labels on the boundary too and no drift to move them, so it
  * holds the other half: the option has to leave those exactly alone.
  */
-const url = (spec: string, renderer: string, extra = '') =>
-  `/test/render/harness.html?spec=${spec}&renderer=${renderer}&offscreen=1${extra}`;
+const url = (spec: string, renderer: string, extra = '') => harnessUrl('spec', spec, renderer, `&offscreen=1${extra}`);
 
 /**
  * There is no tie to break at an even pixel ratio: a baseline half way between

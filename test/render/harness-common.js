@@ -72,6 +72,31 @@ function installSnapshot(r, kind) {
 }
 
 /**
+ * Share of a captured frame drawn on, composited over white first, since an
+ * untouched pixel reads as transparent black. A pixel counts once any channel
+ * lands under 240.
+ */
+window.__ink = shot => {
+  let n = 0;
+  for (let i = 0; i < shot.data.length; i += 4) {
+    const a = shot.data[i + 3] / 255;
+    for (let c = 0; c < 3; c++) {
+      if (shot.data[i + c] * a + 255 * (1 - a) < 240) {
+        n++;
+        break;
+      }
+    }
+  }
+  return n / (shot.width * shot.height);
+};
+
+/** A query flag: undefined when it is absent, and on unless it says 0 or false. */
+function boolParam(params, name) {
+  const value = params?.get(name);
+  return value === null || value === undefined ? undefined : value !== '0' && value !== 'false';
+}
+
+/**
  * Applies the options every test render needs. Acquiring the canvas swapchain
  * destroys the device on a runner with no compositor, and tests read the frame
  * back off the GPU anyway, so nothing here ever needs it. Both harnesses go
@@ -90,18 +115,12 @@ function applyTestOptions(renderer, params) {
   if (sampleCount) {
     options.sampleCount = Number(sampleCount);
   }
-  // both ways: the option defaults to on, so a knob that can only set it on
-  // cannot reach the uncached path
-  const cacheShapes = params?.get('cacheShapes');
-  if (cacheShapes !== null && cacheShapes !== undefined) {
-    options.cacheShapes = cacheShapes !== '0' && cacheShapes !== 'false';
-  }
-  const exactRotatedText = params?.get('exactRotatedText');
-  if (exactRotatedText !== null && exactRotatedText !== undefined) {
-    options.exactRotatedText = exactRotatedText !== '0' && exactRotatedText !== 'false';
-  }
-  const canvasTextDrift = params?.get('canvasTextDrift');
-  if (canvasTextDrift !== null && canvasTextDrift !== undefined) {
-    options.canvasTextDrift = canvasTextDrift !== '0' && canvasTextDrift !== 'false';
+  // Both ways: the options default to on, so a knob that can only set one on
+  // cannot reach the path it turns off.
+  for (const name of ['cacheShapes', 'exactRotatedText', 'canvasTextDrift']) {
+    const on = boolParam(params, name);
+    if (on !== undefined) {
+      options[name] = on;
+    }
   }
 }

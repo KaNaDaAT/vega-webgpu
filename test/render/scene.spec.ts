@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { enums } from '../../scripts/vega-enums.mjs';
 import { compareCase, renderInHarness, type RendererName, type RenderResult } from './compare.js';
+import { harnessUrl } from './drive.js';
 import {
   QUAD_DELTA_DEFAULT,
   SCENE_CHECK_DEFAULT,
@@ -91,7 +92,7 @@ function sceneNote(name: string): string {
 }
 
 function renderScene(page: Page, sceneName: string, renderer: RendererName): Promise<RenderResult> {
-  const url = `/test/render/scene-harness.html?scene=${encodeURIComponent(sceneName)}&renderer=${renderer}`;
+  const url = harnessUrl('scene', sceneName, renderer);
   return renderInHarness(page, url, renderer);
 }
 

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { installGpuProbe } from './gpu-probe.js';
 import { shotToPng, type Shot } from './snapshot.js';
-import { waitForRender } from './drive.js';
+import { collectPageErrors, harnessUrl, waitForRender } from './drive.js';
 
 /**
  * Fail-fast gate for CI. If the browser cannot bring up a WebGPU adapter, e.g.
@@ -20,14 +20,13 @@ import { waitForRender } from './drive.js';
  * first is the only output a CI run gets.
  */
 test('WebGPU adapter renders a spec', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', err => errors.push(String(err)));
+  const errors = collectPageErrors(page);
   // the renderer reports device loss and adapter problems through console.warn
   const logs: string[] = [];
   page.on('console', m => logs.push(`${m.type()}: ${m.text()}`));
 
   await installGpuProbe(page);
-  await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'bar'));
   await waitForRender(page, 45_000);
 
   const state = await page.evaluate(() => {

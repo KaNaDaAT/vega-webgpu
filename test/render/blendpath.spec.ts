@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender } from './drive.js';
 
 /**
  * Which of the two blend paths a fixture takes.
@@ -24,7 +24,7 @@ const CASES: { scene: string; offFrame: boolean; why: string }[] = [
 test('a frame takes the blend path it should', async ({ page }) => {
   test.setTimeout(180_000);
   for (const { scene, offFrame, why } of CASES) {
-    await page.goto(`/test/render/scene-harness.html?scene=${scene}&renderer=webgpu`);
+    await page.goto(harnessUrl('scene', scene));
     await waitForRender(page);
     const drew = await page.evaluate(() => {
       const r = (window as unknown as { renderer: { drewOffFrame?: () => boolean } }).renderer;

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { renderInHarness, renderRatio } from './compare.js';
+import { harnessUrl } from './drive.js';
 
 /**
  * A rotated label is rasterized one of two ways. Normally the rotation is
@@ -50,7 +51,7 @@ const ANGLES = [0, 15, 30, 45, 60, 90, 120, 135, 180, 270];
 async function renderRotated(page: Page, renderer: 'webgpu' | 'canvas', exact: boolean): Promise<Buffer> {
   const shot = await renderInHarness(
     page,
-    `/test/render/scene-harness.html?scene=text-rotated&renderer=${renderer}&exactRotatedText=${exact ? 1 : 0}`,
+    harnessUrl('scene', 'text-rotated', renderer, `&exactRotatedText=${exact ? 1 : 0}`),
     renderer,
   );
   return shot.png;

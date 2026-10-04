@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { harnessUrl, waitForRender } from './drive.js';
 
 /**
  * vega swaps renderers by dropping the old one without finalizing it, so
@@ -7,7 +7,7 @@ import { waitForRender } from './drive.js';
  */
 test('swapping renderers does not pile up devices', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/test/render/harness.html?spec=bar&renderer=webgpu');
+  await page.goto(harnessUrl('spec', 'bar'));
   await waitForRender(page, 90_000);
   const out = await page.evaluate(async () => {
     let made = 0;

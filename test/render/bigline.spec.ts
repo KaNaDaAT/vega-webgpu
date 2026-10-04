@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForRender } from './drive.js';
+import { collectPageErrors, harnessUrl, waitForRender } from './drive.js';
 
 /**
  * A line with more points than its instances can be spread into an array.
@@ -21,13 +21,9 @@ interface Harness {
 
 test('a line of twelve thousand points draws', async ({ page }) => {
   test.setTimeout(120_000);
-  const errors: string[] = [];
-  page.on('pageerror', e => errors.push(String(e)));
-  page.on('console', m => {
-    if (m.type() === 'error') errors.push(m.text());
-  });
+  const errors = collectPageErrors(page, { withConsole: true });
 
-  await page.goto('/test/render/scene-harness.html?scene=line-shapes&renderer=webgpu');
+  await page.goto(harnessUrl('scene', 'line-shapes'));
   await waitForRender(page);
 
   const result = await page.evaluate(async (n: number) => {

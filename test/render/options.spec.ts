@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { maxChannelDelta, renderInHarness, type RenderResult } from './compare.js';
+import { harnessUrl } from './drive.js';
 
 /**
  * The two renderer options the harness can set. Nothing else in the suite
@@ -34,7 +35,7 @@ async function render(page: Page, url: string): Promise<Applied> {
   return { ...result, ...state };
 }
 
-const specUrl = (spec: string, extra: string) => `/test/render/harness.html?spec=${spec}&renderer=webgpu${extra}`;
+const specUrl = (spec: string, extra: string) => harnessUrl('spec', spec, 'webgpu', extra);
 
 /** Pipelines bake the sample count, so a change has to reach them and redraw. */
 test('a changed sample count reaches the pipelines', async ({ page }) => {
