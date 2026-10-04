@@ -145,7 +145,6 @@ export const biasDeltaOverrides: Record<string, number> = {
   // Sparse, so almost every inked pixel is an edge and the average is the
   // coverage difference rather than a systematic error on top of it.
   regression: 8, // 6.67
-  'bar-noaxis': 5, // 4.05
   panzoom: 5, // 4.04
   'nulls-scatter-plot': 5, // 3.86
   'splom-outer': 4.5, // 3.46

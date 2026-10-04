@@ -1,0 +1,159 @@
+{
+  "description": "Square cornered rects whose stroke straddles the edge: translucent strokes 4, 1 and 8 wide over a solid fill, one over a gradient, bars a pixel apart whose 1px strokes meet in the gap, and a group background. The fill stops at the rect edge, so the outer half of each stroke lies over the background, as canvas draws it. The rounded rects of rect-variants take another shader path and never showed the fill reaching under the outer half.",
+  "width": 410,
+  "height": 180,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "rect",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 20,
+                "width": 70,
+                "height": 50,
+                "fill": "#4682b4",
+                "stroke": "#000",
+                "strokeWidth": 4,
+                "strokeOpacity": 0.5
+              },
+              {
+                "x": 120.5,
+                "y": 20.5,
+                "width": 70,
+                "height": 50,
+                "fill": "#4682b4",
+                "stroke": "#000",
+                "strokeWidth": 1,
+                "strokeOpacity": 0.5
+              },
+              {
+                "x": 222,
+                "y": 22,
+                "width": 66,
+                "height": 46,
+                "fill": "#4682b4",
+                "stroke": "#e45756",
+                "strokeWidth": 8,
+                "strokeOpacity": 0.4
+              },
+              {
+                "x": 320,
+                "y": 20,
+                "width": 70,
+                "height": 50,
+                "fill": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#4c78a8"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#e45756"
+                    }
+                  ]
+                },
+                "stroke": "#000",
+                "strokeWidth": 4,
+                "strokeOpacity": 0.5
+              },
+              {
+                "x": 20,
+                "y": 100,
+                "width": 10,
+                "height": 60,
+                "fill": "#4682b4",
+                "stroke": "#ccc",
+                "strokeWidth": 1
+              },
+              {
+                "x": 31,
+                "y": 100,
+                "width": 10,
+                "height": 53,
+                "fill": "#4682b4",
+                "stroke": "#ccc",
+                "strokeWidth": 1
+              },
+              {
+                "x": 42,
+                "y": 100,
+                "width": 10,
+                "height": 46,
+                "fill": "#4682b4",
+                "stroke": "#ccc",
+                "strokeWidth": 1
+              },
+              {
+                "x": 53,
+                "y": 100,
+                "width": 10,
+                "height": 39,
+                "fill": "#4682b4",
+                "stroke": "#ccc",
+                "strokeWidth": 1
+              },
+              {
+                "x": 64,
+                "y": 100,
+                "width": 10,
+                "height": 32,
+                "fill": "#4682b4",
+                "stroke": "#ccc",
+                "strokeWidth": 1
+              },
+              {
+                "x": 75,
+                "y": 100,
+                "width": 10,
+                "height": 25,
+                "fill": "#4682b4",
+                "stroke": "#ccc",
+                "strokeWidth": 1
+              }
+            ]
+          },
+          {
+            "marktype": "group",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 120,
+                "y": 100,
+                "width": 70,
+                "height": 60,
+                "fill": "#9ecae9",
+                "stroke": "#2b5d8a",
+                "strokeWidth": 6,
+                "strokeOpacity": 0.5,
+                "items": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

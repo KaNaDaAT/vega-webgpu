@@ -102,13 +102,15 @@ fn roundedRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     return fillStrokeShare(fill, in.stroke, fillCov, max(outer - inner, 0.0));
 }
 
+// lo_dev and hi_dev are the stroke's outer edge. The stroke straddles the
+// rect's own edge, so the fill stops half a stroke inside them.
 fn straightRectColor(in: VertexOutput, fill: vec4<f32>) -> vec4<f32> {
     let p = in.pos.xy;
     let sw = vec2<f32>(in.strokewidth, in.strokewidth) * dpi();
     let outer = boxCoverage(p, in.lo_dev, in.hi_dev);
     let inner = boxCoverage(p, in.lo_dev + sw, in.hi_dev - sw);
-    // this stroke sits inside the edge, so the nominal fill is the whole box
-    return fillStrokeShare(fill, in.stroke, outer, max(outer - inner, 0.0));
+    let fillCov = boxCoverage(p, in.lo_dev + sw * 0.5, in.hi_dev - sw * 0.5);
+    return fillStrokeShare(fill, in.stroke, fillCov, max(outer - inner, 0.0));
 }
 
 fn maxRadius(radii: vec4<f32>) -> f32 {
