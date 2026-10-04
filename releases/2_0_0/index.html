@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="../../favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="../index.css" />
+    <title>vega-webgpu-renderer 2.0.0</title>
+  </head>
+  <body>
+    <header class="slim">
+      <div class="wrap">
+        <p class="eyebrow"><a href="../../">vega-webgpu-renderer</a></p>
+        <h1>Version 2.0.0</h1>
+        <p class="lede">
+          Built for Vega 6. Every mark type is drawn, most edges are antialiased analytically rather than by MSAA, and
+          text goes through a glyph atlas.
+        </p>
+        <p class="actions">
+          <a class="btn primary" href="./vega-webgpu-renderer.js">vega-webgpu-renderer.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.min.js">vega-webgpu-renderer.min.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.module.js">ESM build</a>
+          <a class="btn" href="../marks.html?build=2.0.0">Try it</a>
+          <a class="btn" href="../../gallery/?run=2.0.0">Render gallery</a>
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section>
+        <h2>Load it</h2>
+        <p>
+          This build targets <strong>Vega 6</strong>. Loaded next to a different major version of Vega it throws when it
+          registers itself.
+        </p>
+        <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/2_0_0/vega-webgpu-renderer.min.js"&gt;&lt;/script&gt;</code></pre>
+      </section>
+
+      <section>
+        <h2>Features</h2>
+        <ul>
+          <li>Trail marks, so all twelve of vega mark types render</li>
+          <li>Every value canvas takes in blend, the sixteen mix modes and the Porter Duff operators, on every mark</li>
+          <li>strokeDash on every mark that strokes</li>
+          <li>butt, round and square strokeCap, and miter, round and bevel strokeJoin with strokeMiterLimit</li>
+          <li>Gradient fills on arc, area, group, path, rect, shape, symbol, text and trail</li>
+          <li>Gradient strokes on every mark that strokes</li>
+          <li>strokeForeground, so a group border can draw over its children</li>
+          <li>sampleCount, to pick 4x MSAA or none</li>
+          <li>redrawOnZoom, to follow browser zoom or hold the ratio the canvas was first sized at</li>
+          <li>
+            canvasTextDrift, to place a label where the canvas renderer places it rather than where its own coordinates
+            say
+          </li>
+          <li>
+            The canvas fits itself to the GPU maximum texture size instead of failing, and asks the adapter for its own
+            limit, 16384 on most desktop GPUs, rather than the 8192 default
+          </li>
+        </ul>
+
+        <h2>Performance</h2>
+        <ul>
+          <li>Text draws from a single glyph atlas: a rotating radial tree went from 328 ms a frame to 8.5</li>
+          <li>Cubic curves are evaluated on the GPU rather than flattened on the cpu</li>
+          <li>Item geometry, pipelines and uniform buffers are cached between frames</li>
+          <li>A frame no longer drains the GPU before the next one starts</li>
+          <li>A frame frees the buffers its draws used</li>
+          <li>About 14x faster than the canvas renderer at three hundred thousand points</li>
+          <li>
+            A frame that changes little does little: shape outlines, label metrics, area, trail and clip fills,
+            pipelines and uniforms are kept between frames
+          </li>
+        </ul>
+
+        <h2>Fixes</h2>
+        <ul>
+          <li>
+            Rules, segments, rects, circles and the symbol shapes with a closed form take analytic edge coverage, so an
+            abutting edge no longer leaves a seam
+          </li>
+          <li>
+            An svg path is read through vega own path renderer, so a path mark takes the commands canvas takes,
+            including an arc past 240 degrees
+          </li>
+          <li>
+            A stroke joins and caps the way canvas does: both segments at a vertex keep their own side of one bisector,
+            two facing round caps across a dash gap meet at the midpoint, and a dash cut near a corner no longer leaves
+            the stroke cut off along the inside of it
+          </li>
+          <li>
+            A trail stroke is composited once rather than once per segment, so a translucent or blended one no longer
+            darkens at every joint
+          </li>
+          <li>A blend is exact at any source alpha and over any backdrop, including none</li>
+          <li>A reduced image takes a mip chain with anisotropy rather than four texels</li>
+          <li>Glyphs land on the sub-pixel phase canvas puts them on</li>
+          <li>A group border takes vega half pixel stroke offset</li>
+          <li>A path stops flattening its curves into facets</li>
+          <li>A path that will not tessellate falls back instead of vanishing</li>
+          <li>An arc that sets no innerRadius keeps its cornerRadius, instead of closing the shape on a NaN</li>
+          <li>
+            strokeCap square no longer drops strokeDash on arc, area, path and trail, and a shape keeps the cap when its
+            stroke is solid
+          </li>
+          <li>A gradient filled symbol takes its blend on the stroke as well as the fill</li>
+          <li>
+            A NaN coordinate lands at the origin, the way vega reads it, and a fully transparent colour no longer
+            reaches the frame as NaN
+          </li>
+          <li>A line past six and a half thousand points draws instead of throwing</li>
+          <li>Swapping renderers, or taking over an element, releases the GPU device that was held</li>
+          <li>Each label of a text mark takes its own blend, where every label took the first one</li>
+          <li>A group mark with clip true is clipped, and a mark clipped inside a rounded group follows the corners</li>
+          <li>
+            Step, open, closed and gapped lines take round caps and joins, where their corners were mitered and their
+            ends cut square
+          </li>
+          <li>renderBatch and simpleLine are gone: the line mark batches unconditionally</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="../../">Project page</a>
+          <a href="../../#versions">All versions</a>
+          <a href="../marks.html?build=2.0.0">Mark playground</a>
+          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="../impressum.html">Impressum</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
