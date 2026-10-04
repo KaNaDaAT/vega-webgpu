@@ -127,11 +127,13 @@ writeFileSync(
 const page = readFileSync(join(root, 'test', 'render', 'gallery.html'), 'utf8')
   .replace('../compare-ui.css', './compare-ui.css')
   .replace('../measures.js', './measures.js')
-  .replace('../compare-core.js', './compare-core.js');
+  .replace('../compare-core.js', './compare-core.js')
+  .replace('../compare-ui.js', './compare-ui.js');
 writeFileSync(join(dest, 'index.html'), page);
 copyFileSync(join(root, 'test', 'compare-ui.css'), join(dest, 'compare-ui.css'));
 copyFileSync(join(root, 'test', 'measures.js'), join(dest, 'measures.js'));
 copyFileSync(join(root, 'test', 'compare-core.js'), join(dest, 'compare-core.js'));
+copyFileSync(join(root, 'test', 'compare-ui.js'), join(dest, 'compare-ui.js'));
 copyFileSync(join(root, 'test', 'render', 'gallery.js'), join(dest, 'gallery.js'));
 
 const total = readdirSync(join(dest, 'output')).length;

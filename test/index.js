@@ -150,33 +150,12 @@ const bindHost = document.querySelector('#binds');
 const selectDrive = document.querySelector('#drive');
 const driveLabel = document.querySelector('#driveLabel');
 const overlay = document.querySelector('#overlay');
-const wipe = document.querySelector('#wipe');
-const wipeReadout = document.querySelector('#wipeReadout');
-/**
- * The slider is where the divider sits, so its ends are not "all canvas" and
- * "all webgpu" the way two labels either side of it would suggest. The readout
- * says which renderer has how much, and the corner captions on the render say
- * which side each one is.
- */
-const setWipe = () => {
-  const at = Number(wipe.value);
-  overlay.style.setProperty('--wipe', `${at}%`);
-  wipeReadout.textContent = at === 0 ? 'all webgpu' : at === 100 ? 'all canvas' : `canvas ${Math.round(at)}%`;
-};
-wipe.addEventListener('input', setWipe);
-setWipe();
+// The corner captions on the render say which side each renderer is.
+CompareUI.bindWipe(document.querySelector('#wipe'), document.querySelector('#wipeReadout'), () => overlay);
 
 const wipeControls = document.querySelector('#wipeControls');
 const blinkBox = document.querySelector('#blinkBox');
-const blinkRate = document.querySelector('#blinkRate');
-const setBlinkRate = () => overlay.style.setProperty('--blink', blinkRate.value);
-blinkRate.addEventListener('change', setBlinkRate);
-// A stated preference for less motion picks the slowest rate rather than
-// overriding one, since blink is asked for and its speed is now a control.
-if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-  blinkRate.value = '4s';
-}
-setBlinkRate();
+CompareUI.bindBlink(document.querySelector('#blinkRate'), () => overlay);
 
 const viewModes = document.querySelector('#viewModes');
 let viewMode = 'wipe';
@@ -191,9 +170,7 @@ const setViewMode = () => {
   overlay.classList.toggle('side', viewMode === 'side');
   wipeControls.classList.toggle('idle', viewMode !== 'wipe');
   blinkBox.classList.toggle('idle', viewMode !== 'blink');
-  for (const b of viewModes.querySelectorAll('button')) {
-    b.setAttribute('aria-pressed', String(b.dataset.view === viewMode));
-  }
+  CompareUI.markPressed(viewModes, 'view', viewMode);
 };
 viewModes.addEventListener('click', e => {
   const b = e.target.closest('button');

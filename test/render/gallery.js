@@ -408,16 +408,11 @@ function applyView() {
   $('wipeBox').classList.toggle('idle', state.view !== 'wipe');
   $('blinkBox').classList.toggle('idle', state.view !== 'blink');
   $('diffOpts').classList.toggle('idle', state.view !== 'diff');
-  for (const b of $('viewModes').querySelectorAll('button')) {
-    b.setAttribute('aria-pressed', String(b.dataset.view === state.view));
-  }
+  CompareUI.markPressed($('viewModes'), 'view', state.view);
 }
 
-const setWipe = () => {
-  const at = Number($('wipe').value);
-  document.querySelector('.overlay')?.style.setProperty('--wipe', `${at}%`);
-  $('wipeReadout').textContent = at === 0 ? 'all webgpu' : at === 100 ? 'all canvas' : `canvas ${Math.round(at)}%`;
-};
+const overlayEl = () => document.querySelector('.overlay');
+const setWipe = CompareUI.bindWipe($('wipe'), $('wipeReadout'), overlayEl);
 
 /** Puts the pair on the stage in whatever shape the current view calls for. */
 function paint(pair) {
@@ -574,24 +569,14 @@ $('source').addEventListener('click', e => {
     return;
   }
   state.source = b.dataset.source;
-  for (const o of $('source').querySelectorAll('button')) {
-    o.setAttribute('aria-pressed', String(o.dataset.source === state.source));
-  }
+  CompareUI.markPressed($('source'), 'source', state.source);
   if (state.source !== 'live') {
     disposeLive();
   }
   void show();
 });
 
-$('wipe').addEventListener('input', setWipe);
-// A stated preference for less motion picks the slowest rate rather than
-// overriding one, since blink is asked for and its speed is a control.
-if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-  $('blinkRate').value = '4s';
-}
-$('blinkRate').addEventListener('change', () =>
-  document.querySelector('.overlay')?.style.setProperty('--blink', $('blinkRate').value),
-);
+CompareUI.bindBlink($('blinkRate'), overlayEl);
 for (const id of ['diffThreshold', 'diffStyle', 'diffScope', 'diffColor']) {
   $(id).addEventListener('input', () => {
     if (state.view === 'diff' && current) {
