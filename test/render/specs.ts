@@ -152,6 +152,7 @@ export const biasDeltaOverrides: Record<string, number> = {
   'scatter-plot-guides': 4, // 3.26
   'layout-splom': 4, // 3.16
   'contour-scatter': 3, // 2.34
+  'line-curves': 3, // 2.09 on SwiftShader at dpr 1, 1.79 before its gapped line was walked
   // text, which is all edge
   label: 4, // 2.90
   // the drift option moves labels onto the rows canvas puts them on, which
