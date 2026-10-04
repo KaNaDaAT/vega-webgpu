@@ -231,19 +231,23 @@
        * vega is already on the page.
        */
       async function loadRenderer() {
-        let hosted = [];
-        try {
-          hosted = Object.keys(await fetch('./releases.json').then(r => r.json())).sort((a, b) =>
-            b.localeCompare(a, undefined, { numeric: true }),
-          );
-        } catch {
-          hosted = [];
+        // The hosted builds, newest first, which is the list the demo page offers
+        // as well. releases.json is keyed by the notes, so a candidate is not in
+        // it and a final release is in it before it is hosted. A build that is
+        // hosted but no longer listed, an older candidate, still loads when the
+        // url asks for it, rather than the dev build standing in for it.
+        await script('./versions.js');
+        const hosted = typeof vegaWebGPURendererVersions === 'undefined' ? [] : [...vegaWebGPURendererVersions];
+        const wanted = params.get('build');
+        const folder = v => `./${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
+        if (wanted && wanted !== 'dev' && !hosted.includes(wanted) && (await reachable(folder(wanted)))) {
+          hosted.push(wanted);
         }
         const dev = { id: 'dev', url: '../build/vega-webgpu-renderer.js', label: 'dev (local build)' };
         const sources = [dev].concat(
           hosted.map(v => ({
             id: v,
-            url: `./${v.replaceAll('.', '_')}/vega-webgpu-renderer.js`,
+            url: folder(v),
             label: vegaMajorFor(v) === 5 ? `${v} (needs Vega 5)` : v,
           })),
         );
