@@ -273,10 +273,6 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
             <h3>2.0.0</h3>
             <p class="cardnote">In release candidates. Parity, not improvement.</p>
             <ul>
-              <li>
-                Analytic edge coverage for triangulated fills, so an edge on a pixel boundary matches canvas rather than
-                landing a quarter step off
-              </li>
               <li>Report the bugs found in the canvas renderer along the way to Vega</li>
               <li>Propose it to Vega as an official renderer</li>
             </ul>
@@ -285,6 +281,11 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
             <h3>After 2.0.0</h3>
             <p class="cardnote">Worth doing, not worth holding a release for.</p>
             <ul>
+              <li>
+                Analytic edge coverage for triangulated fills, so an edge on a pixel boundary matches canvas rather than
+                landing a quarter step off
+              </li>
+              <li>Publish to npm</li>
               <li>Viewport clipping, so a very tall view draws only what is on screen</li>
               <li>Tiled rendering for a canvas past the GPU's texture cap</li>
               <li>Per-item compositing, which is what would reproduce canvas's polygon seams</li>

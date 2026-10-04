@@ -49,7 +49,8 @@
       "Item geometry, pipelines and uniform buffers are cached between frames",
       "A frame no longer drains the GPU before the next one starts",
       "A frame frees the buffers its draws used",
-      "About 14x faster than the canvas renderer at three hundred thousand points"
+      "About 14x faster than the canvas renderer at three hundred thousand points",
+      "A frame that changes little does little: shape outlines, label metrics, area, trail and clip fills, pipelines and uniforms are kept between frames"
     ],
     "fixes": [
       "Rules, segments, rects, circles and the symbol shapes with a closed form take analytic edge coverage, so an abutting edge no longer leaves a seam",
@@ -68,6 +69,9 @@
       "A NaN coordinate lands at the origin, the way vega reads it, and a fully transparent colour no longer reaches the frame as NaN",
       "A line past six and a half thousand points draws instead of throwing",
       "Swapping renderers, or taking over an element, releases the GPU device that was held",
+      "Each label of a text mark takes its own blend, where every label took the first one",
+      "A group mark with clip true is clipped, and a mark clipped inside a rounded group follows the corners",
+      "Step, open, closed and gapped lines take round caps and joins, where their corners were mitered and their ends cut square",
       "renderBatch and simpleLine are gone: the line mark batches unconditionally"
     ]
   }

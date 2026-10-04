@@ -64,7 +64,7 @@ const EXPLAIN = {
     na: 'this mark has no stroke',
   },
   strokeCap: {
-    yes: 'round and square ends are drawn; a line whose curve the GPU evaluates still draws butt',
+    yes: 'round and square ends are drawn',
     no: 'ignored, ends draw butt',
     na: 'this mark has no open ends',
   },
