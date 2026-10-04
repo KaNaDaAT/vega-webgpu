@@ -68,7 +68,7 @@ export const sceneMeanDeltaOverrides: Record<string, number> = {
 
 /**
  * Largest channel difference allowed between block averages, over blocks two
- * scene pixels a side. See BLOCK_SCENE_PX in compare.ts.
+ * scene pixels a side. See BLOCK_SCENE_PX in test/measures.js.
  *
  * One number for both pixel ratios, because the block is measured in scene
  * units: at dpi 2 it covers four times the device pixels and reads the same.

@@ -60,54 +60,18 @@
     return x < 0.5 ? [Math.round(2 * x * 255), 200, 40] : [230, Math.round(200 * (1 - (x - 0.5) * 2)), 40];
   }
 
-  const FLAT_EPS = 6;
+  const { BLOCK_SCENE_PX, FLAT_EPS, deltas, inked, spread } = global.RenderMeasures;
 
   /**
-   * Worst-channel spread over each pixel's 3x3 neighbourhood, as a flatness map.
-   * Separable: a horizontal pass then a vertical one over its output, which is
-   * the same answer as the 3x3 window for six reads rather than nine.
+   * The gated measures, so the live view can say what the recorded one says.
+   * They are RenderMeasures', which compare.ts gates on, so a number here means
+   * the same thing as a number there.
    */
-  function spread(img) {
-    const { width: w, height: h, data } = img;
-    const rowLo = new Uint8Array(w * h);
-    const rowHi = new Uint8Array(w * h);
-    const out = new Uint8Array(w * h);
-    for (let c = 0; c < 3; c++) {
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          let lo = 255;
-          let hi = 0;
-          for (let dx = -1; dx <= 1; dx++) {
-            const xx = x + dx;
-            if (xx < 0 || xx >= w) continue;
-            const v = data[(y * w + xx) * 4 + c];
-            if (v < lo) lo = v;
-            if (v > hi) hi = v;
-          }
-          rowLo[y * w + x] = lo;
-          rowHi[y * w + x] = hi;
-        }
-      }
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          let lo = 255;
-          let hi = 0;
-          for (let dy = -1; dy <= 1; dy++) {
-            const yy = y + dy;
-            if (yy < 0 || yy >= h) continue;
-            const i = yy * w + x;
-            if (rowLo[i] < lo) lo = rowLo[i];
-            if (rowHi[i] > hi) hi = rowHi[i];
-          }
-          const r = hi - lo;
-          if (r > out[y * w + x]) out[y * w + x] = r;
-        }
-      }
-    }
-    return out;
+  function gatedMeasures(left, right, blockSide) {
+    const side = Math.max(1, Math.round(blockSide || BLOCK_SCENE_PX));
+    const { bias, quad, ink } = deltas(left, right, side);
+    return { bias, quad, inked: Math.round(ink * left.width * left.height), ink };
   }
-
-  const isLit = (d, i) => d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250;
 
   /**
    * Paints what the two disagree on, and measures how far apart they are.
@@ -119,64 +83,6 @@
    * reason: an edge landing on the other side of a rounding boundary is not a
    * defect, and a mark filled with the wrong colour is.
    */
-  /**
-   * The gated measures, so the live view can say what the recorded one says.
-   *
-   * `bias` is the signed mean over inked pixels and `quad` the worst channel
-   * between block averages, which is the local measure the suite holds a
-   * fixture to. Both are what compare.ts computes on the node side, in the
-   * same units, so a number here means the same thing as a number there.
-   */
-  function gatedMeasures(left, right, blockSide) {
-    const side = Math.max(1, Math.round(blockSide || 2));
-    const w = left.width;
-    const h = left.height;
-    let inked = 0;
-    const signed = [0, 0, 0];
-    for (let i = 0; i < left.data.length; i += 4) {
-      const lit =
-        left.data[i] !== 255 ||
-        left.data[i + 1] !== 255 ||
-        left.data[i + 2] !== 255 ||
-        right.data[i] !== 255 ||
-        right.data[i + 1] !== 255 ||
-        right.data[i + 2] !== 255;
-      if (!lit) {
-        continue;
-      }
-      inked++;
-      for (let c = 0; c < 3; c++) {
-        signed[c] += right.data[i + c] - left.data[i + c];
-      }
-    }
-    const bias = inked ? Math.max(...signed.map(v => Math.abs(v / inked))) : 0;
-
-    let quad = 0;
-    for (let by = 0; by < h; by += side) {
-      for (let bx = 0; bx < w; bx += side) {
-        const sums = [0, 0, 0, 0, 0, 0];
-        let n = 0;
-        for (let y = by; y < Math.min(by + side, h); y++) {
-          for (let x = bx; x < Math.min(bx + side, w); x++) {
-            const i = (y * w + x) * 4;
-            for (let c = 0; c < 3; c++) {
-              sums[c] += left.data[i + c];
-              sums[c + 3] += right.data[i + c];
-            }
-            n++;
-          }
-        }
-        if (!n) {
-          continue;
-        }
-        for (let c = 0; c < 3; c++) {
-          quad = Math.max(quad, Math.abs(sums[c] - sums[c + 3]) / n);
-        }
-      }
-    }
-    return { bias, quad, inked, ink: inked / (w * h) };
-  }
-
   function diffImages(left, right, options) {
     const opts = options ?? {};
     const threshold = Math.max(0, Number(opts.threshold) || 0);
@@ -206,7 +112,7 @@
     let differing = 0;
     let shown = 0;
     let worst = 0;
-    let inked = 0;
+    let inkedCount = 0;
     let sum = 0;
     for (let i = 0, p = 0; i < left.data.length; i += 4, p++) {
       let d = 0;
@@ -222,8 +128,8 @@
       if (d > worst) worst = d;
       if (d > 0) differing++;
       if (d > threshold) shown++;
-      if (isLit(left.data, i) || isLit(right.data, i)) {
-        inked++;
+      if (inked(left.data, i) || inked(right.data, i)) {
+        inkedCount++;
         sum += d;
       }
     }
@@ -256,7 +162,7 @@
     }
 
     const total = left.width * left.height;
-    const mean = inked ? sum / inked : 0;
+    const mean = inkedCount ? sum / inkedCount : 0;
     const scale = style === 'heat' ? `, green ${threshold} to red ${worst}` : '';
     const where = scope === 'flat' ? ' away from any edge' : '';
     return {
@@ -267,12 +173,12 @@
       differing,
       worst,
       mean,
-      inked,
+      inked: inkedCount,
       total,
       summary:
         `${shown.toLocaleString()} pixels${where} differ by more than ${threshold} ` +
         `(${((100 * shown) / total).toFixed(3)}%), ${differing.toLocaleString()} differ at all, ` +
-        `worst channel ${worst}, mean ${mean.toFixed(2)} over ${inked.toLocaleString()} inked${scale}`,
+        `worst channel ${worst}, mean ${mean.toFixed(2)} over ${inkedCount.toLocaleString()} inked${scale}`,
     };
   }
 
