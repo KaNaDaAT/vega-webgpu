@@ -380,15 +380,15 @@
         $('error').textContent =
           'No WebGPU build could be loaded. Run npm run build for the dev option, or pick a hosted version.';
       } else if (loaded.id !== 'dev') {
-        // an old build disagrees with the table wholesale, so say which one is
-        // on and give a way back rather than leaving the reader to guess
+        // the table follows the current source, so a hosted build disagrees with
+        // it wherever anything changed since: say which one is on, and the way back
         $('error').hidden = false;
         $('error').className = 'callout warn';
         $('error').innerHTML = '';
         const said = document.createElement('span');
         said.textContent =
-          `You are on the hosted ${loaded.id} build, which runs on Vega ${loaded.vega}. Everything the feature ` +
-          `table describes is 2.0.0, which is not released yet, so this build will disagree with it. `;
+          `You are on the hosted ${loaded.id} build, which runs on Vega ${loaded.vega}. The feature table ` +
+          `follows the current source, so wherever anything changed since ${loaded.id} this build disagrees with it. `;
         const back = document.createElement('a');
         const to = new URLSearchParams(params);
         to.set('build', 'dev');
