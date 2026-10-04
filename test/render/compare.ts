@@ -7,6 +7,7 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import { shotToPng, type Shot } from './snapshot.js';
 import { waitForRender } from './drive.js';
+import { manifestPath, outputDir } from '../../scripts/paths.mjs';
 import { FLAT_MIN_SAMPLE, INK_MIN_RATIO } from './specs.js';
 import type { SkippedScene } from './scenes.js';
 import '../measures.js';
@@ -25,7 +26,6 @@ const PIXELMATCH_THRESHOLD = 0.15;
 // browse them side by side, wiped, blinked or as the diff, ranked by any of the
 // numbers. Off by default so a normal run does not litter hundreds of PNGs.
 const WRITE_ARTIFACTS = !!process.env.RENDER_ARTIFACTS;
-const OUTPUT_DIR = join(dirname(fileURLToPath(import.meta.url)), 'output');
 let outputDirReady = false;
 
 export type RendererName = 'webgpu' | 'canvas';
@@ -40,12 +40,12 @@ export function saveArtifact(name: string, suffix: string, data: Buffer): void {
     return;
   }
   ensureOutputDir();
-  writeFileSync(join(OUTPUT_DIR, `${name}-${suffix}.png`), data);
+  writeFileSync(join(outputDir, `${name}-${suffix}.png`), data);
 }
 
 function ensureOutputDir(): void {
   if (!outputDirReady) {
-    mkdirSync(OUTPUT_DIR, { recursive: true });
+    mkdirSync(outputDir, { recursive: true });
     outputDirReady = true;
   }
 }
@@ -131,7 +131,6 @@ function runIdentity() {
 
 let identity: ReturnType<typeof runIdentity> | null = null;
 
-const MANIFEST = join(OUTPUT_DIR, 'index.json');
 const SCENES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'scenes');
 const SPECS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'specs-valid');
 
@@ -163,9 +162,9 @@ export function recordCase(entry: GalleryCase): void {
   ensureOutputDir();
   if (!gallery) {
     gallery = new Map();
-    if (existsSync(MANIFEST)) {
+    if (existsSync(manifestPath)) {
       try {
-        for (const c of JSON.parse(readFileSync(MANIFEST, 'utf8')).cases as GalleryCase[]) {
+        for (const c of JSON.parse(readFileSync(manifestPath, 'utf8')).cases as GalleryCase[]) {
           gallery.set(c.file, c);
         }
       } catch {
@@ -178,10 +177,10 @@ export function recordCase(entry: GalleryCase): void {
   // A run that only covered some cases still keeps the rest, so the rows are
   // dropped on what is on disk rather than on what this run touched.
   const cases = [...gallery.values()]
-    .filter(c => existsSync(join(OUTPUT_DIR, `${c.file}-canvas.png`)) && stillExists(c))
+    .filter(c => existsSync(join(outputDir, `${c.file}-canvas.png`)) && stillExists(c))
     .sort((a, b) => a.file.localeCompare(b.file));
   writeFileSync(
-    MANIFEST,
+    manifestPath,
     `${JSON.stringify({ generated: new Date().toISOString(), run: (identity ??= runIdentity()), settings: runSettings(), cases }, null, 2)}
 `,
   );

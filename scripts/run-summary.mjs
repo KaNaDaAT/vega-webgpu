@@ -5,13 +5,8 @@
  * names the hosted gallery and lists what the run did not gate. A skip is only
  * loud if somebody reading the run can see it without downloading anything.
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
-
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const manifest = join(root, 'test', 'render', 'output', 'index.json');
+import { readManifest } from './paths.mjs';
 
 /** The deployed gallery, which pages.yml publishes beside the site. */
 const GALLERY = 'https://kanadaat.github.io/vega-webgpu/gallery/';
@@ -20,11 +15,12 @@ function summary() {
   const dpr = process.env.RENDER_DPR ?? '1';
   const out = [`## Render suite, dpr ${dpr}`, ''];
 
-  if (!existsSync(manifest)) {
+  const manifest = readManifest();
+  if (!manifest) {
     out.push('No gallery manifest was written, so the run did not reach the comparison cases.');
     return out.join('\n');
   }
-  const cases = JSON.parse(readFileSync(manifest, 'utf8')).cases ?? [];
+  const cases = manifest.cases ?? [];
   const skipped = cases.filter(c => c.skip);
   out.push(`${cases.length} cases compared, ${skipped.length} of them recorded but not gated.`, '');
 

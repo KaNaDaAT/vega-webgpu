@@ -6,10 +6,11 @@
  * test/specs-ignore.json, if it exists, holds names to leave out.
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { root } from './paths.mjs';
 
-const testDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'test');
+const testDir = join(root, 'test');
 const manifest = join(testDir, 'specs-valid.json');
 const ignoreFile = join(testDir, 'specs-ignore.json');
 

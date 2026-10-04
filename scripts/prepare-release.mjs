@@ -12,10 +12,9 @@
  */
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { root } from './paths.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const releasesDir = join(root, 'releases');
 const releasesJsonPath = join(releasesDir, 'releases.json');
 

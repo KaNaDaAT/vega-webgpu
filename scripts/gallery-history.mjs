@@ -20,11 +20,10 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { fileURLToPath } from 'node:url';
+import { outputDir, readManifest, root } from './paths.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const arg = name => {
   const i = args.indexOf(`--${name}`);
@@ -45,7 +44,6 @@ const KEEP = Number(arg('keep') ?? 10);
 /** A history in another format is dropped rather than misread. */
 const FORMAT = 1;
 
-const outputDir = join(root, 'test', 'render', 'output');
 const pngDir = join(out, 'png');
 const hashOf = bytes => createHash('sha1').update(bytes).digest('hex').slice(0, 16);
 const pngPath = hash => join(pngDir, `${hash}.png`);
@@ -55,11 +53,10 @@ mkdirSync(pngDir, { recursive: true });
 
 /** The run this workflow recorded, or null when the record step left none. */
 function thisRun() {
-  const path = join(outputDir, 'index.json');
-  if (!existsSync(path)) {
+  const manifest = readManifest();
+  if (!manifest) {
     return null;
   }
-  const manifest = JSON.parse(readFileSync(path, 'utf8'));
   const images = {};
   for (const c of manifest.cases) {
     // the gallery computes the diff from the pair, so the diff png stays behind

@@ -8,10 +8,10 @@
  * changing the matrix below, then re-measure the budgets in scenes.ts.
  */
 import { writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { root } from './paths.mjs';
 
-const scenes = join(dirname(fileURLToPath(import.meta.url)), '..', 'test', 'render', 'scenes');
+const scenes = join(root, 'test', 'render', 'scenes');
 
 const FILL = {
   gradient: 'linear', x1: 0, y1: 0, x2: 0, y2: 1,

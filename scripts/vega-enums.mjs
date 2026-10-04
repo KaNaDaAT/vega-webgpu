@@ -8,9 +8,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+import { pathToFileURL } from 'node:url';
+import { root } from './paths.mjs';
 const out = join(root, 'releases', 'vega-enums.js');
 const require = createRequire(import.meta.url);
 

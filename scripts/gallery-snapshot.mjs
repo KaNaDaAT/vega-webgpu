@@ -26,10 +26,9 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
+import { manifestPath, outputDir, readManifest, root } from './paths.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
   const i = args.indexOf(`--${name}`);
@@ -51,9 +50,8 @@ const outArg = (() => {
 const MEAN = flag('mean', 0);
 const MAX_CASES = flag('max-cases', 0);
 
-const outputDir = join(root, 'test', 'render', 'output');
-const manifestPath = join(outputDir, 'index.json');
-if (!existsSync(manifestPath)) {
+const manifest = readManifest();
+if (!manifest) {
   console.error(
     [
       '',
@@ -68,7 +66,6 @@ if (!existsSync(manifestPath)) {
   process.exit(1);
 }
 
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const dest = outArg ? resolve(root, outArg) : join(root, 'releases', version.replaceAll('.', '_'), 'gallery');
 
 /** Worst first, so the order holds whether or not anything is narrowed. */
