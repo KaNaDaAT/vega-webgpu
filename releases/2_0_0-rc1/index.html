@@ -66,6 +66,10 @@
           <li>A frame no longer drains the GPU before the next one starts</li>
           <li>A frame frees the buffers its draws used</li>
           <li>About 14x faster than the canvas renderer at three hundred thousand points</li>
+          <li>
+            A frame that changes little does little: shape outlines, label metrics, area, trail and clip fills,
+            pipelines and uniforms are kept between frames
+          </li>
         </ul>
 
         <h2>Fixes</h2>
@@ -105,6 +109,12 @@
           </li>
           <li>A line past six and a half thousand points draws instead of throwing</li>
           <li>Swapping renderers, or taking over an element, releases the GPU device that was held</li>
+          <li>Each label of a text mark takes its own blend, where every label took the first one</li>
+          <li>A group mark with clip true is clipped, and a mark clipped inside a rounded group follows the corners</li>
+          <li>
+            Step, open, closed and gapped lines take round caps and joins, where their corners were mitered and their
+            ends cut square
+          </li>
           <li>renderBatch and simpleLine are gone: the line mark batches unconditionally</li>
         </ul>
       </section>
