@@ -15,6 +15,8 @@ const state = {
   snapshot: null,
   /** png name to hash, when the run comes from the hosted history rather than output/. */
   images: null,
+  /** Case file to the checks it failed in the run on show, for the cases that failed any. */
+  failures: new Map(),
   pick: null,
   view: 'side',
   source: 'recorded',
@@ -41,12 +43,17 @@ function applyFit(el) {
 
 /* ---------------------------------------------------------------- sidebar */
 
+/** The checks a case failed in the run on show, none when it passed or nothing was recorded. */
+const failuresOf = c => state.failures.get(c.file) ?? [];
+
 function drawList() {
   const q = $('filter').value.trim().toLowerCase();
   const key = $('sort').value;
   const rows = state.cases
     .filter(c => !q || c.name.toLowerCase().includes(q))
-    .sort((a, b) => (key === 'name' ? a.name.localeCompare(b.name) : (b[key] ?? 0) - (a[key] ?? 0)));
+    .sort((a, b) => (key === 'name' ? a.name.localeCompare(b.name) : (b[key] ?? 0) - (a[key] ?? 0)))
+    // a failed case comes first, whatever the order under it
+    .sort((a, b) => Math.sign(failuresOf(b).length) - Math.sign(failuresOf(a).length));
 
   $('list').innerHTML = '';
   for (const c of rows) {
@@ -61,8 +68,14 @@ function drawList() {
       el.classList.add('skipped');
       el.querySelector('.kind').title = c.skip.summary;
     }
+    const failed = failuresOf(c);
+    if (failed.length) {
+      el.classList.add('failed');
+      el.querySelector('.kind').textContent = 'failed';
+      el.querySelector('.kind').title = failed.map(RenderMeasures.describe).join(', and ');
+    }
     if (state.hasRecorded) {
-      const flat = c.flatSample >= 1000 ? `flat ${c.flat.toFixed(2)}` : 'flat n/a';
+      const flat = c.flatSample >= RenderMeasures.FLAT_MIN_SAMPLE ? `flat ${c.flat.toFixed(2)}` : 'flat n/a';
       el.querySelector('.meta').textContent =
         `${(c.diff * 100).toFixed(3)}%  mean ${c.mean.toFixed(2)}  bias ${(c.bias ?? 0).toFixed(2)}  ${flat}  quad ${(c.quad ?? 0).toFixed(1)}`;
     } else {
@@ -293,6 +306,16 @@ function skipBanner(c) {
   );
 }
 
+/** What a failed case failed on, which the suite stopped at and the numbers below only imply. */
+function failedBanner(c) {
+  const failed = failuresOf(c);
+  if (!failed.length) {
+    return '';
+  }
+  const where = state.source === 'live' ? ' in the recorded run' : '';
+  return `<p class="failed"><b>failed${where}</b> ${escapeHtml(failed.map(RenderMeasures.describe).join(', and '))}.</p>`;
+}
+
 function recordedNote(c) {
   const s = state.settings;
   const b = c.budgets;
@@ -321,8 +344,8 @@ function recordedNote(c) {
     ),
     fact(
       'flat',
-      c.flatSample >= 1000 ? c.flat.toFixed(2) : 'n/a',
-      c.flatSample >= 1000
+      c.flatSample >= RenderMeasures.FLAT_MIN_SAMPLE ? c.flat.toFixed(2) : 'n/a',
+      c.flatSample >= RenderMeasures.FLAT_MIN_SAMPLE
         ? `The same average away from any edge, over ${c.flatSample.toLocaleString()} pixels`
         : 'Too few flat pixels here to measure over',
     ),
@@ -353,7 +376,7 @@ function recordedNote(c) {
   // place that is written down: putting the names in the picture would add text
   // antialiasing to a test that exists to measure something else
   const what = c.note ? `<p class="what"><b>${c.name}</b> ${c.note}</p>` : '';
-  return `${skipBanner(c)}${what}<div class="facts">${facts.join('')}</div>`;
+  return `${skipBanner(c)}${failedBanner(c)}${what}<div class="facts">${facts.join('')}</div>`;
 }
 
 /** The live note, in the same shape, since the two are read one after the other. */
@@ -399,7 +422,7 @@ function liveNote(c, live) {
     facts.push(fact('recorded', 'none yet', 'Run npm run gallery:record for the stored pairs and their numbers'));
   }
   // A skip is not gated whichever way it is being looked at.
-  return `${c ? skipBanner(c) : ''}<div class="facts">${facts.join('')}</div>`;
+  return `${c ? skipBanner(c) + failedBanner(c) : ''}<div class="facts">${facts.join('')}</div>`;
 }
 
 function applyView() {
@@ -682,7 +705,12 @@ async function loadHistory() {
 
 const utc = iso => `${new Date(iso).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 
-function showHistory(history) {
+/**
+ * `failedHere` names the cases the run on show failed, measured from its own
+ * manifest. Every other run says what failed in the index, which a deploy
+ * before that field existed did not write, so such a run is left unmarked.
+ */
+function showHistory(history, failedHere) {
   const pick = $('run');
   history.runs.forEach((r, i) => {
     const o = document.createElement('option');
@@ -690,11 +718,21 @@ function showHistory(history) {
     // the sidebar is narrow, and the line under it has the year and the zone
     const when = r.generated && utc(r.generated).slice(5, 16);
     const what = r.release ? `release ${r.release}` : r.version;
-    o.textContent = [r.id, when, what, i === 0 && 'newest'].filter(Boolean).join(', ');
+    const failed = r.id === history.run.id ? failedHere : (r.failed ?? []);
+    o.textContent = [r.id, when, what, i === 0 && 'newest', failed.length && `${failed.length} failed`]
+      .filter(Boolean)
+      .join(', ');
+    if (failed.length) {
+      o.className = 'failed';
+      o.title = `failed: ${failed.join(', ')}`;
+    }
     o.selected = r.id === history.run.id;
     pick.append(o);
   });
-  pick.title = 'The run the recorded cases come from: the last ten on main, and the runs releases were hosted from';
+  pick.classList.toggle('failed', failedHere.length > 0);
+  pick.title =
+    'The run the recorded cases come from: the last ten on main, and the runs releases were hosted from. ' +
+    'A run in red has cases over their budgets.';
   pick.hidden = false;
   pick.addEventListener('change', () => {
     const url = new URL(location.href);
@@ -703,8 +741,8 @@ function showHistory(history) {
   });
 }
 
-/** Which run the recorded cases come from, which a hosted page says nowhere else. */
-function showRun(run, generated, gone, release) {
+/** Which run the recorded cases come from, which a hosted page says nowhere else, and what failed in it. */
+function showRun(run, generated, gone, release, failed) {
   if (!run && !generated) {
     return;
   }
@@ -716,16 +754,30 @@ function showRun(run, generated, gone, release) {
     run?.url ? `<a href="${escapeHtml(run.url)}">CI run</a>` : 'local run',
   ].filter(Boolean);
   const note = gone ? `. Run ${escapeHtml(gone)} is no longer kept, so this is the newest` : '';
-  $('runInfo').innerHTML = `recorded from ${parts.join(', ')}${note}`;
+  const links = failed.map(c => `<a href="#${encodeURIComponent(c.file)}">${escapeHtml(c.name)}</a>`);
+  const fails = failed.length ? `<span class="fails">${failed.length} failed: ${links.join(', ')}</span>` : '';
+  $('runInfo').innerHTML = `recorded from ${parts.join(', ')}${note}${fails}`;
   $('runInfo').hidden = false;
 }
 
 loadCases().then(({ cases, settings, recorded, snapshot, run, generated, images, history }) => {
-  if (history) {
-    showHistory(history);
-  }
-  showRun(run, generated, history?.gone, history?.manifest.release);
   state.cases = cases;
+  if (recorded) {
+    for (const c of cases) {
+      const failed = RenderMeasures.failures(c);
+      if (failed.length) {
+        state.failures.set(c.file, failed);
+      }
+    }
+  }
+  const failed = cases.filter(c => state.failures.has(c.file)).sort((a, b) => a.name.localeCompare(b.name));
+  if (history) {
+    showHistory(
+      history,
+      failed.map(c => c.name),
+    );
+  }
+  showRun(run, generated, history?.gone, history?.manifest.release, failed);
   state.settings = settings;
   state.hasRecorded = recorded;
   state.snapshot = snapshot ?? null;
@@ -748,7 +800,8 @@ loadCases().then(({ cases, settings, recorded, snapshot, run, generated, images,
     $('sort').hidden = true;
   }
   const want = decodeURIComponent(location.hash.slice(1));
-  state.pick = state.cases.find(c => c.file === want) ?? state.cases[0];
+  // a run that failed opens on what failed
+  state.pick = state.cases.find(c => c.file === want) ?? failed[0] ?? state.cases[0];
   drawList();
   void show();
 });

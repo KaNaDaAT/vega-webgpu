@@ -7,6 +7,16 @@
     <title>render gallery</title>
     <link rel="stylesheet" href="../compare-ui.css" />
     <style>
+      :root {
+        --fail: #d1242f;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fail: #f85149;
+        }
+      }
+
       body {
         display: grid;
         grid-template-columns: 300px 1fr;
@@ -63,6 +73,65 @@
         content: '! ';
         color: #f0b429;
         font-weight: 700;
+      }
+
+      /* a case over its budget in the run on show, and the runs that had one */
+      .case.failed {
+        box-shadow: inset 4px 0 0 var(--fail);
+      }
+
+      .case.failed:not([aria-selected='true']) {
+        background: color-mix(in srgb, var(--fail) 12%, transparent);
+      }
+
+      .case.failed:not([aria-selected='true']) .name,
+      .case.failed:not([aria-selected='true']) .kind {
+        color: var(--fail);
+      }
+
+      .case.failed .kind {
+        font-weight: 700;
+      }
+
+      p.failed {
+        margin: 0 0 8px;
+        max-width: 100ch;
+        padding: 8px 10px;
+        border-left: 3px solid var(--fail);
+        background: color-mix(in srgb, var(--fail) 10%, transparent);
+        color: var(--ink);
+      }
+
+      #note p.failed b {
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 11px;
+        color: var(--fail);
+        margin-right: 8px;
+      }
+
+      #run.failed {
+        border-color: var(--fail);
+        color: var(--fail);
+        font-weight: 600;
+        background: color-mix(in srgb, var(--fail) 10%, var(--bg));
+      }
+
+      #run option {
+        color: var(--ink);
+        background: var(--bg);
+        font-weight: 400;
+      }
+
+      #run option.failed {
+        color: var(--fail);
+        font-weight: 600;
+      }
+
+      #runInfo .fails {
+        display: block;
+        color: var(--fail);
+        font-weight: 600;
       }
 
       .skipped {

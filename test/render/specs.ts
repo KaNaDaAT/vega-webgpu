@@ -1,4 +1,5 @@
 import { specNames } from '../../scripts/specs-manifest.mjs';
+import '../measures.js';
 
 /**
  * Specs that cannot be compared deterministically offline, with the reason.
@@ -160,24 +161,8 @@ export const biasDeltaOverrides: Record<string, number> = {
   'label-drift': 4, // 2.91
 };
 
-/**
- * Flat inked pixels a case needs before it is held to the budget above. A
- * smaller sample is a handful of pixels deciding a whole spec.
- */
-export const FLAT_MIN_SAMPLE = 1000;
-
-/**
- * Share of the frame a case has to draw on before its measures mean anything.
- *
- * Every one of the six is a comparison, so two renders that both draw nothing
- * agree perfectly and the case goes green having tested nothing: a fixture
- * whose url 404s, a spec whose data fails to parse, or a mark dropped in both
- * renderers all pass silently. Over the 193 cases in the corpus the least
- * inked is `rule-degenerate` at 1.60%, and `panzoom` is the sparsest spec at
- * 1.70%, so this sits a third of the way under the real floor and only fires
- * on a case that is effectively blank.
- */
-export const INK_MIN_RATIO = 0.005;
+/** The flat sample and the ink a case needs, in test/measures.js with the rest of the gate. */
+export const { FLAT_MIN_SAMPLE, INK_MIN_RATIO } = RenderMeasures;
 
 /** Per-spec flat-region budgets, for anything that cannot hold the default. */
 export const flatMeanDeltaOverrides: Record<string, number> = {};

@@ -14,7 +14,7 @@
  * `--keep` runs, every full release keeps its run, and the newest rc keeps its
  * until the next rc.
  *
- *   <out>/index.json       the runs, newest first
+ *   <out>/index.json       the runs, newest first, each with the cases over budget
  *   <out>/<id>.json        a run's manifest, with `images` from png name to hash
  *   <out>/png/<hash>.png
  */
@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { join, relative, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { outputDir, readManifest, root } from './paths.mjs';
+import '../test/measures.js';
 
 const args = process.argv.slice(2);
 const arg = name => {
@@ -233,6 +234,7 @@ writeFileSync(
         url: m.run?.url ?? null,
         generated: m.generated ?? null,
         cases: m.cases.length,
+        failed: m.cases.filter(c => globalThis.RenderMeasures.failures(c).length).map(c => c.name),
       })),
     },
     null,

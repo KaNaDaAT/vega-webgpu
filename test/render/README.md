@@ -82,6 +82,8 @@ Emptying the items of `shape-placement` reads 0.00% ink, and every one of the si
 
 `gallery.html` browses what a run left in `output/`, side by side, wiped, blinked or as the diff, ranked by any of the numbers. `npm run gallery:record` fills it.
 
+A case over one of its budgets is red, listed first and opened first, with what it failed on above its numbers. The check is `RenderMeasures.gate` in `test/measures.js`, which `compareCase` asserts on, so the gallery reads a failure out of any manifest the way the suite reached it. On the hosted page, a run that had one is red in the run picker, and a CI run's summary links each failed case there.
+
 It has two sources. **Recorded** reads the pngs and the measurements a run wrote, which are the numbers the suite gated on. **Live** draws both renderers here and now, which is the only way to look at a case the run did not reach, or to see what this browser's own adapter does rather than the run's.
 
 Live reports the same measures, computed in the browser by `compare-core.js` rather than read from the manifest, so they can be compared with the recorded ones directly. Two of them differ on purpose. The differing-pixel count is labelled `any difference`, because the gated count is pixelmatch on the node side at a colour threshold and that is not what runs here. And the whole live pair is this browser at its own pixel ratio on its own adapter, so a live number that disagrees with a recorded one by a little is the two machines disagreeing rather than a defect. The budgets are shown beside them for reference, and nothing in live mode is gated.

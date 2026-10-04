@@ -8,10 +8,9 @@ import { PNG } from 'pngjs';
 import { shotToPng, type Shot } from './snapshot.js';
 import { waitForRender } from './drive.js';
 import { manifestPath, outputDir } from '../../scripts/paths.mjs';
-import { FLAT_MIN_SAMPLE, INK_MIN_RATIO } from './specs.js';
 import type { SkippedScene } from './scenes.js';
 import '../measures.js';
-import type { ChannelStats } from '../measures.js';
+import type { ChannelStats, GateMeasure } from '../measures.js';
 
 export type { ChannelStats };
 
@@ -80,6 +79,8 @@ export interface GalleryCase {
   flat: number;
   flatSample: number;
   quad: number;
+  /** Fraction of the frame either render drew on, which a case needs above a floor. */
+  ink: number;
   /** The budgets this case was held to, so the gallery can say what passing meant. */
   budgets: { diff: number | null; tile: number; mean: number; bias: number; flat: number; quad?: number };
   /** What the case is for, from a fixture's own description. */
@@ -431,7 +432,7 @@ export async function compareCase(
   expect(canvas.rendererKind, `expected canvas to render, got '${canvas.rendererKind}'`).toBe('canvas');
 
   const m = diffPngs(webgpu.png, canvas.png, name);
-  recordCase({
+  const row: GalleryCase = {
     name,
     kind: opts.kind,
     file,
@@ -446,10 +447,12 @@ export async function compareCase(
     flat: m.flatMeanDelta,
     flatSample: m.flatSample,
     quad: m.quadDelta,
+    ink: m.ink,
     note: opts.note,
     skip: opts.skip,
     budgets,
-  });
+  };
+  recordCase(row);
   await testInfo.attach(`${name}-diff (${(m.diffRatio * 100).toFixed(2)}%)`, png(m.diff));
   saveArtifact(file, 'diff', m.diff);
   if (process.env.CROSS_REPORT) {
@@ -461,75 +464,49 @@ export async function compareCase(
     );
   }
 
-  // A skipped case is recorded and shown and nothing below applies to it. The
-  // difference it names is the reason it is skipped, so gating it would only
-  // restate that in a failure.
-  if (opts.skip) {
-    return;
+  // A skip is recorded and shown and held to nothing: the difference it names
+  // is why it is skipped, so gating it would only restate that in a failure.
+  for (const g of RenderMeasures.gate(row)) {
+    const message = GATE_MESSAGES[g.measure](m, budgets);
+    if (g.floor) {
+      expect(g.value, message).toBeGreaterThan(g.limit);
+    } else {
+      expect(g.value, message).toBeLessThanOrEqual(g.limit);
+    }
   }
-
-  // Every measure below compares the two renders, so two blank ones agree on
-  // everything. A case that draws nothing passes all six having tested
-  // nothing, which is what this is here to stop.
-  expect(
-    m.ink,
-    `the two renders between them drew on ${(m.ink * 100).toFixed(2)}% of the frame, under the ` +
-      `${(INK_MIN_RATIO * 100).toFixed(1)}% a case needs before a comparison means anything. ` +
-      `Two blank renders match perfectly, so this is a case that tested nothing`,
-  ).toBeGreaterThan(INK_MIN_RATIO);
-
-  // The worst pixel, where the case is small enough for it to mean something.
-  if (budgets.quad !== undefined) {
-    expect(
-      m.quadDelta,
-      `the worst ${RenderMeasures.BLOCK_SCENE_PX} scene pixel block averages ${m.quadDelta.toFixed(1)} channel levels off ` +
-        `canvas, over the ${budgets.quad} allowed. The pixel count ` +
-        `below can miss this, since a coverage change stays under its colour threshold`,
-    ).toBeLessThanOrEqual(budgets.quad);
-  }
-
-  // Checked even where the pixel count is skipped, since the two measure
-  // different things: this is the colour error the count cannot see.
-  expect(
-    m.meanDelta,
-    `the average inked pixel is ${m.meanDelta.toFixed(2)} channel levels off canvas, over the ` +
-      `${budgets.mean} allowed. The pixel count below ignores anything under 39 levels, so a ` +
-      `uniform shift or a colour cast reads as a perfect match there`,
-  ).toBeLessThanOrEqual(budgets.mean);
-
-  // A coverage difference pushes pixels both ways and a systematic one does
-  // not, so the signed mean catches what the unsigned mean above cannot on
-  // anything made of edges.
-  expect(
-    m.biasDelta,
-    `the average inked pixel is ${m.biasDelta.toFixed(2)} channel levels off canvas in the same ` +
-      `direction, over the ${budgets.bias} allowed. A one-sided error is the render being wrong ` +
-      `rather than the two rasterizers disagreeing about an edge`,
-  ).toBeLessThanOrEqual(budgets.bias);
-
-  // Away from the edges the two rasterizers should agree closely, so where
-  // there is enough interior to measure, the budget is much tighter.
-  if (m.flatSample >= FLAT_MIN_SAMPLE) {
-    expect(
-      m.flatMeanDelta,
-      `away from any edge the average inked pixel is ${m.flatMeanDelta.toFixed(2)} channel levels off ` +
-        `canvas over ${m.flatSample} pixels, past the ${budgets.flat} allowed. A mark interior carries no ` +
-        `antialiasing difference, so this is the colour itself rather than coverage`,
-    ).toBeLessThanOrEqual(budgets.flat);
-  }
-
-  if (budgets.diff === null) {
-    return; // pixel comparison intentionally skipped for this case
-  }
-  expect(
-    m.worstTile,
-    `a 32px square at ${m.worstTileAt.join(',')} is ${(m.worstTile * 100).toFixed(1)}% different, ` +
-      `over the ${(budgets.tile * 100).toFixed(0)}% allowed. The whole-image number below ` +
-      `is diluted by everything that matches`,
-  ).toBeLessThanOrEqual(budgets.tile);
-  expect(
-    m.diffRatio,
-    `webgpu vs canvas diff ${(m.diffRatio * 100).toFixed(3)}% exceeds ${((budgets.diff as number) * 100).toFixed(1)}%. ` +
-      `Open the HTML report (npm run test:report) to compare`,
-  ).toBeLessThanOrEqual(budgets.diff);
 }
+
+/**
+ * What each check says when it fails. Which checks apply, and in what order,
+ * is RenderMeasures.gate, so the gallery and the run summary read a failure
+ * back out of the manifest the way the suite reached it.
+ */
+const GATE_MESSAGES: Record<GateMeasure, (m: DiffResult, b: CaseBudgets) => string> = {
+  ink: m =>
+    `the two renders between them drew on ${(m.ink * 100).toFixed(2)}% of the frame, under the ` +
+    `${(RenderMeasures.INK_MIN_RATIO * 100).toFixed(1)}% a case needs before a comparison means anything. ` +
+    `Two blank renders match perfectly, so this is a case that tested nothing`,
+  quad: (m, b) =>
+    `the worst ${RenderMeasures.BLOCK_SCENE_PX} scene pixel block averages ${m.quadDelta.toFixed(1)} channel levels off ` +
+    `canvas, over the ${b.quad} allowed. The pixel count ` +
+    `below can miss this, since a coverage change stays under its colour threshold`,
+  mean: (m, b) =>
+    `the average inked pixel is ${m.meanDelta.toFixed(2)} channel levels off canvas, over the ` +
+    `${b.mean} allowed. The pixel count below ignores anything under 39 levels, so a ` +
+    `uniform shift or a colour cast reads as a perfect match there`,
+  bias: (m, b) =>
+    `the average inked pixel is ${m.biasDelta.toFixed(2)} channel levels off canvas in the same ` +
+    `direction, over the ${b.bias} allowed. A one-sided error is the render being wrong ` +
+    `rather than the two rasterizers disagreeing about an edge`,
+  flat: (m, b) =>
+    `away from any edge the average inked pixel is ${m.flatMeanDelta.toFixed(2)} channel levels off ` +
+    `canvas over ${m.flatSample} pixels, past the ${b.flat} allowed. A mark interior carries no ` +
+    `antialiasing difference, so this is the colour itself rather than coverage`,
+  tile: (m, b) =>
+    `a 32px square at ${m.worstTileAt.join(',')} is ${(m.worstTile * 100).toFixed(1)}% different, ` +
+    `over the ${(b.tile * 100).toFixed(0)}% allowed. The whole-image number below ` +
+    `is diluted by everything that matches`,
+  diff: (m, b) =>
+    `webgpu vs canvas diff ${(m.diffRatio * 100).toFixed(3)}% exceeds ${((b.diff as number) * 100).toFixed(1)}%. ` +
+    `Open the HTML report (npm run test:report) to compare`,
+};

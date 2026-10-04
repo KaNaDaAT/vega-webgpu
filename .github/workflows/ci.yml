@@ -80,6 +80,7 @@ jobs:
       # Always publish the report. It embeds every spec's webgpu, canvas and
       # diff images, so it doubles as a manual comparison gallery.
       - name: Upload render report
+        id: report
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -88,16 +89,9 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-      # The report and the images are bare zips, so nothing in a run says where
-      # the browsable gallery is or what the run let through. This does both.
-      - name: Summarize the run
-        if: always()
-        run: node scripts/run-summary.mjs >> "$GITHUB_STEP_SUMMARY"
-        env:
-          RENDER_DPR: ${{ matrix.dpr }}
-
       # Raw per-spec webgpu / canvas / diff PNGs for direct manual comparison.
       - name: Upload render images
+        id: images
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -105,3 +99,14 @@ jobs:
           path: test/render/output/
           retention-days: 14
           if-no-files-found: ignore
+
+      # The report and the images are bare zips, so nothing in a run says where
+      # the browsable gallery is or what the run let through. This names the
+      # cases over budget with a gallery link each, and links both zips.
+      - name: Summarize the run
+        if: always()
+        run: node scripts/run-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+        env:
+          RENDER_DPR: ${{ matrix.dpr }}
+          REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+          IMAGES_URL: ${{ steps.images.outputs.artifact-url }}
