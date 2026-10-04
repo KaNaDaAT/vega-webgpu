@@ -9,24 +9,19 @@ import { createUniformBindGroup } from '../util/webgpu.js';
 import type { Point } from '../types/geometry.js';
 import { CURVE_SUBDIVISIONS } from '../shaders/curve.js';
 import { BUTT_END, ROUND_END } from '../util/join.js';
-import geometryForItem from '../path/geometryForItem.js';
 import { line as lineGeometry, lineSpans } from '../path/shapes.js';
 import {
   clipMaskView,
   outlinePipelines,
   type OutlinePipelines,
-  SEGMENT_STRIDE,
+  dashPatternOf,
   enqueueOutline,
-  vertexData,
   getMarkResources,
-  blendPipelines,
   markPipeline,
   segmentInstances,
   strokeEnds,
   strokeRuns,
-  writeSegments,
   type MarkModule,
-  uniformBindGroup,
   paintColour,
   rampOf,
   targetOf,
@@ -56,12 +51,9 @@ interface LineResources {
   /** Pipelines for a segment stroke, which is what a plain line is drawn as. */
   outline: OutlinePipelines;
   segmentBindGroup: HeldBindGroup | null;
-  curveVertexManager: VertexBufferManager;
   /** basis and bezier share this layout and differ only in the shader. */
   spanVertexManager: VertexBufferManager;
   spanBindGroups: Map<string, HeldBindGroup>;
-  /** SolidFill for a tessellated curve, one per blend. */
-  curvePipelineFor: (blend: string) => GPURenderPipeline;
 }
 
 /**
@@ -79,16 +71,12 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
   return getMarkResources(ctx, 'line', device, vb, () => {
     const bufferManager = new BufferManager(device, drawName);
     const outline = outlinePipelines(ctx, device, drawName);
-    const curveVertexManager = new VertexBufferManager(['float32x2', 'float32x4']); // position, color
     const spanVertexManager = new VertexBufferManager(
       [],
       // p0, p1, p2, p3, color, stroke width, kind
       ['float32x2', 'float32x2', 'float32x2', 'float32x2', 'float32x4', 'float32', 'float32'],
     );
-    const curvePipelineFor = blendPipelines(ctx, device, `${drawName}Curve`, 'SolidFill', curveVertexManager);
     return {
-      curveVertexManager,
-      curvePipelineFor,
       spanVertexManager,
       spanBindGroups: new Map(),
       device,
@@ -97,11 +85,6 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
       segmentBindGroup: null,
     };
   });
-}
-
-function dashPattern(points: SceneLinePoint[]): number[] | undefined {
-  const dash = points[0]?.strokeDash;
-  return Array.isArray(dash) && dash.length > 0 ? dash : undefined;
 }
 
 /**
@@ -150,7 +133,7 @@ function isPolyline(points: SceneLinePoint[]): boolean {
   return (!interpolate || interpolate === 'linear') && points.every(p => p.defined !== false);
 }
 
-/** Which cubic each interpolation is. Anything absent tessellates. */
+/** Which cubic each interpolation is. Anything absent is walked as segments. */
 const CURVE_OF: Record<string, CurveKind> = {
   basis: 'basis',
   bundle: 'basis',
@@ -160,21 +143,16 @@ const CURVE_OF: Record<string, CurveKind> = {
   natural: 'bezier',
 };
 
-type LineRoute = CurveKind | 'path' | 'segments';
-
 /**
- * Where an undashed line draws. A recognised cubic goes to the GPU as its own
- * control points, so the stroke follows the real curve instead of a flattened
- * polyline. linear and the step family tessellate, which is what gives their
- * corners a join, and so does a line with gaps.
+ * The cubic an undashed line goes to the GPU as, so the stroke follows the real
+ * curve instead of a flattened polyline, or null for a line that is walked as
+ * segments instead: linear, the step family and a line with gaps.
  *
- * The curve shaders draw no cap of their own. A square one takes the
- * tessellated path, which draws it exactly. A round one stays on the curve and
- * `drawCurve` adds the two discs, since the tessellated route's flattening is
- * further from canvas than a cap is worth: routing there doubles the differing
- * pixels on line-curve-caps.
+ * The curve shaders draw no cap of their own. A square one is walked, which
+ * draws it exactly. A round one stays on the curve and `drawCurve` adds the two
+ * discs, since flattening the curve is further from canvas than a cap is worth.
  */
-function lineRoute(points: SceneLinePoint[]): LineRoute {
+function curveOf(points: SceneLinePoint[]): CurveKind | null {
   const interpolate = points[0]?.interpolate;
   const curve = interpolate === undefined ? undefined : CURVE_OF[interpolate];
   const whole = points.every(p => p.defined !== false);
@@ -185,13 +163,15 @@ function lineRoute(points: SceneLinePoint[]): LineRoute {
   if (!square && curve === 'bezier' && points.length >= 2) {
     return 'bezier';
   }
-  return isPolyline(points) ? 'segments' : 'path';
+  return null;
 }
 
 /**
- * Dashed lines are split into their drawn runs on the cpu and emitted as plain
- * segments. Curved lines are flattened through the path tessellation first, so
- * the same code covers both.
+ * Every line the curve shaders do not draw, walked on the cpu and drawn as
+ * segments, which is what gives every corner its join and every run its caps.
+ * A polyline is walked as it is and anything curved or gapped along the path
+ * tessellation's contours, a dash cuts the walk into runs, and a ramp colours
+ * it from the gradient.
  */
 function drawOutline(
   device: GPUDevice,
@@ -512,26 +492,6 @@ function drawCurve(
   }
 }
 
-/** Curved or gapped lines go through the shared path tessellation. */
-function drawPath(device: GPUDevice, ctx: GPUVegaCanvasContext, res: LineResources, points: SceneLinePoint[]): void {
-  const first = points[0];
-  const shapeGeom = lineGeometry(ctx, points);
-  const geometry = geometryForItem(ctx, { ...first, fill: undefined }, shapeGeom, true);
-  const stroke = Color.from(first.stroke, first.opacity, first.strokeOpacity);
-  const strokeData = vertexData(geometry.strokeTriangles, geometry.strokeCount, stroke);
-  if (strokeData.length === 0) {
-    return;
-  }
-  const pipeline = res.curvePipelineFor(blendKey(first.blend));
-  ctx._renderQueue.enqueue({
-    pipeline,
-    drawCounts: [strokeData.length / res.curveVertexManager.getVertexLength()],
-    vertexBuffers: [res.bufferManager.createGeometryBuffer(strokeData)],
-    bindGroups: [uniformBindGroup(ctx, device, `${drawName}Curve`, pipeline, res.bufferManager.sharedUniformBuffer())],
-    clip: ctx._clip,
-  });
-}
-
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
   const items = scene.items;
   if (!items?.length) {
@@ -541,51 +501,16 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
 
   const points = items as SceneLinePoint[];
-
-  const pattern = dashPattern(points);
-  // A ramp cannot come out of the curve or the extruded path either, so a
-  // gradient stroke walks the contour the way a dash does.
-  const bounds = scene.bounds ?? points[0]?.bounds;
-  const strokeRamp = rampOf(points[0]?.stroke, bounds);
-  if (pattern || strokeRamp) {
-    drawOutline(device, ctx, res, points, strokeRamp);
-    return;
-  }
-
-  const route = lineRoute(points);
-  if (route === 'path') {
-    drawPath(device, ctx, res, points);
-    return;
-  }
-  if (route !== 'segments') {
-    drawCurve(device, ctx, res, points, route);
-    return;
-  }
-
-  if (points.length < 2) {
-    return; // a single point has no segment to draw
-  }
-  queueSegments(device, ctx, res, createAttributes(points), blendKey(points[0]?.blend));
-}
-
-/**
- * Segments of one polyline, with a join at every vertex between the two ends.
- * Both segments at a vertex are cut against the same bisector, so the corner is
- * mitered and neither draws over the other.
- */
-function createAttributes(points: SceneLinePoint[]): Float32Array {
-  const result = new Float32Array((points.length - 1) * SEGMENT_STRIDE);
-  // A line mark carries one stroke, which is the first item's; canvas strokes
-  // the whole path with it. Resolving the colour per segment showed up as the
-  // largest single cost on a spec with many short lines.
   const first = points[0];
-  const col = Color.from(first.stroke, first.opacity ?? 1, first.strokeOpacity ?? 1);
-  const run: Point[] = new Array(points.length);
-  for (let i = 0; i < points.length; i++) {
-    run[i] = [points[i].x || 0, points[i].y || 0];
+  // A dash or a ramp cannot come out of the curve shaders, so a dashed or a
+  // gradient stroke is walked like the lines they do not draw.
+  const strokeRamp = rampOf(first.stroke, scene.bounds ?? first.bounds);
+  const curve = dashPatternOf(first) || strokeRamp ? null : curveOf(points);
+  if (curve) {
+    drawCurve(device, ctx, res, points, curve);
+  } else {
+    drawOutline(device, ctx, res, points, strokeRamp);
   }
-  writeSegments(result, 0, [run], col, first.strokeWidth ?? 1, strokeEnds(first));
-  return result;
 }
 
 export default { draw } satisfies MarkModule;

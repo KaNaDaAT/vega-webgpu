@@ -1,0 +1,212 @@
+{
+  "description": "Lines the curve shaders do not draw, with round caps and joins: step, an open basis, a closed cardinal and a linear line with a gap. canvas rounds every corner and every run end, and the extruded ribbon these took mitered the corners and cut the ends square.",
+  "width": 560,
+  "height": 160,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 25,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "step"
+              },
+              {
+                "x": 65,
+                "y": 40,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "step"
+              },
+              {
+                "x": 105,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "step"
+              },
+              {
+                "x": 145,
+                "y": 60,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "step"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 165,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "basis-open"
+              },
+              {
+                "x": 195,
+                "y": 30,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "basis-open"
+              },
+              {
+                "x": 230,
+                "y": 130,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "basis-open"
+              },
+              {
+                "x": 260,
+                "y": 40,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "basis-open"
+              },
+              {
+                "x": 290,
+                "y": 110,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "basis-open"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 320,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "cardinal-closed"
+              },
+              {
+                "x": 365,
+                "y": 35,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "cardinal-closed"
+              },
+              {
+                "x": 410,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "cardinal-closed"
+              }
+            ]
+          },
+          {
+            "marktype": "line",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 440,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 470,
+                "y": 40,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 500,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "linear",
+                "defined": false
+              },
+              {
+                "x": 515,
+                "y": 60,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "linear"
+              },
+              {
+                "x": 540,
+                "y": 120,
+                "stroke": "#4c78a8",
+                "strokeWidth": 10,
+                "strokeCap": "round",
+                "strokeJoin": "round",
+                "interpolate": "linear"
+              }
+            ]
+          }
+        ],
+        "x": 0,
+        "y": 0,
+        "width": 560,
+        "height": 160
+      }
+    ]
+  }
+}
