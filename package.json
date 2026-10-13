@@ -33,7 +33,7 @@
   "bugs": {
     "url": "https://github.com/KaNaDaAT/vega-webgpu/issues"
   },
-  "main": "build/vega-webgpu-renderer.js",
+  "main": "build/vega-webgpu-renderer.module.js",
   "module": "build/vega-webgpu-renderer.module.js",
   "unpkg": "build/vega-webgpu-renderer.min.js",
   "jsdelivr": "build/vega-webgpu-renderer.min.js",
@@ -42,7 +42,6 @@
     ".": {
       "types": "./build/types/index.d.ts",
       "import": "./build/vega-webgpu-renderer.module.js",
-      "require": "./build/vega-webgpu-renderer.js",
       "default": "./build/vega-webgpu-renderer.module.js"
     }
   },
