@@ -1,6 +1,6 @@
 /**
  * Prepares the GitHub-Pages-hosted release folder for a version:
- *   node scripts/prepare-release.mjs 2.0.0 [--notes "release notes html"]
+ *   node scripts/prepare-release.mjs 2.0.0 [--notes "release notes html"] [--no-version-check]
  *
  * - copies the build output to releases/<x_y_z>/
  * - records the notes in releases/releases.json
@@ -29,8 +29,14 @@ if (!pagesOnly && !/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) {
 const notesIndex = args.indexOf('--notes');
 const notes = notesIndex !== -1 ? (args[notesIndex + 1] ?? '') : '';
 
+/**
+ * release.yml hosts a tag's build on main, which can be on a later version by
+ * then. The workflow has already checked the tag against its own package.json.
+ */
+const versionCheck = !args.includes('--no-version-check');
+
 const packageVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
-if (!pagesOnly && packageVersion !== version) {
+if (!pagesOnly && versionCheck && packageVersion !== version) {
   console.error(`Version mismatch: package.json has ${packageVersion}, release is ${version}.`);
   process.exit(1);
 }
