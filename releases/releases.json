@@ -74,5 +74,14 @@
       "Step, open, closed and gapped lines take round caps and joins, where their corners were mitered and their ends cut square",
       "renderBatch and simpleLine are gone: the line mark batches unconditionally"
     ]
+  },
+  "2.0.1": {
+    "vega": 6,
+    "summary": "A patch for 2.0.0: a stroked rect no longer draws its fill under the outer half of its stroke.",
+    "features": [],
+    "performance": [],
+    "fixes": [
+      "A rect or group with square corners and a stroke stops its fill at its own edge, where the fill reached under the outer half of the stroke: the antialiased edge came out darker, and a translucent stroke showed the fill through it"
+    ]
   }
 }

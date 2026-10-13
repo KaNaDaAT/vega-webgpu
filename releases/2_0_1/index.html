@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="../../favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="../index.css" />
+    <title>vega-webgpu-renderer 2.0.1</title>
+  </head>
+  <body>
+    <header class="slim">
+      <div class="wrap">
+        <p class="eyebrow"><a href="../../">vega-webgpu-renderer</a></p>
+        <h1>Version 2.0.1</h1>
+        <p class="lede">
+          A patch for 2.0.0: a stroked rect no longer draws its fill under the outer half of its stroke.
+        </p>
+        <p class="actions">
+          <a class="btn primary" href="./vega-webgpu-renderer.js">vega-webgpu-renderer.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.min.js">vega-webgpu-renderer.min.js</a>
+          <a class="btn" href="./vega-webgpu-renderer.module.js">ESM build</a>
+          <a class="btn" href="../marks.html?build=2.0.1">Try it</a>
+          <a class="btn" href="../../gallery/?run=2.0.1">Render gallery</a>
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section>
+        <h2>Load it</h2>
+        <p>
+          This build targets <strong>Vega 6</strong>. Loaded next to a different major version of Vega it throws when it
+          registers itself.
+        </p>
+        <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/2_0_1/vega-webgpu-renderer.min.js"&gt;&lt;/script&gt;</code></pre>
+      </section>
+
+      <section>
+        <h2>Fixes</h2>
+        <ul>
+          <li>
+            A rect or group with square corners and a stroke stops its fill at its own edge, where the fill reached
+            under the outer half of the stroke: the antialiased edge came out darker, and a translucent stroke showed
+            the fill through it
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="../../">Project page</a>
+          <a href="../../#versions">All versions</a>
+          <a href="../marks.html?build=2.0.1">Mark playground</a>
+          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="../impressum.html">Impressum</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
